@@ -15,6 +15,13 @@ const nextConfig: NextConfig = {
     // Ignoring the namespace is safer than aliasing each one as they surface.
     config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^@x402\// }));
 
+    // MetaMask's SDK optionally imports React Native storage, which obviously isn't
+    // present in a browser build. Harmless, but it warns on every compile.
+    config.plugins.push(
+      new webpack.IgnorePlugin({ resourceRegExp: /^@react-native-async-storage\/async-storage$/ }),
+      new webpack.IgnorePlugin({ resourceRegExp: /^pino-pretty$/ }),
+    );
+
     // The SDK pulls in node built-ins that don't exist in the browser.
     config.resolve.fallback = {
       ...config.resolve.fallback,

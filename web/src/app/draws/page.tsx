@@ -6,8 +6,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { useDraws } from "@/hooks/useDraws";
 import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
 import { useVerifyDraw } from "@/hooks/useVerifyDraw";
-import { POOL_ADDRESS } from "@/lib/contract";
-import { formatUnits, shortenAddress } from "@/lib/format";
+import { formatUnits } from "@/lib/format";
 import styles from "./draws.module.css";
 
 export default function DrawsTab() {
