@@ -1,11 +1,10 @@
 "use client";
 
-import { useAccount, useConnect, useDisconnect } from "wagmi";
-
+import { ConnectButton } from "@/components/ConnectButton";
 import { Pot3D } from "@/components/Pot3D";
 import { useLastDraw, useNow, usePoolState } from "@/hooks/usePoolState";
 import { POOL_ADDRESS } from "@/lib/contract";
-import { formatCountdown, formatUnits, shortenAddress, splitUnits } from "@/lib/format";
+import { formatCountdown, formatUnits, splitUnits } from "@/lib/format";
 import styles from "./landing.module.css";
 
 export default function Landing() {
@@ -13,14 +12,9 @@ export default function Landing() {
   const state = usePoolState();
   const lastDraw = useLastDraw(state.drawCount);
 
-  const { address, isConnected } = useAccount();
-  const { connect, connectors, isPending } = useConnect();
-  const { disconnect } = useDisconnect();
-
   const drawNumber = Number(state.drawCount);
   const mounted = now > 0;
   const closesIn = Number(state.periodStart + state.periodSeconds) - now;
-  const weekPct = Math.min(100, Math.max(0, (Number(state.minuteOfPeriod) / 10080) * 100));
 
   // "This week's pot" is what pays out at close, projected from the last published pool
   // total. Never a live reading — that would leak every deposit by subtraction.
@@ -54,19 +48,7 @@ export default function Landing() {
         <div className={styles.countdown} suppressHydrationWarning>
           {mounted ? formatCountdown(closesIn) : "—"}
         </div>
-        {isConnected ? (
-          <button className={styles.connect} onClick={() => disconnect()}>
-            {shortenAddress(address)}
-          </button>
-        ) : (
-          <button
-            className={styles.connect}
-            disabled={isPending || connectors.length === 0}
-            onClick={() => connect({ connector: connectors[0] })}
-          >
-            {isPending ? "Connecting…" : "Connect wallet"}
-          </button>
-        )}
+        <ConnectButton variant="hero" />
       </div>
 
       {/* left edge -------------------------------------------------------- */}

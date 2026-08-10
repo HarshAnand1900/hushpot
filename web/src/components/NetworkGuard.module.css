@@ -1,0 +1,52 @@
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px var(--page-pad);
+  background: var(--yellow);
+  color: var(--black);
+  border-bottom: 1px solid var(--black);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--black);
+  animation: hp-live 1.4s infinite;
+  flex: none;
+}
+
+.text {
+  font-size: 13.5px;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 240px;
+}
+
+.action {
+  background: var(--black);
+  color: var(--yellow);
+  padding: 9px 18px;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: opacity 0.18s;
+}
+.action:hover:not(:disabled) {
+  opacity: 0.85;
+}
+.action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.err {
+  width: 100%;
+  font-size: 12px;
+  opacity: 0.75;
+}

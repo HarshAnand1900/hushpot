@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { Big_Shoulders, IBM_Plex_Mono, Newsreader, Space_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
 
+import { NetworkGuard } from "@/components/NetworkGuard";
+
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -56,7 +58,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <div className="scanlines" aria-hidden="true" />
 
         <div className="content">
-          <Providers>{children}</Providers>
+          <Providers>
+            {/* Sits above everything: connecting on the wrong chain otherwise just
+                looks like the app is broken, with nothing to explain why. */}
+            <NetworkGuard />
+            {children}
+          </Providers>
         </div>
       </body>
     </html>

@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
 
-import { formatUnits, shortenAddress } from "@/lib/format";
+import { formatUnits } from "@/lib/format";
+import { ConnectButton } from "./ConnectButton";
 import styles from "./AppHeader.module.css";
 
 const TABS = [
@@ -15,9 +15,6 @@ const TABS = [
 
 export function AppHeader({ pot, sessionOpen }: { pot: bigint; sessionOpen: boolean }) {
   const pathname = usePathname();
-  const { address, isConnected } = useAccount();
-  const { connect, connectors, isPending } = useConnect();
-  const { disconnect } = useDisconnect();
 
   return (
     <header className={styles.header}>
@@ -57,19 +54,7 @@ export function AppHeader({ pot, sessionOpen }: { pot: bigint; sessionOpen: bool
           {sessionOpen ? "Session open" : "Locked"}
         </span>
 
-        {isConnected ? (
-          <button className={styles.wallet} onClick={() => disconnect()} title="Disconnect">
-            {shortenAddress(address)}
-          </button>
-        ) : (
-          <button
-            className={styles.ghost}
-            disabled={isPending || connectors.length === 0}
-            onClick={() => connect({ connector: connectors[0] })}
-          >
-            {connectors.length === 0 ? "No wallet found" : isPending ? "Connecting…" : "Connect wallet"}
-          </button>
-        )}
+        <ConnectButton />
       </div>
     </header>
   );
