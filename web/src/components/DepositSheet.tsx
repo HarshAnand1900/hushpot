@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAccount, useReadContract } from "wagmi";
 
 import { useDeposit } from "@/hooks/useDeposit";
@@ -26,6 +27,11 @@ export function DepositSheet({
   const { address } = useAccount();
   const { step, error, deposit, withdraw, reset, busy } = useDeposit();
   const [raw, setRaw] = useState("");
+
+  // Portalled to <body> for the same reason as the wallet picker: a fixed overlay
+  // rendered inside the page loses to siblings painted above it.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const { data: walletBalance } = useReadContract({
     address: UNDERLYING_ADDRESS,
@@ -80,7 +86,9 @@ export function DepositSheet({
 
   const activeIndex = steps.findIndex((s) => s.key === step);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className={styles.scrim} onClick={() => !busy && onClose()}>
       <div
         className={mode === "deposit" ? `${styles.sheet} yellowBand` : styles.sheet}
@@ -178,6 +186,7 @@ export function DepositSheet({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
