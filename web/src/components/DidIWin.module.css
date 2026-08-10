@@ -1,0 +1,80 @@
+.body {
+  padding: 30px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 260px;
+}
+
+.copy {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-1);
+  max-width: 60ch;
+}
+
+.cipher {
+  margin: 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  line-height: 1.8;
+  color: var(--text-4);
+  max-width: 60ch;
+}
+
+.error {
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: #ff8a7a;
+}
+
+.scramble {
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--yellow);
+}
+
+.sweepTrack {
+  position: relative;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.sweep {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 34%;
+  background: var(--yellow);
+  animation: hp-sweep 1.1s linear infinite;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: hp-in 0.3s ease both;
+}
+
+.lostHead {
+  font-size: 46px;
+  color: var(--white);
+  line-height: 1;
+}
+
+.wonKicker {
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  color: var(--text-3);
+}
+
+.wonAmount {
+  font-size: clamp(52px, 6vw, 76px);
+  color: var(--yellow);
+  line-height: 0.9;
+}

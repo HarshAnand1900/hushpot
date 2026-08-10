@@ -1,0 +1,106 @@
+.body {
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.copy {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-1);
+  max-width: 70ch;
+}
+
+.note {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+  border-left: 2px solid var(--rule);
+  padding-left: 14px;
+  max-width: 70ch;
+}
+
+.grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.cell {
+  border: 1px solid var(--rule);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 200px;
+  animation: hp-in 0.3s ease both;
+}
+
+.cellOpen {
+  border-color: var(--yellow);
+  background: rgba(255, 210, 8, 0.06);
+}
+
+.cellShut {
+  border-color: var(--rule);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.cellTitle {
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  color: var(--text-3);
+}
+
+.cellOwner,
+.cellHandle {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-4);
+}
+
+.cellResult {
+  margin-top: auto;
+  font-family: var(--font-shoulders), sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-size: clamp(28px, 3.4vw, 44px);
+  line-height: 1;
+}
+
+.cellOpen .cellResult {
+  color: var(--yellow);
+}
+
+.cellShut .cellResult {
+  color: var(--text-4);
+  font-size: clamp(20px, 2.2vw, 28px);
+}
+
+.cellNote {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.verdict {
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--white);
+  max-width: 74ch;
+}
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

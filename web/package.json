@@ -1,0 +1,32 @@
+{
+  "name": "hushpot-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hushpot — confidential no-loss prize savings on Sepolia",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
+    "@zama-fhe/relayer-sdk": "^0.4.4",
+    "next": "15.5.23",
+    "react": "19.0.8",
+    "react-dom": "19.0.8",
+    "three": "^0.185.1",
+    "viem": "^2.55.11",
+    "wagmi": "^2.19.5"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
+    "@types/node": "^20.19.30",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.185.4",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.23",
+    "typescript": "^5.9.3"
+  }
+}

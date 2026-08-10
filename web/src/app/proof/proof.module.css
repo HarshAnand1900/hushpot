@@ -1,0 +1,178 @@
+.page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 26px var(--page-pad) 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.copy {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-1);
+  max-width: 70ch;
+}
+
+/* ------------------------------------------------------------- solvency -- */
+
+.solvency {
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.backed,
+.short {
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 14px 16px;
+  border: 1px solid var(--yellow);
+  background: rgba(255, 210, 8, 0.07);
+  color: var(--white);
+  max-width: 70ch;
+  animation: hp-in 0.3s ease both;
+}
+
+.short {
+  border-color: #ff8a7a;
+  background: rgba(255, 138, 122, 0.07);
+  color: #ffb3a8;
+}
+
+.solvencyNote {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* ------------------------------------------------------------- boundary -- */
+
+.boundary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 30px;
+  gap: 0 30px;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+}
+
+.col + .col {
+  border-left: 1px solid rgba(0, 0, 0, 0.25);
+  padding-left: 30px;
+}
+
+.colHead {
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--on-yellow-strong);
+  padding-bottom: 12px;
+}
+
+.row {
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 11px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.14);
+  color: var(--black);
+}
+
+.boundaryNote {
+  grid-column: 1 / -1;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.25);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--black);
+  max-width: 76ch;
+}
+
+/* ------------------------------------------------------------ contracts -- */
+
+.contract {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: center;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.contract:last-child {
+  border-bottom: 0;
+}
+
+.cName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.cAddress {
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  color: var(--yellow);
+  word-break: break-all;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cAddress:hover {
+  color: var(--white);
+}
+
+.cPurpose {
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
+/* --------------------------------------------------------------- limits -- */
+
+.limit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.limit:last-child {
+  border-bottom: 0;
+}
+
+.limitNow {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--white);
+}
+
+.limitNext {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.limitTag {
+  color: var(--yellow);
+}
+
+@media (max-width: 820px) {
+  .boundary,
+  .limit {
+    grid-template-columns: 1fr;
+  }
+  .col + .col {
+    border-left: 0;
+    padding-left: 0;
+    margin-top: 22px;
+  }
+  .contract {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}

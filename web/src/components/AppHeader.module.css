@@ -1,0 +1,152 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--header-bg);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--rule);
+}
+
+.inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 13px var(--page-pad);
+  display: flex;
+  gap: 22px;
+  align-items: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mark {
+  width: 24px;
+  height: 24px;
+  background: var(--yellow);
+  display: grid;
+  place-items: center;
+}
+
+.markDot {
+  width: 7px;
+  height: 7px;
+  background: var(--black);
+}
+
+.word {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tab {
+  padding: 8px 17px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #9a9a9a;
+  transition: background 0.18s, color 0.18s;
+}
+.tab:hover {
+  color: var(--white);
+}
+
+.tabActive {
+  background: var(--yellow);
+  color: var(--black);
+}
+.tabActive:hover {
+  color: var(--black);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.potRead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hair {
+  width: 1px;
+  height: 26px;
+  background: var(--rule);
+}
+
+.potLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--text-3);
+}
+
+.potValue {
+  font-size: 23px;
+  color: var(--white);
+}
+
+.potLive {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--yellow);
+}
+
+.session {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 8px 14px;
+}
+
+.sessionOpen {
+  color: var(--yellow);
+  border-color: rgba(255, 210, 8, 0.5);
+}
+
+.sessionDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ghost,
+.wallet {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text-1);
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: border-color 0.18s, color 0.18s;
+}
+.ghost:hover:not(:disabled),
+.wallet:hover {
+  border-color: var(--yellow);
+  color: var(--white);
+}
+.ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .potRead,
+  .session {
+    display: none;
+  }
+}

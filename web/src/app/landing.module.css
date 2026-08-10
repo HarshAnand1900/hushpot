@@ -1,0 +1,365 @@
+/* Landing — the poster. Full viewport, type over the (eventual) 3D pot. */
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Inset frame with yellow corner brackets, broken bottom-left by the serial line. */
+.frame {
+  position: absolute;
+  inset: 22px;
+  border: 1px solid rgba(255, 210, 8, 0.16);
+  pointer-events: none;
+}
+
+.serial {
+  position: absolute;
+  bottom: -7px;
+  left: 34px;
+  background: var(--black);
+  padding: 0 10px;
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.28em;
+  color: var(--text-4);
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------- top-left -- */
+
+.topLeft {
+  position: absolute;
+  top: 56px;
+  left: 56px;
+  z-index: 3;
+}
+
+.lockup {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.ring {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--yellow);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.ringDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--yellow);
+}
+
+.wordmark {
+  font-family: var(--font-mono), monospace;
+  font-size: 13px;
+  letter-spacing: 0.26em;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.subLockup {
+  margin-top: 12px;
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  line-height: 1.9;
+  color: #a0a0a0;
+}
+
+/* ------------------------------------------------------------- top-right -- */
+
+.topRight {
+  position: absolute;
+  top: 56px;
+  right: 56px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.closesLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--text-2);
+}
+
+.countdown {
+  font-family: var(--font-mono), monospace;
+  font-size: 24px;
+  letter-spacing: 0.04em;
+  color: var(--white);
+  font-variant-numeric: tabular-nums;
+}
+
+.connect {
+  margin-top: 6px;
+  border: 3px solid var(--white);
+  background: transparent;
+  color: var(--white);
+  padding: 13px 26px;
+  font-size: 14px;
+  font-weight: 800;
+  transition: background 0.18s, color 0.18s;
+}
+.connect:hover:not(:disabled) {
+  background: var(--white);
+  color: var(--black);
+}
+.connect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------- side rails -- */
+
+.edgeLeft {
+  position: absolute;
+  left: 46px;
+  top: 50%;
+  transform: translateY(-50%) rotate(180deg);
+  writing-mode: vertical-rl;
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+  z-index: 3;
+}
+
+.stats {
+  position: absolute;
+  right: 56px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  text-align: right;
+  z-index: 3;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.statLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  color: #b0b0b0;
+}
+
+.statValue {
+  font-family: var(--font-mono), monospace;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: #eaeaea;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- centre -- */
+
+.centre {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 760px;
+}
+
+.potRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.potTick {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  color: var(--text-3);
+  margin-top: 18px;
+}
+
+.potNumber {
+  font-size: clamp(72px, 11vw, 168px);
+  color: var(--yellow);
+  line-height: 0.82;
+}
+
+.potFrac {
+  font-size: 0.26em;
+  color: rgba(255, 210, 8, 0.42);
+  letter-spacing: 0;
+}
+
+.potStrap {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--text-2);
+}
+
+/* The pot sits here. It brings its own glow, shadow and quip line. */
+.potNiche {
+  position: relative;
+  margin: 22px 0 4px;
+  display: flex;
+  justify-content: center;
+}
+
+.headline {
+  font-size: clamp(21px, 3.5vh, 34px);
+  line-height: 1.08;
+  max-width: 22ch;
+  margin: 10px 0 0;
+  color: var(--white);
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.9), 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.headline em {
+  font-style: italic;
+}
+
+.ctas {
+  margin-top: 30px;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ctaPrimary {
+  background: var(--yellow);
+  border: 3px solid var(--black);
+  color: var(--black);
+  padding: 17px 34px;
+  font-size: 16px;
+  font-weight: 800;
+  transition: background 0.18s;
+}
+.ctaPrimary:hover {
+  background: var(--white);
+}
+
+.ctaGhost {
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  background: rgba(10, 10, 10, 0.55);
+  color: var(--white);
+  padding: 17px 34px;
+  font-size: 16px;
+  font-weight: 800;
+  transition: border-color 0.18s;
+}
+.ctaGhost:hover {
+  border-color: var(--yellow);
+}
+
+.hint {
+  margin-top: 22px;
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--text-4);
+}
+
+/* ---------------------------------------------------------------- ticker -- */
+
+.ticker {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 22px;
+  z-index: 3;
+  border-top: 1px solid var(--rule);
+  background: rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  padding: 11px 0;
+}
+
+.tickerTrack {
+  display: flex;
+  width: max-content;
+  animation: hp-marquee 42s linear infinite;
+}
+
+.tickerRun {
+  display: flex;
+  gap: 46px;
+  padding-right: 46px;
+}
+
+.tickerItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--text-2);
+}
+
+.tickerAccent {
+  color: var(--yellow);
+}
+
+.tickerDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.75;
+  flex: none;
+}
+
+/* ------------------------------------------------------------- responsive -- */
+
+@media (max-width: 1100px) {
+  .stats,
+  .edgeLeft {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .topLeft,
+  .topRight {
+    position: static;
+    align-items: center;
+  }
+  .page {
+    gap: 26px;
+    justify-content: flex-start;
+    padding-top: 40px;
+  }
+  .centre {
+    margin-top: 10px;
+  }
+}

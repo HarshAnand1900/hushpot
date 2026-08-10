@@ -1,0 +1,83 @@
+.wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 230px;
+  height: 230px;
+  transform: translate(-50%, -55%);
+  background: radial-gradient(circle, rgba(255, 210, 8, 0.16) 0%, transparent 68%);
+  pointer-events: none;
+}
+
+.canvas {
+  position: relative;
+  z-index: 1;
+  cursor: grab;
+  touch-action: none;
+}
+.canvas:active {
+  cursor: grabbing;
+}
+
+/* Elliptical contact shadow, so the object sits in the niche rather than floating. */
+.shadow {
+  width: 118px;
+  height: 9px;
+  margin-top: -4px;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.85), transparent 72%);
+  pointer-events: none;
+}
+
+/* Expanding ring on click. Keyed remount restarts it on rapid clicks. */
+.ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border: 2px solid rgba(255, 210, 8, 0.75);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: pot-ring 0.9s ease-out forwards;
+}
+
+@keyframes pot-ring {
+  from {
+    transform: translate(-50%, -50%) scale(0.42);
+    opacity: 0.6;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1.7);
+    opacity: 0;
+  }
+}
+
+.hint {
+  margin-top: 10px;
+  font-family: var(--font-mono), monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+  color: var(--text-4);
+  text-align: center;
+}
+
+.quip {
+  margin-top: 8px;
+  min-height: 1.4em;
+  font-family: var(--font-newsreader), Georgia, serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--yellow);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring {
+    animation: none;
+  }
+}

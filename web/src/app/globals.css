@@ -1,0 +1,400 @@
+/*
+ * Hushpot design system.
+ * Token values are taken verbatim from the v5 handoff — treat them as fixed.
+ *
+ * Two rules that apply everywhere and are easy to break by habit:
+ *   - border-radius is 0. There are no rounded corners anywhere in this design.
+ *   - #FFD208 is the only accent. Nothing else is coloured for decoration.
+ */
+
+:root {
+  /* Surfaces */
+  --black: #000000;
+  --near-black: #050505;
+  --panel: rgba(6, 6, 6, 0.72);
+  --header-bg: rgba(6, 6, 6, 0.88);
+
+  /* The single accent */
+  --yellow: #ffd208;
+
+  /* Lines */
+  --rule: #2d2d2d;
+  --rule-soft: rgba(45, 45, 45, 0.7);
+
+  /* Text ramp */
+  --white: #ffffff;
+  --text-1: #b8b8b8;
+  --text-2: #8a8a8a;
+  --text-3: #6b6b6b;
+  --text-4: #5e5e5e;
+  --text-5: #4a4a4a;
+
+  /* Ink on the yellow band */
+  --on-yellow-strong: rgba(0, 0, 0, 0.62);
+  --on-yellow: rgba(0, 0, 0, 0.55);
+  --on-yellow-soft: rgba(0, 0, 0, 0.5);
+
+  /* A private value that hasn't been decrypted yet */
+  --masked: #5e5e5e;
+
+  /* Geometry */
+  --page-max: 1260px;
+  --page-pad: 34px;
+  --stack-gap: 22px;
+  --pool-gap: 26px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--black);
+  color: var(--white);
+  font-family: var(--font-grotesk), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- type ---- */
+
+.num {
+  font-family: var(--font-shoulders), var(--font-grotesk), sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 0.82;
+}
+
+.mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 9.5px;
+  color: var(--text-2);
+}
+
+.editorial {
+  font-family: var(--font-newsreader), Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+/* ------------------------------------------------------------ primitives ---- */
+
+/* Hatched panel header — reused on every panel in the app. */
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 22px;
+  border-bottom: 1px solid var(--rule);
+  background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 7px);
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* Hatched yellow band — the pot, the summary bands, the anonymity callout. */
+.yellowBand {
+  background-color: var(--yellow);
+  background-image: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 9px);
+  color: var(--black);
+}
+
+.panel {
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+/* Live dot */
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--yellow);
+  animation: hp-live 1.4s infinite;
+  flex: none;
+}
+
+/* Four corner brackets, applied to a positioned parent. */
+.brackets::before,
+.brackets::after,
+.bracketsLower::before,
+.bracketsLower::after {
+  content: "";
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+.brackets::before {
+  top: 0;
+  left: 0;
+  border-top: 2px solid var(--yellow);
+  border-left: 2px solid var(--yellow);
+}
+.brackets::after {
+  top: 0;
+  right: 0;
+  border-top: 2px solid var(--yellow);
+  border-right: 2px solid var(--yellow);
+}
+.bracketsLower::before {
+  bottom: 0;
+  left: 0;
+  border-bottom: 2px solid var(--yellow);
+  border-left: 2px solid var(--yellow);
+}
+.bracketsLower::after {
+  bottom: 0;
+  right: 0;
+  border-bottom: 2px solid var(--yellow);
+  border-right: 2px solid var(--yellow);
+}
+
+/* -------------------------------------------------------------- buttons ---- */
+
+.btnPrimary {
+  background: var(--yellow);
+  color: var(--black);
+  padding: 15px 30px;
+  font-size: 15px;
+  font-weight: 700;
+  transition: background 0.18s;
+}
+.btnPrimary:hover:not(:disabled) {
+  background: var(--white);
+}
+.btnPrimary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--white);
+  padding: 14px 26px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 0.18s;
+}
+.btnSecondary:hover:not(:disabled) {
+  border-color: var(--yellow);
+}
+
+.btnQuiet {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text-2);
+  padding: 8px 14px;
+  font-size: 11.5px;
+  transition: color 0.18s, border-color 0.18s;
+}
+.btnQuiet:hover:not(:disabled) {
+  color: var(--white);
+  border-color: var(--yellow);
+}
+
+.btnOutlineYellow {
+  border: 1px solid rgba(255, 210, 8, 0.5);
+  color: var(--yellow);
+  padding: 11px 20px;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: background 0.18s, color 0.18s;
+}
+.btnOutlineYellow:hover:not(:disabled) {
+  background: var(--yellow);
+  color: var(--black);
+}
+
+/* ----------------------------------------------------------- animations ---- */
+
+@keyframes hp-live {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes hp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hp-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hp-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@keyframes hp-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes hp-drift-a {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(6vw, 4vh);
+  }
+}
+
+@keyframes hp-drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-7vw, -5vh);
+  }
+}
+
+@keyframes hp-scan {
+  from {
+    transform: translateY(-30vh);
+  }
+  to {
+    transform: translateY(130vh);
+  }
+}
+
+.rise {
+  animation: hp-rise 0.3s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ------------------------------------------------------- animated backdrop -- */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 100% 86% at 50% 38%, #1c1c1c 0%, #151515 46%, #000 72%, #050505 100%);
+}
+
+.backdrop .blobA,
+.backdrop .blobB {
+  position: absolute;
+  width: 60vw;
+  height: 60vh;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+.backdrop .blobA {
+  top: 4%;
+  left: 8%;
+  background: radial-gradient(circle, rgba(255, 210, 8, 0.15), transparent 70%);
+  animation: hp-drift-a 54s ease-in-out infinite;
+}
+.backdrop .blobB {
+  bottom: 6%;
+  right: 6%;
+  background: radial-gradient(circle, rgba(255, 210, 8, 0.13), transparent 70%);
+  animation: hp-drift-b 71s ease-in-out infinite;
+}
+
+.backdrop .lattice {
+  position: absolute;
+  inset: 0;
+  opacity: 0.045;
+  background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.6) 1px, transparent 1px),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.6) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.backdrop .scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 26vh;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+  animation: hp-scan 38s linear infinite;
+}
+
+/* 1px scanline overlay, above the backdrop, below the content. */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.3;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 3px);
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+}

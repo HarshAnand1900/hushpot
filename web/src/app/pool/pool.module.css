@@ -1,0 +1,429 @@
+.page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 26px var(--page-pad) 120px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pool-gap);
+}
+
+/* --------------------------------------------------------------- status -- */
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--rule);
+  padding: 7px 12px;
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.statusRule {
+  flex: 1;
+  height: 1px;
+  min-width: 20px;
+  background: linear-gradient(90deg, var(--rule), transparent);
+}
+
+/* ----------------------------------------------------------------- hero -- */
+
+.hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 214px 0.92fr;
+  border: 1px solid var(--rule);
+}
+
+.potCell {
+  padding: 40px 40px 34px;
+  display: flex;
+  flex-direction: column;
+}
+
+.potKicker {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--on-yellow-strong);
+}
+
+.potNumber {
+  margin-top: 14px;
+  font-size: clamp(64px, 8.6vw, 132px);
+  color: var(--black);
+}
+
+.potFrac {
+  font-size: 0.26em;
+  color: rgba(0, 0, 0, 0.42);
+  letter-spacing: 0;
+}
+
+.potUnit {
+  margin-top: 10px;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--on-yellow);
+}
+
+.tagline {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 2px solid var(--black);
+  max-width: 30ch;
+  color: var(--black);
+}
+
+.tagline > div:first-child {
+  font-size: clamp(26px, 3vw, 42px);
+}
+
+.taglineNote {
+  margin-top: 14px;
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  line-height: 1.9;
+  color: var(--on-yellow-strong);
+}
+
+.potFooter {
+  margin-top: auto;
+  padding-top: 30px;
+  display: flex;
+  align-items: flex-end;
+  gap: 30px;
+}
+
+.potFootLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--on-yellow-strong);
+}
+
+.potCountdown {
+  margin-top: 6px;
+  font-size: 40px;
+  color: var(--black);
+}
+
+.week {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weekTrack {
+  height: 7px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.weekFill {
+  height: 100%;
+  background: var(--black);
+  transition: width 0.6s ease;
+}
+
+/* ---------------------------------------------------------------- niche -- */
+
+.niche {
+  position: relative;
+  background: var(--near-black);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 8px;
+}
+
+.seam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(255, 210, 8, 0.3), transparent);
+}
+
+.seamRight {
+  left: auto;
+  right: 0;
+}
+
+/* ---------------------------------------------------------------- yield -- */
+
+.yieldCell {
+  background: var(--near-black);
+  border-left: 1px solid var(--rule);
+  padding: 34px 32px 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.yieldLabel {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+}
+
+.yieldValue {
+  margin-top: 14px;
+  font-size: clamp(38px, 5vw, 62px);
+  color: var(--yellow);
+}
+
+.yieldNote {
+  margin-top: 10px;
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: var(--text-3);
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 104px;
+}
+
+.bar {
+  flex: 1;
+  min-width: 3px;
+}
+
+.yieldFoot {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--text-4);
+}
+
+/* ----------------------------------------------------------------- rail -- */
+
+.rail {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+.railCell {
+  padding: 20px 24px;
+  border-left: 1px solid var(--rule);
+}
+.railCell:first-child {
+  border-left: 0;
+}
+
+.railLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+}
+
+.railValue {
+  margin-top: 8px;
+  font-family: var(--font-mono), monospace;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  color: var(--white);
+}
+
+/* ------------------------------------------------------------- position -- */
+
+.positionBody {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.posCell {
+  padding: 30px 30px 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border-left: 1px solid var(--rule);
+}
+.posCell:first-child {
+  border-left: 0;
+}
+
+.posLabel {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+}
+
+.posValue {
+  font-size: clamp(36px, 4.6vw, 62px);
+}
+
+.posFoot {
+  margin-top: auto;
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--text-4);
+}
+
+.revealFooter {
+  border-top: 1px solid var(--rule);
+  padding: 24px 30px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.actions {
+  border-top: 1px solid var(--rule);
+  padding: 24px 30px 28px;
+  display: flex;
+  gap: 14px;
+}
+
+.revealNote {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+  max-width: 70ch;
+}
+
+.error {
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  color: #ff6b5e;
+}
+
+.sweepTrack {
+  position: relative;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.sweep {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 34%;
+  background: var(--yellow);
+  animation: hp-sweep 1.1s linear infinite;
+}
+
+/* ----------------------------------------------------------------- draw -- */
+
+.engine {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.engineCell {
+  padding: 22px 26px 20px;
+  border-left: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: background 0.3s;
+}
+.engineCell:first-child {
+  border-left: 0;
+}
+
+.engineTop {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+}
+
+.engineRail {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.engineFill {
+  display: block;
+  height: 100%;
+  background: var(--yellow);
+  transition: width 0.5s ease;
+}
+
+.engineNote {
+  font-size: 12px;
+  color: var(--text-1);
+  line-height: 1.5;
+}
+
+.engineFoot {
+  border-top: 1px solid var(--rule);
+  padding: 20px 26px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-1);
+  max-width: 78ch;
+}
+
+/* ----------------------------------------------------------- responsive -- */
+
+@media (max-width: 1080px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+  .yieldCell {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+  .niche {
+    border-top: 1px solid var(--rule);
+  }
+}
+
+@media (max-width: 760px) {
+  .positionBody,
+  .engine,
+  .rail {
+    grid-template-columns: 1fr;
+  }
+  .posCell,
+  .engineCell,
+  .railCell {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+  .posCell:first-child,
+  .engineCell:first-child,
+  .railCell:first-child {
+    border-top: 0;
+  }
+}
