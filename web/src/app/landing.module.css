@@ -182,6 +182,7 @@
 
 /* ---------------------------------------------------------------- centre -- */
 
+/* Pulled up so the pot number hangs above the object rather than sitting across it. */
 .centre {
   position: relative;
   z-index: 3;
@@ -190,6 +191,13 @@
   align-items: center;
   text-align: center;
   max-width: 760px;
+  margin-top: -12vh;
+}
+
+@media (max-height: 820px) {
+  .centre {
+    margin-top: -6vh;
+  }
 }
 
 .potRow {
@@ -308,10 +316,22 @@
   padding: 11px 0;
 }
 
+/* Declared locally: CSS Modules scopes animation names, so a keyframe defined in
+   globals.css is not reliably found from inside a module. */
+@keyframes tickerScroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 .tickerTrack {
   display: flex;
   width: max-content;
-  animation: hp-marquee 42s linear infinite;
+  animation: tickerScroll 42s linear infinite;
+  will-change: transform;
 }
 
 .tickerRun {

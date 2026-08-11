@@ -89,8 +89,15 @@ export default function Landing() {
         </h1>
 
         <div className={styles.ctas}>
-          <button className={styles.ctaPrimary}>Enter the pool</button>
-          <button className={styles.ctaGhost}>Drop a deposit</button>
+          <a className={styles.ctaPrimary} href="/pool">
+            Enter the pool
+          </a>
+          <button
+            className={styles.ctaGhost}
+            onClick={() => window.dispatchEvent(new CustomEvent("hushpot:drop"))}
+          >
+            Drop a deposit
+          </button>
         </div>
 
       </section>

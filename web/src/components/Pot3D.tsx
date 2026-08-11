@@ -734,6 +734,7 @@ export function Pot3D({
     scene.add(rigRoot);
 
     // Nested additive shells — a soft halo without a post-processing pass.
+    const glowShells: THREE.Mesh[] = [];
     for (const [rad, op] of [
       [2.0, 0.075],
       [2.7, 0.032],
@@ -750,6 +751,7 @@ export function Pot3D({
           side: THREE.BackSide,
         }),
       );
+      glowShells.push(g);
       rigRoot.add(g);
     }
 
@@ -765,17 +767,26 @@ export function Pot3D({
     type Coin = { x: number; y: number; z: number; vy: number; spin: number; rest: number };
     const live: Coin[] = [];
     const dummy = new THREE.Object3D();
+    let pulse = 0;
+
+    // Coins land on the plinth, ringing the bank — dropping them inside an opaque body
+    // meant they were never visible, which is what made the interaction feel dead.
+    const REST_Y = exhibit ? PLINTH - CY + 0.06 : -1.62;
 
     dropCoinRef.current = () => {
       if (live.length >= MAX_COINS) live.shift();
+      const a = Math.random() * Math.PI * 2;
+      const r = 1.75 + Math.random() * 0.95;
       live.push({
-        x: (Math.random() - 0.5) * 0.5,
-        y: 2.6,
-        z: (Math.random() - 0.5) * 0.5,
+        x: Math.cos(a) * r,
+        y: 2.2,
+        z: Math.sin(a) * r,
         vy: 0,
         spin: Math.random() * Math.PI,
-        rest: -1.42 + Math.random() * 0.12,
+        rest: REST_Y + Math.random() * 0.05,
       });
+      // The pot takes the hit: a short squash that eases back out.
+      pulse = 1;
     };
 
     // ---- the exhibit -------------------------------------------------------
@@ -1189,6 +1200,12 @@ export function Pot3D({
     el.addEventListener("pointerleave", onLeave);
     el.addEventListener("wheel", onWheel, { passive: false });
 
+    // "Drop a deposit" on the landing throws three coins in, 130ms apart.
+    const onDropRequest = () => {
+      for (let i = 0; i < 3; i++) setTimeout(() => dropCoinRef.current?.(), i * 130);
+    };
+    window.addEventListener("hushpot:drop", onDropRequest);
+
     const onResize = () => {
       if (!exhibit) return;
       const w = mount.clientWidth || size;
@@ -1248,7 +1265,18 @@ export function Pot3D({
       if (orbitRing) orbitRing.rotation.y += 0.0016;
       // The haze drifts around the drum, so the room never quite sits still.
       if (veilTex) veilTex.offset.x = (t * 0.006) % 1;
+
+      // The pot turns on its own, independently of the camera.
+      rig.rotation.y += 0.0024;
       rig.position.y = Math.sin(t * 0.6) * 0.03;
+
+      // Squash and stretch when a coin lands, easing back out.
+      if (pulse > 0) {
+        pulse = Math.max(0, pulse - 0.04);
+        const squash = Math.sin(pulse * Math.PI) * 0.055;
+        rig.scale.set(1 + squash, 1 - squash, 1 + squash);
+        if (glowShells) glowShells.forEach((g) => g.scale.setScalar(1 + squash * 1.6));
+      }
 
       renderer.render(scene, camera);
     };
@@ -1262,6 +1290,7 @@ export function Pot3D({
       el.removeEventListener("pointerenter", onEnter);
       el.removeEventListener("pointerleave", onLeave);
       el.removeEventListener("wheel", onWheel);
+      window.removeEventListener("hushpot:drop", onDropRequest);
       window.removeEventListener("resize", onResize);
       renderer.dispose();
       engrave.dispose();
