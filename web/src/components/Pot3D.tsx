@@ -418,8 +418,11 @@ export function Pot3D({
 }: {
   size?: number;
   variant?: Variant;
-  /** Pushed back behind app content: same room, lower presence. */
-  dim?: boolean;
+  /**
+   * Pushed back behind app content: same room, lower presence. "faint" goes further
+   * still, for tabs where the panels are doing the work and the room is only a hint.
+   */
+  dim?: boolean | "faint";
   className?: string;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -760,7 +763,7 @@ export function Pot3D({
 
     // ---- coins in the pot --------------------------------------------------
     const MAX_COINS = 40;
-    const coinGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.045, 22);
+    const coinGeo = new THREE.CylinderGeometry(0.235, 0.235, 0.052, 26);
     const coins = new THREE.InstancedMesh(coinGeo, goldLite, MAX_COINS);
     coins.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     coins.count = 0;
@@ -771,15 +774,16 @@ export function Pot3D({
     // keyhole, so a coin going in reads as ciphertext rather than money. Sits just
     // proud of both faces of the coin, leaving the gold showing as an edge.
     const pips = new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(0.145, 0.145, 0.052, 24),
+      new THREE.CylinderGeometry(0.172, 0.172, 0.058, 28),
       // Lit rather than flat: it needs to darken at an angle the way the reference
-      // does, and an unlit fill reads as a sticker.
+      // does, and an unlit fill reads as a sticker. Low metalness — a metallic green
+      // picks up the gold bouncing around the room and turns olive.
       new THREE.MeshStandardMaterial({
-        color: 0x12b981,
-        metalness: 0.4,
-        roughness: 0.42,
-        emissive: 0x0a5f43,
-        emissiveIntensity: 0.28,
+        color: 0x14cc5c,
+        metalness: 0.12,
+        roughness: 0.38,
+        emissive: 0x0f9c40,
+        emissiveIntensity: 0.42,
       }),
       MAX_COINS,
     );
@@ -806,7 +810,9 @@ export function Pot3D({
       live.push({
         x: SLOT_X + (Math.random() - 0.5) * 0.1,
         y: 2.9,
-        z: (Math.random() - 0.5) * 0.5,
+        // Kept inside the slot's length now the coin is wider — half the coin plus
+        // half this jitter has to stay under the slot's 0.43 half-length.
+        z: (Math.random() - 0.5) * 0.36,
         vy: 0,
         rest: SLOT_Y,
       });
@@ -1388,7 +1394,9 @@ export function Pot3D({
 
   return (
     <div
-      className={`${exhibit ? styles.exhibitWrap : styles.wrap} ${dim ? styles.dimmed : ""} ${className ?? ""}`}
+      className={`${exhibit ? styles.exhibitWrap : styles.wrap} ${dim ? styles.dimmed : ""} ${
+        dim === "faint" ? styles.dimmedFaint : ""
+      } ${className ?? ""}`}
     >
       {!exhibit && <div className={styles.glow} aria-hidden="true" />}
 

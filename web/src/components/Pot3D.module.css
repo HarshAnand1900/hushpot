@@ -23,6 +23,13 @@
   filter: saturate(0.5);
 }
 
+/* The Pool tab is where the real work happens — the room drops back to a hint so
+   the balance, odds and buttons have the screen to themselves. Must follow .dimmed
+   to win on source order. */
+.dimmedFaint {
+  opacity: 0.04;
+}
+
 .dimmed .exhibitCanvas {
   pointer-events: none;
 }
