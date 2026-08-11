@@ -767,14 +767,20 @@ export function Pot3D({
     coins.position.y = CY;
     scene.add(coins);
 
-    // A sealed-green pip through the middle of every coin — the same green as the seal
-    // tag and the keyhole, so a dropped coin reads as ciphertext rather than money.
-    // Slightly taller than the coin so it stands proud of both faces.
+    // A sealed-green face inside a gold rim — the same green as the seal tag and the
+    // keyhole, so a coin going in reads as ciphertext rather than money. Sits just
+    // proud of both faces of the coin, leaving the gold showing as an edge.
     const pips = new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(0.072, 0.072, 0.062, 16),
-      // Flat and unlit, not additive — additive green over gold washes out to white
-      // and the pip stops reading as green at all.
-      new THREE.MeshBasicMaterial({ color: 0x12b981 }),
+      new THREE.CylinderGeometry(0.145, 0.145, 0.052, 24),
+      // Lit rather than flat: it needs to darken at an angle the way the reference
+      // does, and an unlit fill reads as a sticker.
+      new THREE.MeshStandardMaterial({
+        color: 0x12b981,
+        metalness: 0.4,
+        roughness: 0.42,
+        emissive: 0x0a5f43,
+        emissiveIntensity: 0.28,
+      }),
       MAX_COINS,
     );
     pips.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -782,29 +788,28 @@ export function Pot3D({
     pips.position.y = CY;
     scene.add(pips);
 
-    type Coin = { x: number; y: number; z: number; vy: number; spin: number; rest: number };
+    type Coin = { x: number; y: number; z: number; vy: number; rest: number };
     const live: Coin[] = [];
     const dummy = new THREE.Object3D();
     let pulse = 0;
 
-    // Coins land on the plinth, ringing the bank — dropping them inside an opaque body
-    // meant they were never visible, which is what made the interaction feel dead.
-    const REST_Y = exhibit ? PLINTH - CY + 0.06 : -1.62;
+    // A coin goes in the way a coin goes into a bank: down the slot on the pot's
+    // back. These match the slot mesh, so the two never drift apart.
+    const SLOT_X = -0.06;
+    const SLOT_Y = BR * 0.88;
 
     dropCoinRef.current = () => {
       if (live.length >= MAX_COINS) live.shift();
-      const a = Math.random() * Math.PI * 2;
-      const r = 1.75 + Math.random() * 0.95;
+      // Straight down the pot's axis, so the coin meets the slot however far the
+      // rig has spun. The jitter is the slot's own footprint: narrow across, long
+      // down its length.
       live.push({
-        x: Math.cos(a) * r,
-        y: 2.2,
-        z: Math.sin(a) * r,
+        x: SLOT_X + (Math.random() - 0.5) * 0.1,
+        y: 2.9,
+        z: (Math.random() - 0.5) * 0.5,
         vy: 0,
-        spin: Math.random() * Math.PI,
-        rest: REST_Y + Math.random() * 0.05,
+        rest: SLOT_Y,
       });
-      // The pot takes the hit: a short squash that eases back out.
-      pulse = 1;
     };
 
     // The pool never stops taking deposits, so the pot never sits still — a coin
@@ -814,7 +819,7 @@ export function Pot3D({
     let ambient = 0;
     const stillPreferred = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (exhibit && !dim && !stillPreferred) {
-      ambient = window.setInterval(() => dropCoinRef.current?.(), 1900);
+      ambient = window.setInterval(() => dropCoinRef.current?.(), 1300);
     }
 
     // ---- the exhibit -------------------------------------------------------
@@ -851,6 +856,42 @@ export function Pot3D({
       );
       column.position.y = PLINTH / 2 - 0.15;
       scene.add(plinth, plinthLip, column);
+
+      // The takings, heaped around the foot of the bank so it stands in its own
+      // money rather than on bare stone. Denser at the base and thinning outward,
+      // with a second course on top so the ring reads as a pile, not a pattern.
+      const BED = 130;
+      const bed = new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(0.2, 0.2, 0.05, 20),
+        new THREE.MeshStandardMaterial({
+          color: 0xf7cb5e,
+          metalness: 1,
+          roughness: 0.18,
+          emissive: 0xc27f12,
+          emissiveIntensity: 0.3,
+        }),
+        BED,
+      );
+      for (let i = 0; i < BED; i++) {
+        const a = Math.random() * 6.283;
+        // Biased inward: squaring a unit random crowds the ring against the pot.
+        const rr = 1.5 + Math.pow(Math.random(), 2) * 1.35;
+        const stacked = Math.random() < 0.3;
+        dummy.position.set(
+          Math.cos(a) * rr,
+          PLINTH + (stacked ? 0.08 : 0.028) + Math.random() * 0.03,
+          Math.sin(a) * rr,
+        );
+        // Mostly lying flat; a few tipped up against the heap.
+        const tilt = Math.random() < 0.16 ? 0.5 + Math.random() * 0.7 : Math.random() * 0.22;
+        dummy.rotation.set(tilt, Math.random() * 6.283, Math.random() * 0.2);
+        dummy.scale.setScalar(0.72 + Math.random() * 0.4);
+        dummy.updateMatrix();
+        bed.setMatrixAt(i, dummy.matrix);
+      }
+      dummy.scale.setScalar(1);
+      bed.instanceMatrix.needsUpdate = true;
+      scene.add(bed);
 
       // ---- plinth detailing ------------------------------------------------
       const studs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.058, 12, 10), goldLite, 44);
@@ -1267,19 +1308,28 @@ export function Pot3D({
       );
       camera.lookAt(0, LOOK_Y, 0);
 
-      for (const c of live) {
-        if (c.y > c.rest) {
-          c.vy -= 0.012;
-          c.y = Math.max(c.rest, c.y + c.vy);
-          if (c.y === c.rest) c.vy = 0;
+      // Fall, then go in. Reaching the slot removes the coin and knocks the body,
+      // which is the whole gesture: the money disappears into a pot nobody opens.
+      for (let i = live.length - 1; i >= 0; i--) {
+        const c = live[i];
+        c.vy -= 0.012;
+        c.y += c.vy;
+        if (c.y <= c.rest) {
+          live.splice(i, 1);
+          pulse = 1;
         }
-        c.spin += 0.04;
       }
       coins.count = live.length;
       pips.count = live.length;
+      // The slot turns with the rig, so the coins are held in rig-local space and
+      // swung into world space here. Rotated edge-on and squared to the slot's
+      // length — a coin lying flat would not fit through it.
+      const ry = rig.rotation.y;
+      const cosY = Math.cos(ry);
+      const sinY = Math.sin(ry);
       live.forEach((c, i) => {
-        dummy.position.set(c.x, c.y, c.z);
-        dummy.rotation.set(c.y > c.rest ? c.spin : Math.PI / 2, c.spin * 0.4, 0);
+        dummy.position.set(c.x * cosY + c.z * sinY, c.y, -c.x * sinY + c.z * cosY);
+        dummy.rotation.set(0, ry, Math.PI / 2);
         dummy.updateMatrix();
         coins.setMatrixAt(i, dummy.matrix);
         pips.setMatrixAt(i, dummy.matrix);
