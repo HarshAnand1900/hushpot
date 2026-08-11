@@ -1,6 +1,11 @@
 /* Landing — the poster. Full viewport, type over the (eventual) 3D pot. */
 
+/* The page scrolls; the hero below is what fills a viewport. */
 .page {
+  position: relative;
+}
+
+.hero {
   position: relative;
   min-height: 100vh;
   padding: 22px;

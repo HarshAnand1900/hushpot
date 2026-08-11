@@ -5,6 +5,64 @@
   align-items: center;
 }
 
+/* ---------------------------------------------------------------- exhibit -- */
+/* The landing scene fills the viewport behind the type, so the frame and copy
+   sit over it. Pointer events stay on the canvas so it can still be dragged. */
+
+.exhibitWrap {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.exhibitCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+.exhibitCanvas:active {
+  cursor: grabbing;
+}
+
+.exhibitHint {
+  position: absolute;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--text-4);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.exhibitQuip {
+  position: absolute;
+  left: 50%;
+  bottom: 68px;
+  transform: translateX(-50%);
+  font-family: var(--font-newsreader), Georgia, serif;
+  font-style: italic;
+  font-size: 15px;
+  color: var(--yellow);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: hp-in 0.3s ease both;
+}
+
+@media (max-width: 760px) {
+  .exhibitHint,
+  .exhibitQuip {
+    display: none;
+  }
+}
+
 .glow {
   position: absolute;
   top: 50%;

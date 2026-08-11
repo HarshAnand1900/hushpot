@@ -1,6 +1,7 @@
 "use client";
 
 import { ConnectButton } from "@/components/ConnectButton";
+import { LandingSections } from "@/components/LandingSections";
 import { Pot3D } from "@/components/Pot3D";
 import { useLastDraw, useNow, usePoolState } from "@/hooks/usePoolState";
 import { POOL_ADDRESS } from "@/lib/contract";
@@ -23,6 +24,12 @@ export default function Landing() {
 
   return (
     <main className={styles.page}>
+      {/* The exhibit fills the viewport behind everything; the type sits over it. */}
+      <Pot3D variant="exhibit" />
+
+      {/* The hero owns one viewport; its furniture is positioned against this, not the
+          whole scrolling page. */}
+      <div className={styles.hero}>
       <div className={`${styles.frame} brackets bracketsLower`}>
         <div className={styles.serial}>SER. {POOL_ADDRESS.slice(0, 6)}—{POOL_ADDRESS.slice(-4)} · FHEVM SEPOLIA · NON—TRANSFERABLE RECORD</div>
       </div>
@@ -77,10 +84,6 @@ export default function Landing() {
           LIVE · THIS WEEK&apos;S POT · THE ONLY PUBLIC NUMBER
         </div>
 
-        <div className={styles.potNiche} data-pot-window>
-          <Pot3D size={210} />
-        </div>
-
         <h1 className={`editorial ${styles.headline}`}>
           One depositor takes all of it. Nobody finds out who — <em>unless they say so.</em>
         </h1>
@@ -90,7 +93,6 @@ export default function Landing() {
           <button className={styles.ctaGhost}>Drop a deposit</button>
         </div>
 
-        <div className={styles.hint}>IT TURNS ON ITS OWN · HOVER TO TAKE THE WHEEL</div>
       </section>
 
       {/* ticker ------------------------------------------------------------ */}
@@ -107,6 +109,9 @@ export default function Landing() {
           ))}
         </div>
       </div>
+      </div>
+
+      <LandingSections />
     </main>
   );
 }
