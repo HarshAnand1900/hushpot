@@ -19,8 +19,8 @@
 /* Behind the app tabs: the same room, pushed back so panels stay readable. Not
    interactive there — the pot is the landing's toy, not a distraction mid-deposit. */
 .dimmed {
-  opacity: 0.28;
-  filter: saturate(0.75);
+  opacity: 0.1;
+  filter: saturate(0.5);
 }
 
 .dimmed .exhibitCanvas {
