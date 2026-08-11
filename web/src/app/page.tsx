@@ -70,8 +70,9 @@ export default function Landing() {
         <Stat label="PRINCIPAL AT RISK" value="NONE" />
       </aside>
 
-      {/* centre ----------------------------------------------------------- */}
-      <section className={styles.centre}>
+      {/* the figure, hung near the top ------------------------------------ */}
+      <section className={styles.potBlock}>
+        <span className={`${styles.scrim} ${styles.scrimTop}`} />
         <div className={styles.potRow}>
           <span className={styles.potTick}>POT</span>
           <span className={`num ${styles.potNumber}`}>
@@ -83,7 +84,11 @@ export default function Landing() {
           <span className="liveDot" />
           LIVE · THIS WEEK&apos;S POT · THE ONLY PUBLIC NUMBER
         </div>
+      </section>
 
+      {/* the pitch, sat at the foot ---------------------------------------- */}
+      <section className={styles.bottomBlock}>
+        <span className={`${styles.scrim} ${styles.scrimBottom}`} />
         <h1 className={`editorial ${styles.headline}`}>
           One depositor takes all of it. Nobody finds out who — <em>unless they say so.</em>
         </h1>
@@ -92,14 +97,7 @@ export default function Landing() {
           <a className={styles.ctaPrimary} href="/pool">
             Enter the pool
           </a>
-          <button
-            className={styles.ctaGhost}
-            onClick={() => window.dispatchEvent(new CustomEvent("hushpot:drop"))}
-          >
-            Drop a deposit
-          </button>
         </div>
-
       </section>
 
       {/* ticker ------------------------------------------------------------ */}

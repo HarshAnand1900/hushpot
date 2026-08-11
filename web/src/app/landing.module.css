@@ -182,36 +182,62 @@
 
 /* ---------------------------------------------------------------- centre -- */
 
-/* Pulled up so the pot number hangs above the object rather than sitting across it. */
-.centre {
-  position: relative;
-  z-index: 3;
+/* The hero's type is pinned, not stacked. The figure hangs near the top and the
+   headline sits at the foot of the viewport, leaving the pot itself uncovered in
+   between. Both blocks are click-through so the scene behind stays draggable;
+   only the button row opts back in. */
+.potBlock,
+.bottomBlock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  max-width: 760px;
-  margin-top: -12vh;
-
-  /* How far the pot figure hangs above the rest of the column. */
-  --pot-lift: 7vh;
+  pointer-events: none;
 }
 
-@media (max-height: 820px) {
-  .centre {
-    margin-top: -6vh;
-    --pot-lift: 3.5vh;
-  }
+.potBlock {
+  top: 29%;
+  transform: translateY(-50%);
 }
 
-/* The figure hangs over the scene rather than sitting on the headline. It is
-   pulled up on its own and the strap gives the space back, so the headline and
-   the buttons below stay exactly where they were. */
+/* Clears the drag hint and quip, which Pot3D pins at 92px and 68px. */
+.bottomBlock {
+  bottom: 116px;
+}
+
+/* A soft pool of dark behind each block — the type sits on lit gold otherwise and
+   stops being readable. */
+.scrim {
+  position: absolute;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(10, 10, 10, 0.8) 0%,
+    rgba(10, 10, 10, 0.36) 54%,
+    transparent 78%
+  );
+  filter: blur(12px);
+  pointer-events: none;
+}
+
+.scrimTop {
+  width: min(600px, 62vw);
+  height: 200px;
+}
+
+.scrimBottom {
+  width: min(720px, 74vw);
+  height: 230px;
+}
+
 .potRow {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  margin-top: calc(-1 * var(--pot-lift));
 }
 
 .potTick {
@@ -237,7 +263,8 @@
 }
 
 .potStrap {
-  margin-top: calc(18px + var(--pot-lift));
+  position: relative;
+  margin-top: 18px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -256,6 +283,7 @@
 }
 
 .headline {
+  position: relative;
   font-size: clamp(21px, 3.5vh, 34px);
   line-height: 1.08;
   max-width: 22ch;
@@ -269,11 +297,13 @@
 }
 
 .ctas {
-  margin-top: 30px;
+  position: relative;
+  margin-top: 24px;
   display: flex;
-  gap: 16px;
+  gap: 10px;
   flex-wrap: wrap;
   justify-content: center;
+  pointer-events: auto;
 }
 
 .ctaPrimary {
@@ -287,19 +317,6 @@
 }
 .ctaPrimary:hover {
   background: var(--white);
-}
-
-.ctaGhost {
-  border: 2px solid rgba(255, 255, 255, 0.55);
-  background: rgba(10, 10, 10, 0.55);
-  color: var(--white);
-  padding: 17px 34px;
-  font-size: 16px;
-  font-weight: 800;
-  transition: border-color 0.18s;
-}
-.ctaGhost:hover {
-  border-color: var(--yellow);
 }
 
 .hint {
@@ -392,7 +409,18 @@
     justify-content: flex-start;
     padding-top: 40px;
   }
-  .centre {
-    margin-top: 10px;
+  /* Narrow screens have no room to pin two blocks apart — let them stack in flow
+     so the figure and the pitch cannot collide. */
+  .potBlock,
+  .bottomBlock {
+    position: static;
+    transform: none;
+  }
+  .bottomBlock {
+    margin-top: 26px;
+  }
+  .hero {
+    justify-content: flex-start;
+    padding-top: 90px;
   }
 }

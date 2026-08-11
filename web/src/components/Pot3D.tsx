@@ -807,6 +807,16 @@ export function Pot3D({
       pulse = 1;
     };
 
+    // The pool never stops taking deposits, so the pot never sits still — a coin
+    // lands on its own every couple of seconds and the body pumps with it. Only on
+    // the landing's full scene: behind the app tabs it would pull the eye off the
+    // panels, and the small inline pot has no room for it.
+    let ambient = 0;
+    const stillPreferred = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (exhibit && !dim && !stillPreferred) {
+      ambient = window.setInterval(() => dropCoinRef.current?.(), 1900);
+    }
+
     // ---- the exhibit -------------------------------------------------------
     let orbitRing: THREE.Group | undefined;
     let veilTex: THREE.Texture | undefined;
@@ -1312,6 +1322,7 @@ export function Pot3D({
       el.removeEventListener("pointerleave", onLeave);
       el.removeEventListener("wheel", onWheel);
       window.removeEventListener("hushpot:drop", onDropRequest);
+      if (ambient) window.clearInterval(ambient);
       window.removeEventListener("resize", onResize);
       renderer.dispose();
       engrave.dispose();
@@ -1320,7 +1331,7 @@ export function Pot3D({
       });
       if (el.parentNode) el.parentNode.removeChild(el);
     };
-  }, [size, variant]);
+  }, [size, variant, dim]);
 
   const quip = QUIPS[clicks % QUIPS.length];
   const exhibit = variant === "exhibit";
