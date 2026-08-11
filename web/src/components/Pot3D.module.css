@@ -16,6 +16,22 @@
   pointer-events: none;
 }
 
+/* Behind the app tabs: the same room, pushed back so panels stay readable. Not
+   interactive there — the pot is the landing's toy, not a distraction mid-deposit. */
+.dimmed {
+  opacity: 0.28;
+  filter: saturate(0.75);
+}
+
+.dimmed .exhibitCanvas {
+  pointer-events: none;
+}
+
+.dimmed .exhibitHint,
+.dimmed .exhibitQuip {
+  display: none;
+}
+
 .exhibitCanvas {
   position: absolute;
   inset: 0;

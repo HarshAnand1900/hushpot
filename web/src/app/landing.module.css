@@ -192,18 +192,26 @@
   text-align: center;
   max-width: 760px;
   margin-top: -12vh;
+
+  /* How far the pot figure hangs above the rest of the column. */
+  --pot-lift: 7vh;
 }
 
 @media (max-height: 820px) {
   .centre {
     margin-top: -6vh;
+    --pot-lift: 3.5vh;
   }
 }
 
+/* The figure hangs over the scene rather than sitting on the headline. It is
+   pulled up on its own and the strap gives the space back, so the headline and
+   the buttons below stay exactly where they were. */
 .potRow {
   display: flex;
   align-items: flex-start;
   gap: 14px;
+  margin-top: calc(-1 * var(--pot-lift));
 }
 
 .potTick {
@@ -229,7 +237,7 @@
 }
 
 .potStrap {
-  margin-top: 18px;
+  margin-top: calc(18px + var(--pot-lift));
   display: flex;
   align-items: center;
   gap: 9px;

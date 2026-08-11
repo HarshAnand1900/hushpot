@@ -13,7 +13,16 @@ const TABS = [
   { href: "/proof", label: "Proof" },
 ];
 
-export function AppHeader({ pot, sessionOpen }: { pot: bigint; sessionOpen: boolean }) {
+export function AppHeader({
+  pot,
+  sessionOpen,
+  onSession,
+}: {
+  pot: bigint;
+  sessionOpen: boolean;
+  /** Opens a decryption session. Omitted on tabs that have nothing to decrypt. */
+  onSession?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -45,14 +54,30 @@ export function AppHeader({ pot, sessionOpen }: { pot: bigint; sessionOpen: bool
           <span className={styles.hair} />
           <span className={styles.potLabel}>POT</span>
           <span className={`num ${styles.potValue}`}>{formatUnits(pot)}</span>
+          <span className="liveDot" />
           <span className={styles.potLive}>LIVE</span>
           <span className={styles.hair} />
         </div>
 
-        <span className={`${styles.session} ${sessionOpen ? styles.sessionOpen : ""}`}>
-          <span className={styles.sessionDot} />
-          {sessionOpen ? "Session open" : "Locked"}
-        </span>
+        {onSession ? (
+          <button
+            className={`${styles.session} ${sessionOpen ? styles.sessionOpen : ""}`}
+            onClick={onSession}
+            title={sessionOpen ? "Your position is decrypted for this visit" : "Sign once to read your own position"}
+          >
+            <span className={styles.sessionDot} />
+            {sessionOpen ? "Session open" : "Unlock"}
+          </button>
+        ) : (
+          <Link
+            className={`${styles.session} ${sessionOpen ? styles.sessionOpen : ""}`}
+            href="/pool"
+            title="Your position lives on the Pool tab"
+          >
+            <span className={styles.sessionDot} />
+            {sessionOpen ? "Session open" : "Locked"}
+          </Link>
+        )}
 
         <ConnectButton />
       </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { AppHeader } from "@/components/AppHeader";
+import { Pot3D } from "@/components/Pot3D";
 import { useDraws } from "@/hooks/useDraws";
 import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
 import { useVerifyDraw } from "@/hooks/useVerifyDraw";
@@ -23,6 +24,7 @@ export default function DrawsTab() {
 
   return (
     <>
+      <Pot3D variant="exhibit" dim />
       <AppHeader pot={pot} sessionOpen={false} />
 
       <main className={`${styles.page} rise`}>

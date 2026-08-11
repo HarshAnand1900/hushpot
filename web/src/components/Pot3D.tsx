@@ -413,10 +413,13 @@ function makePlacardTexture(title: string, sub: string): THREE.Texture {
 export function Pot3D({
   size = 190,
   variant = "solo",
+  dim = false,
   className,
 }: {
   size?: number;
   variant?: Variant;
+  /** Pushed back behind app content: same room, lower presence. */
+  dim?: boolean;
   className?: string;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -763,6 +766,21 @@ export function Pot3D({
     coins.count = 0;
     coins.position.y = CY;
     scene.add(coins);
+
+    // A sealed-green pip through the middle of every coin — the same green as the seal
+    // tag and the keyhole, so a dropped coin reads as ciphertext rather than money.
+    // Slightly taller than the coin so it stands proud of both faces.
+    const pips = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.072, 0.072, 0.062, 16),
+      // Flat and unlit, not additive — additive green over gold washes out to white
+      // and the pip stops reading as green at all.
+      new THREE.MeshBasicMaterial({ color: 0x12b981 }),
+      MAX_COINS,
+    );
+    pips.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    pips.count = 0;
+    pips.position.y = CY;
+    scene.add(pips);
 
     type Coin = { x: number; y: number; z: number; vy: number; spin: number; rest: number };
     const live: Coin[] = [];
@@ -1248,13 +1266,16 @@ export function Pot3D({
         c.spin += 0.04;
       }
       coins.count = live.length;
+      pips.count = live.length;
       live.forEach((c, i) => {
         dummy.position.set(c.x, c.y, c.z);
         dummy.rotation.set(c.y > c.rest ? c.spin : Math.PI / 2, c.spin * 0.4, 0);
         dummy.updateMatrix();
         coins.setMatrixAt(i, dummy.matrix);
+        pips.setMatrixAt(i, dummy.matrix);
       });
       coins.instanceMatrix.needsUpdate = true;
+      pips.instanceMatrix.needsUpdate = true;
 
       // Ciphertext beads travel the chain path, so the binding always looks live.
       for (const b of beads) {
@@ -1305,7 +1326,9 @@ export function Pot3D({
   const exhibit = variant === "exhibit";
 
   return (
-    <div className={`${exhibit ? styles.exhibitWrap : styles.wrap} ${className ?? ""}`}>
+    <div
+      className={`${exhibit ? styles.exhibitWrap : styles.wrap} ${dim ? styles.dimmed : ""} ${className ?? ""}`}
+    >
       {!exhibit && <div className={styles.glow} aria-hidden="true" />}
 
       <div

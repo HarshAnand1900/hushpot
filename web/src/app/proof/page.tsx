@@ -5,6 +5,7 @@ import { useConfig, usePublicClient, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { AppHeader } from "@/components/AppHeader";
+import { Pot3D } from "@/components/Pot3D";
 import { PrivacyDemo } from "@/components/PrivacyDemo";
 import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
 import { POOL_ADDRESS, TOKEN_ADDRESS, UNDERLYING_ADDRESS, poolAbi } from "@/lib/contract";
@@ -58,6 +59,7 @@ export default function ProofTab() {
 
   return (
     <>
+      <Pot3D variant="exhibit" dim />
       <AppHeader pot={pot} sessionOpen={false} />
 
       <main className={`${styles.page} rise`}>
