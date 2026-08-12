@@ -73,10 +73,10 @@ export function PositionPanel({
     // Money added now earns only the minutes left in the period, on both sides of the
     // ratio — it enlarges the pot exactly as much as it enlarges your share.
     const left = PERIOD_MINUTES - minuteOfPeriod;
-    const extra = (BigInt(Math.floor(add)) * SCALE * left) / 1n;
+    const extra = Number(BigInt(Math.floor(add)) * SCALE * left);
 
-    const mine = Number(weight) + Number(extra);
-    const all = Number(poolTotal) + Number(extra);
+    const mine = Number(weight) + extra;
+    const all = Number(poolTotal) + extra;
     return all > 0 ? (mine / all) * 100 : undefined;
   }, [add, odds, weight, poolTotal, minuteOfPeriod]);
 
@@ -238,6 +238,7 @@ export function PositionPanel({
               <span>NOW {odds !== undefined ? `${odds.toFixed(2)}%` : "—"}</span>
               <span>SCALE 0–10%</span>
             </div>
+
 
             <div className={styles.buttons}>
               <button className="btnPrimary" style={{ flex: 1.2 }} onClick={onDeposit}>

@@ -92,6 +92,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     event PeriodStarted(uint32 indexed period);
     event ClaimChecked(uint256 indexed drawId, uint16 indexed slot, address indexed checkedBy);
     event ReserveFunded(uint64 amount, uint64 newReserve);
+    event PrizeSponsored(address indexed sponsor, uint64 amount);
     event SolvencyProven(uint256 at);
     event RateUpdated(uint256 annualRateBps);
 
@@ -288,6 +289,30 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @dev Funded with plain tokens on purpose: the amount must be publicly verifiable,
     /// since prizes are public and nobody should have to take our word for the pot size.
     function fundPrizeReserve(uint256 amount) external onlyOwner {
+        _fundReserve(amount);
+    }
+
+    /// @notice Grow everyone's prize without taking any odds on it.
+    ///
+    /// @dev PoolTogether V5 calls this sponsoring: `PrizeVault.sponsor` delegates the
+    /// deposit to `SPONSORSHIP_ADDRESS` so it earns yield for the pool but no chance of
+    /// winning. Here it is simpler — a sponsorship goes straight to the shared reserve
+    /// and never becomes a slot, so there is no delegation to redirect and no position
+    /// to speak of.
+    ///
+    /// That difference matters. A Code4rena audit of V5 found `sponsor()` could be used
+    /// to force *another* account's delegation to the sponsorship address, stripping
+    /// their winning chances without consent. Nothing here touches another participant's
+    /// slot or weight, so the same mistake is not available to make.
+    ///
+    /// Deliberately public and in plain tokens: a sponsor is making a claim about the
+    /// prize, and a claim about the prize has to be checkable by everyone.
+    function sponsorPrize(uint256 amount) external {
+        _fundReserve(amount);
+        emit PrizeSponsored(msg.sender, uint64(amount / IConfidentialWrapper(address(token)).rate()));
+    }
+
+    function _fundReserve(uint256 amount) private {
         if (!supportsAutoShield()) revert NoUnderlyingToken();
         if (amount == 0) revert ZeroAmount();
 

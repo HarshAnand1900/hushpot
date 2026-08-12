@@ -31,8 +31,18 @@ export function usePoolState() {
     query: { refetchInterval: 12_000 },
   });
 
-  const [currentPeriod, periodStart, periodSeconds, minute, ended, slotsUsed, reserve, drawCount, drawPending, rateBps] =
-    data ?? [];
+  const [
+    currentPeriod,
+    periodStart,
+    periodSeconds,
+    minute,
+    ended,
+    slotsUsed,
+    reserve,
+    drawCount,
+    drawPending,
+    rateBps,
+  ] = data ?? [];
 
   return {
     isLoading,

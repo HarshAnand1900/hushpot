@@ -7,6 +7,7 @@ import { waitForTransactionReceipt } from "wagmi/actions";
 import { AppHeader } from "@/components/AppHeader";
 import { Pot3D } from "@/components/Pot3D";
 import { PrivacyDemo } from "@/components/PrivacyDemo";
+import { SponsorPot } from "@/components/SponsorPot";
 import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
 import { POOL_ADDRESS, TOKEN_ADDRESS, UNDERLYING_ADDRESS, poolAbi } from "@/lib/contract";
 import styles from "./proof.module.css";
@@ -67,6 +68,8 @@ export default function ProofTab() {
         <PrivacyDemo />
 
         <Solvency />
+
+        <SponsorPot reserve={state.prizeReserve} onDone={() => state.refetch()} />
 
         {/* boundary ------------------------------------------------------- */}
         <section className={`${styles.boundary} yellowBand`}>

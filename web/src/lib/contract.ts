@@ -4,19 +4,19 @@
  * Deployed 12 August 2026 to Sepolia against Zama's official confidential USDT mock, so
  * anyone who took part in an earlier Developer Program season already holds the token.
  *
- * Redeployed from 0x0B6c…Fa4e to carry the parked-award payout, which took a claim from
- * 1.83M gas to 405k by no longer repairing ten ancestor sums to credit an encrypted zero.
+ * Carries the parked-award payout — which took a claim from 2.4M gas to 454k by no longer
+ * repairing ten ancestor sums to credit an encrypted zero — and open prize sponsorship.
  */
 
 export const CHAIN_ID = 11155111;
 
-export const POOL_ADDRESS = "0xf18bB8d788CE868B53928c57422cdeB3020F2Edb" as const;
+export const POOL_ADDRESS = "0xB3BD7aa95E8679fCCcB845D53D29700A3972436b" as const;
 
 /**
  * Block the pool was deployed in. Log scans start here rather than at genesis — public
  * Sepolia endpoints reject unbounded ranges, and nothing about this pool exists before it.
  */
-export const DEPLOY_BLOCK = 11470488n;
+export const DEPLOY_BLOCK = 11473823n;
 
 /** cUSDTMock — "Confidential USDT (Mock)", 6 decimals, rate 1. */
 export const TOKEN_ADDRESS = "0x4E7B06D78965594eB5EF5414c357ca21E1554491" as const;
@@ -40,6 +40,13 @@ export const poolAbi = [
   { type: "function", name: "slotsUsed", inputs: [], outputs: [{ type: "uint16" }], stateMutability: "view" },
   { type: "function", name: "prizeReserve", inputs: [], outputs: [{ type: "uint64" }], stateMutability: "view" },
   { type: "function", name: "annualRateBps", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
+  {
+    type: "function",
+    name: "sponsorPrize",
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
   { type: "function", name: "drawCount", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
   { type: "function", name: "drawPending", inputs: [], outputs: [{ type: "bool" }], stateMutability: "view" },
   { type: "function", name: "supportsAutoShield", inputs: [], outputs: [{ type: "bool" }], stateMutability: "view" },
