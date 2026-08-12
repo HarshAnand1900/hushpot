@@ -12,6 +12,12 @@ export const CHAIN_ID = 11155111;
 
 export const POOL_ADDRESS = "0xf18bB8d788CE868B53928c57422cdeB3020F2Edb" as const;
 
+/**
+ * Block the pool was deployed in. Log scans start here rather than at genesis — public
+ * Sepolia endpoints reject unbounded ranges, and nothing about this pool exists before it.
+ */
+export const DEPLOY_BLOCK = 11470488n;
+
 /** cUSDTMock — "Confidential USDT (Mock)", 6 decimals, rate 1. */
 export const TOKEN_ADDRESS = "0x4E7B06D78965594eB5EF5414c357ca21E1554491" as const;
 
@@ -165,6 +171,15 @@ export const poolAbi = [
     inputs: [
       { name: "account", type: "address", indexed: true },
       { name: "slot", type: "uint16", indexed: true },
+    ],
+  },
+  {
+    type: "event",
+    name: "DepositedFromUnderlying",
+    inputs: [
+      { name: "account", type: "address", indexed: true },
+      { name: "slot", type: "uint16", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
     ],
   },
   {

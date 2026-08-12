@@ -133,18 +133,44 @@ export async function decryptHandle(handle: string): Promise<bigint | undefined>
 
   const fhevm = await getFhevm();
 
-  const result = await fhevm.userDecrypt(
-    [{ handle, contractAddress: POOL_ADDRESS }],
-    session.privateKey,
-    session.publicKey,
-    session.signature.replace(/^0x/, ""),
-    [POOL_ADDRESS],
-    session.user,
-    session.startTimestamp,
-    session.durationDays,
-  );
+  // The grant and the decryption race each other.
+  //
+  // `refreshMyPosition` calls `FHE.allow` on a ciphertext it has just produced, and the
+  // relayer checks that grant against its own view of the chain. Confirming the receipt
+  // on one RPC node says nothing about whether the node the relayer reads has caught up,
+  // so a decryption fired the instant the transaction lands can be told the account is
+  // not authorised for a handle it demonstrably owns.
+  //
+  // Verified against the ACL on Sepolia: `persistAllowed(handle, account)` returns true
+  // for exactly the handles that fail this way. So it is propagation, not permission —
+  // waiting and asking again is the fix, and there is nothing to correct on-chain.
+  let lastError: unknown;
 
-  // Keyed by handle; there is only ever one entry here.
-  const value = Object.values(result)[0];
-  return typeof value === "bigint" ? value : BigInt(value as string | number);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 1500 * attempt));
+
+    try {
+      const result = await fhevm.userDecrypt(
+        [{ handle, contractAddress: POOL_ADDRESS }],
+        session.privateKey,
+        session.publicKey,
+        session.signature.replace(/^0x/, ""),
+        [POOL_ADDRESS],
+        session.user,
+        session.startTimestamp,
+        session.durationDays,
+      );
+
+      // Keyed by handle; there is only ever one entry here.
+      const value = Object.values(result)[0];
+      return typeof value === "bigint" ? value : BigInt(value as string | number);
+    } catch (e) {
+      lastError = e;
+      const message = e instanceof Error ? e.message : String(e);
+      // Only a missing grant is worth waiting out. Anything else fails immediately.
+      if (!/not authorized|unauthorized/i.test(message)) throw e;
+    }
+  }
+
+  throw lastError;
 }

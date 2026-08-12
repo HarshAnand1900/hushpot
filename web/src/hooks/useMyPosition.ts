@@ -82,7 +82,10 @@ export function useMyPosition() {
         abi: poolAbi,
         functionName: "refreshMyPosition",
       });
-      await waitForTransactionReceipt(config, { hash: tx });
+      // Two confirmations, not one. The handles are read straight afterwards and the
+      // relayer has to see the grant that this transaction made; a single confirmation
+      // leaves too little room for that to propagate.
+      await waitForTransactionReceipt(config, { hash: tx, confirmations: 2 });
 
       // 3. Read the handles and open them locally.
       setStage("decrypting");
