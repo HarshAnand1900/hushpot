@@ -35,52 +35,18 @@ export function useMyPosition() {
   const [position, setPosition] = useState<MyPosition>({});
   const [error, setError] = useState<string>();
 
-  /**
-   * Whether this address is in the pool at all. `undefined` until we have asked.
-   *
-   * Needed before any decryption is attempted, because a first-time visitor has nothing
-   * to decrypt — and, more importantly, because depositing must not be gated behind
-   * revealing a position that does not exist yet.
-   */
-  const [hasPosition, setHasPosition] = useState<boolean>();
-
-  const refreshHasPosition = useCallback(async () => {
-    if (!address || !publicClient) {
-      setHasPosition(undefined);
-      return;
-    }
-
-    try {
-      const joined = await publicClient.readContract({
-        address: POOL_ADDRESS,
-        abi: poolAbi,
-        functionName: "hasSlot",
-        args: [address],
-      });
-      setHasPosition(joined as boolean);
-    } catch {
-      setHasPosition(undefined);
-    }
-  }, [address, publicClient]);
-
-  useEffect(() => {
-    void refreshHasPosition();
-  }, [refreshHasPosition]);
-
   const reveal = useCallback(async () => {
     if (!address || !publicClient) return;
     setError(undefined);
 
     try {
-      // 1. One signature, cached for the visit.
-      if (!currentSession()) {
-        setStage("signing");
-        await openSession(address, signTypedDataAsync as never);
-      }
-
-      // A slot is only assigned by depositing, and `slotOf` reverts without one. Ask
-      // first: an address that has never deposited is the ordinary case for a visitor,
-      // not an error to show them a decoded revert signature for.
+      // A slot is only assigned by depositing, and `slotOf` reverts without one. Someone
+      // who has not deposited has a position — it is simply empty. Unlock it as zero
+      // rather than refusing: an empty position is a legitimate thing to be shown, and
+      // the deposit and withdraw controls live behind this same gate.
+      //
+      // No signature and no transaction here. There is no ciphertext to decrypt, so
+      // asking them to sign for it would be friction charged for nothing.
       const joined = await publicClient.readContract({
         address: POOL_ADDRESS,
         abi: poolAbi,
@@ -89,9 +55,15 @@ export function useMyPosition() {
       });
 
       if (!joined) {
-        setStage("locked");
-        setError("You have no position in this pool yet — make a deposit and it will appear here.");
+        setPosition({ balance: 0n, weight: 0n });
+        setStage("unlocked");
         return;
+      }
+
+      // 1. One signature, cached for the visit.
+      if (!currentSession()) {
+        setStage("signing");
+        await openSession(address, signTypedDataAsync as never);
       }
 
       const slot = await publicClient.readContract({
@@ -140,14 +112,5 @@ export function useMyPosition() {
     setStage("locked");
   }, []);
 
-  return {
-    stage,
-    position,
-    error,
-    reveal,
-    lock,
-    hasPosition,
-    refreshHasPosition,
-    isUnlocked: stage === "unlocked",
-  };
+  return { stage, position, error, reveal, lock, isUnlocked: stage === "unlocked" };
 }

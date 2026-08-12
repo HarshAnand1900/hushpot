@@ -20,7 +20,7 @@ export default function PoolTab() {
   const state = usePoolState();
   const lastDraw = useLastDraw(state.drawCount);
   const { isConnected } = useAccount();
-  const { stage, position, error, reveal, hasPosition, refreshHasPosition, isUnlocked } = useMyPosition();
+  const { stage, position, error, reveal, isUnlocked } = useMyPosition();
   const [sheet, setSheet] = useState<"deposit" | "withdraw" | null>(null);
 
   const drawNumber = Number(state.drawCount);
@@ -183,18 +183,7 @@ export default function PoolTab() {
             </div>
           </div>
 
-          {/* Joining must never depend on revealing. A first-time visitor has no position
-              to decrypt, so gating the deposit button behind an unlocked session locked
-              them out of the product entirely. */}
-          {isConnected && hasPosition === false && (
-            <div className={styles.actions}>
-              <button className="btnPrimary" style={{ flex: 1 }} onClick={() => setSheet("deposit")}>
-                Make your first deposit
-              </button>
-            </div>
-          )}
-
-          {!isUnlocked && hasPosition !== false && (
+          {!isUnlocked && (
             <div className={styles.revealFooter}>
               <button className="btnPrimary" style={{ width: "100%" }} onClick={reveal} disabled={!isConnected || busy}>
                 {!isConnected
@@ -225,7 +214,14 @@ export default function PoolTab() {
               <button className="btnPrimary" style={{ flex: 1.3 }} onClick={() => setSheet("deposit")}>
                 Put it in the pot
               </button>
-              <button className="btnSecondary" style={{ flex: 1 }} onClick={() => setSheet("withdraw")}>
+              {/* Nothing in yet means nothing to take out. */}
+              <button
+                className="btnSecondary"
+                style={{ flex: 1 }}
+                onClick={() => setSheet("withdraw")}
+                disabled={position.balance === 0n}
+                title={position.balance === 0n ? "Deposit something first" : undefined}
+              >
                 Withdraw
               </button>
             </div>
@@ -285,7 +281,6 @@ export default function PoolTab() {
           onClose={() => setSheet(null)}
           onDone={() => {
             state.refetch();
-            void refreshHasPosition();
             void reveal();
           }}
         />
