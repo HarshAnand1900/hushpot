@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAccount, useConfig, usePublicClient, useSignTypedData, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
@@ -34,6 +34,38 @@ export function useMyPosition() {
   const [stage, setStage] = useState<RevealStage>(currentSession() ? "unlocked" : "locked");
   const [position, setPosition] = useState<MyPosition>({});
   const [error, setError] = useState<string>();
+
+  /**
+   * Whether this address is in the pool at all. `undefined` until we have asked.
+   *
+   * Needed before any decryption is attempted, because a first-time visitor has nothing
+   * to decrypt — and, more importantly, because depositing must not be gated behind
+   * revealing a position that does not exist yet.
+   */
+  const [hasPosition, setHasPosition] = useState<boolean>();
+
+  const refreshHasPosition = useCallback(async () => {
+    if (!address || !publicClient) {
+      setHasPosition(undefined);
+      return;
+    }
+
+    try {
+      const joined = await publicClient.readContract({
+        address: POOL_ADDRESS,
+        abi: poolAbi,
+        functionName: "hasSlot",
+        args: [address],
+      });
+      setHasPosition(joined as boolean);
+    } catch {
+      setHasPosition(undefined);
+    }
+  }, [address, publicClient]);
+
+  useEffect(() => {
+    void refreshHasPosition();
+  }, [refreshHasPosition]);
 
   const reveal = useCallback(async () => {
     if (!address || !publicClient) return;
@@ -108,5 +140,14 @@ export function useMyPosition() {
     setStage("locked");
   }, []);
 
-  return { stage, position, error, reveal, lock, isUnlocked: stage === "unlocked" };
+  return {
+    stage,
+    position,
+    error,
+    reveal,
+    lock,
+    hasPosition,
+    refreshHasPosition,
+    isUnlocked: stage === "unlocked",
+  };
 }

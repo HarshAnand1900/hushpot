@@ -20,7 +20,7 @@ export default function PoolTab() {
   const state = usePoolState();
   const lastDraw = useLastDraw(state.drawCount);
   const { isConnected } = useAccount();
-  const { stage, position, error, reveal, isUnlocked } = useMyPosition();
+  const { stage, position, error, reveal, hasPosition, refreshHasPosition, isUnlocked } = useMyPosition();
   const [sheet, setSheet] = useState<"deposit" | "withdraw" | null>(null);
 
   const drawNumber = Number(state.drawCount);
@@ -183,7 +183,18 @@ export default function PoolTab() {
             </div>
           </div>
 
-          {!isUnlocked && (
+          {/* Joining must never depend on revealing. A first-time visitor has no position
+              to decrypt, so gating the deposit button behind an unlocked session locked
+              them out of the product entirely. */}
+          {isConnected && hasPosition === false && (
+            <div className={styles.actions}>
+              <button className="btnPrimary" style={{ flex: 1 }} onClick={() => setSheet("deposit")}>
+                Make your first deposit
+              </button>
+            </div>
+          )}
+
+          {!isUnlocked && hasPosition !== false && (
             <div className={styles.revealFooter}>
               <button className="btnPrimary" style={{ width: "100%" }} onClick={reveal} disabled={!isConnected || busy}>
                 {!isConnected
@@ -274,6 +285,7 @@ export default function PoolTab() {
           onClose={() => setSheet(null)}
           onDone={() => {
             state.refetch();
+            void refreshHasPosition();
             void reveal();
           }}
         />
