@@ -1,13 +1,16 @@
 /**
  * The live Hushpot deployment and the slice of its ABI the frontend uses.
  *
- * Deployed 8 August 2026 to Sepolia against Zama's official confidential USDT mock, so
+ * Deployed 12 August 2026 to Sepolia against Zama's official confidential USDT mock, so
  * anyone who took part in an earlier Developer Program season already holds the token.
+ *
+ * Redeployed from 0x0B6c…Fa4e to carry the parked-award payout, which took a claim from
+ * 1.83M gas to 405k by no longer repairing ten ancestor sums to credit an encrypted zero.
  */
 
 export const CHAIN_ID = 11155111;
 
-export const POOL_ADDRESS = "0x0B6c8A1f573215f25041616987Aa8f269ABDFa4e" as const;
+export const POOL_ADDRESS = "0xf18bB8d788CE868B53928c57422cdeB3020F2Edb" as const;
 
 /** cUSDTMock — "Confidential USDT (Mock)", 6 decimals, rate 1. */
 export const TOKEN_ADDRESS = "0x4E7B06D78965594eB5EF5414c357ca21E1554491" as const;
