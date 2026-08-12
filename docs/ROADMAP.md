@@ -127,6 +127,32 @@ pools. All three add risk and dilute what's already working.
 
 ---
 
+## After the bounty
+
+Kept out of scope for 5 September, recorded here so the reasoning isn't lost.
+
+**Prize tiers.** PoolTogether V5 pays `4^t` prizes per tier — one grand prize down to many
+small ones — plus two canary tiers that raise or lower the tier count according to whether
+they get claimed, which tunes prize size to live gas costs. It is the single biggest UX
+gap: winner-take-all means almost nobody ever wins, and a pool where nothing visibly
+happens is a dull pool.
+
+The blocker is cost, not design. Each tier adds another range comparison and
+`FHE.select` to every claim, and a single-tier claim already measures ~2.4M gas on
+Sepolia, with five batched together reverting on the HCU ceiling. So tiers need the
+per-claim HCU measured before any of it is committed to — if one tier is 2.4M, four tiers
+is not obviously affordable.
+
+**Confidential delegation — considered and rejected.** PoolTogether lets you delegate your
+odds to another address while keeping your principal, and encrypting the delegated weight
+looked like a genuinely new primitive. It isn't safe here: delegating means a transaction
+from your address touching someone else's slot, so even with the amount encrypted the
+transaction itself is a public edge between two people. That would ship a social graph
+inside a product whose entire claim is that it leaks nothing. Hiding the target as well is
+possible but costs more than the feature is worth.
+
+---
+
 ## Known risks
 
 | Risk | Mitigation |

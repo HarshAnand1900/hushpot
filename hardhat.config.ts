@@ -47,7 +47,7 @@ const config: HardhatUserConfig = {
       accounts: {
         mnemonic: MNEMONIC,
         path: "m/44'/60'/0'/0/",
-        count: 10,
+        count: 20,
       },
       chainId: 31337,
       url: "http://localhost:8545",
@@ -56,7 +56,7 @@ const config: HardhatUserConfig = {
       accounts: {
         mnemonic: MNEMONIC,
         path: "m/44'/60'/0'/0/",
-        count: 10,
+        count: 20,
       },
       chainId: 11155111,
       url: SEPOLIA_RPC_URL,

@@ -80,6 +80,22 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     mapping(uint16 => euint64) private _weightCache;
     euint64 private _totalCache;
 
+    /// @dev Prize money won but not yet folded into the tree.
+    ///
+    /// Crediting a slot the usual way costs 30 encrypted additions, because every ancestor
+    /// sum has to be repaired. That is the single most expensive thing in a claim, and in a
+    /// whole-pool sweep it is almost entirely waste: the same ancestors get rebuilt once per
+    /// participant, and for everyone but the winner the amount being added is an encrypted
+    /// zero.
+    ///
+    /// So a sweep parks the award here instead — one addition, no walk. It is folded into
+    /// the tree the next time the slot deposits or withdraws, which repairs the path anyway,
+    /// making the fold cost one extra addition rather than thirty.
+    ///
+    /// A balance is therefore leaf + pending. Both are ciphertext; the split is an
+    /// accounting detail and leaks nothing.
+    mapping(uint16 => euint64) internal _pendingAward;
+
     event PeriodAdvanced(uint32 indexed period, uint256 startedAt);
     event SlotAssigned(address indexed account, uint16 indexed slot);
 
@@ -171,6 +187,36 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     // Mutations
     // -------------------------------------------------------------------------
 
+    /// @dev Move any parked winnings into the leaf. Free in practice: the callers below all
+    /// repair the path immediately afterwards, so this adds one encrypted addition to a
+    /// walk that was going to happen regardless.
+    ///
+    /// Winnings join the balance without earning back-credit for the period — they were not
+    /// staked for the minutes before the draw, so `_lateCredit` is charged for the whole
+    /// elapsed part of the period exactly as a fresh deposit would be.
+    /// @dev Fold parked winnings in and repair the tree, so they start earning odds.
+    ///
+    /// Costs nothing at all when there is nothing pending, which is every slot except a
+    /// winner's. So the thirty-addition repair is paid once, by the person who won, on a
+    /// transaction they were making anyway — and never by anyone who lost.
+    function _settlePending(uint16 slot) internal {
+        if (euint64.unwrap(_pendingAward[slot]) == bytes32(0)) return;
+
+        uint256 node = uint256(LEAF_OFFSET) + slot;
+        _foldPending(slot, node);
+        _persist(node);
+        _repairPath(node);
+    }
+
+    function _foldPending(uint16 slot, uint256 node) private {
+        euint64 pending = _pendingAward[slot];
+        if (euint64.unwrap(pending) == bytes32(0)) return;
+
+        _balance[node] = FHE.add(_balance[node], pending);
+        _lateCredit[node] = FHE.add(_lateCreditOf(node), FHE.mul(pending, minuteOfPeriod()));
+        _pendingAward[slot] = _zero();
+    }
+
     /// @dev Add encrypted stake to a slot, credited only for the remainder of the period.
     function _creditSlot(uint16 slot, euint64 amount) internal {
         if (slot >= LEAF_COUNT) revert SlotOutOfRange();
@@ -178,6 +224,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         uint64 m = minuteOfPeriod();
         uint256 node = uint256(LEAF_OFFSET) + slot;
 
+        _foldPending(slot, node);
         _balance[node] = FHE.add(_balance[node], amount);
         // Full credit would be amount * PERIOD_MINUTES. It only earns from minute `m`
         // onward, so it falls short by exactly `amount * m`.
@@ -195,6 +242,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         if (slot >= LEAF_COUNT) revert SlotOutOfRange();
 
         uint256 node = uint256(LEAF_OFFSET) + slot;
+        _foldPending(slot, node);
         actual = FHE.min(requested, _balance[node]);
         uint64 m = minuteOfPeriod();
 
@@ -247,6 +295,9 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// decryption rights over another participant's position.
     function refreshMyWeight() external {
         uint16 slot = slotOf(msg.sender);
+        // Winnings must be in the tree before the weight is read, or a winner would see a
+        // balance and an odds figure that disagree with each other.
+        _settlePending(slot);
 
         euint64 w = _weightOf(uint256(LEAF_OFFSET) + slot);
         _weightCache[slot] = w;

@@ -309,6 +309,13 @@ describe("HushpotPool — draws and claims", function () {
       await (await pool.connect(owner).checkClaimBatch(0, [alice.address, bob.address])).wait();
       await (await pool.connect(owner).startNextPeriod()).wait();
 
+      // A claim parks the prize rather than folding it into the tree — that is what keeps
+      // a claim off the thirty-addition ancestor repair. It joins the pool when the winner
+      // next touches their position, which is the same visit on which they find out they
+      // won. So the pot compounds on that refresh, not on the claim.
+      await (await pool.connect(alice).refreshMyPosition()).wait();
+      await (await pool.connect(bob).refreshMyPosition()).wait();
+
       await time.increase(PERIOD_SECONDS);
       await runDraw();
 

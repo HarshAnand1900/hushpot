@@ -24,6 +24,28 @@
   max-width: 60ch;
 }
 
+/* The auto-claim receipt. Stated as a count off the chain rather than a promise —
+   anyone can verify it by reading claimChecked for each slot. */
+.sweepStatus {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  background: rgba(255, 210, 8, 0.04);
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+}
+
+.sweepCount {
+  flex: none;
+  font-size: 15px;
+  color: var(--yellow);
+}
+
 .error {
   font-family: var(--font-mono), monospace;
   font-size: 10.5px;

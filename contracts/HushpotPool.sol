@@ -234,8 +234,9 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// themselves decryption rights over someone else's position.
     function refreshMyBalance() external {
         uint16 slot = slotOf(msg.sender);
+        _settlePending(slot);
 
-        euint64 b = _balance[uint256(LEAF_OFFSET) + slot];
+        euint64 b = _heldBy(slot);
         _balanceCache[slot] = b;
         FHE.allowThis(b);
         FHE.allow(b, msg.sender);
@@ -243,6 +244,17 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
     function balanceHandle(uint16 slot) external view returns (euint64) {
         return _balanceCache[slot];
+    }
+
+    /// @dev What a slot actually owns: what the tree holds plus anything won and not yet
+    /// folded in. The split between the two is an implementation detail of when the
+    /// ancestor sums get repaired — it must never be visible in a balance, or a winner
+    /// would check straight after a draw and be told they had lost.
+    function _heldBy(uint16 slot) private returns (euint64) {
+        euint64 held = _balance[uint256(LEAF_OFFSET) + slot];
+        euint64 pending = _pendingAward[slot];
+
+        return euint64.unwrap(pending) == bytes32(0) ? held : FHE.add(held, pending);
     }
 
     /// @notice Recompute your balance and your odds together, in one transaction.
@@ -253,9 +265,10 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// This collapses it to a signature and one transaction.
     function refreshMyPosition() external {
         uint16 slot = slotOf(msg.sender);
+        _settlePending(slot);
         uint256 node = uint256(LEAF_OFFSET) + slot;
 
-        euint64 b = _balance[node];
+        euint64 b = _heldBy(slot);
         _balanceCache[slot] = b;
         FHE.allowThis(b);
         FHE.allow(b, msg.sender);
@@ -457,10 +470,13 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
         ebool won = _checkWin(slot, d.drawPoint);
         euint64 award = FHE.select(won, FHE.asEuint64(d.prize), FHE.asEuint64(0));
-        FHE.allowThis(award);
 
-        // Winnings join the principal, so a prize quietly improves next period's odds.
-        _creditSlot(slot, award);
+        // Parked, not credited. Crediting repairs all ten ancestor sums — thirty encrypted
+        // additions — to deposit what is, for all but one checker, an encrypted zero. The
+        // award joins the tree on this slot's next deposit or withdrawal, which walks that
+        // path anyway. Winnings still join the principal, just one transaction later.
+        _pendingAward[slot] = FHE.add(_pendingAward[slot], award);
+        FHE.allowThis(_pendingAward[slot]);
 
         emit ClaimChecked(drawId, slot, msg.sender);
     }
@@ -484,5 +500,83 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
             if (claimChecked[drawId][slotOf(account)]) continue;
             checkClaim(drawId, account);
         }
+    }
+
+    /// @dev Running lower edge of the band, carried between pages of a sweep.
+    mapping(uint256 => euint64) private _sweepEdge;
+
+    /// @notice Next slot a sweep of this draw will process. Equal to `slotsUsed` when done.
+    mapping(uint256 => uint16) public sweepCursor;
+
+    error SweepOutOfOrder();
+
+    /// @notice Pay out a draw across a range of slots in one transaction.
+    ///
+    /// @dev This is the cheap way to settle a draw, and the reason is structural rather than
+    /// clever: a per-participant claim repeats work that is identical for everybody.
+    ///
+    /// Two costs disappear here.
+    ///
+    /// The prefix walk goes first. A lone claim climbs the tree to rederive the combined
+    /// weight of everyone ordered before it — three additions per set bit of the slot index.
+    /// Sweeping in slot order makes that a running total instead: `edge += weight`, one
+    /// addition, and the weight was needed anyway.
+    ///
+    /// The credit walk goes second, and it is the larger of the two. `_creditSlot` repairs
+    /// all ten ancestors, thirty encrypted additions, once per participant — rebuilding the
+    /// same interior sums over and over to add an encrypted zero to everyone who lost. This
+    /// parks the award on the slot instead and lets the next deposit or withdrawal fold it
+    /// in, on a path walk that transaction was paying for regardless.
+    ///
+    /// What survives is about ten operations a slot: the weight, the two range comparisons,
+    /// the select, and two additions.
+    ///
+    /// Pages are forced to run in order because the running edge only makes sense read
+    /// left to right. Callers page until `sweepCursor` reaches `slotsUsed`; how many slots
+    /// fit in one transaction is an HCU question, not a correctness one.
+    ///
+    /// Reveals nothing. Every slot in the range is treated identically, the award is
+    /// `select(won, prize, 0)` for all of them, and the losers' encrypted zeros are
+    /// indistinguishable from the winner's prize.
+    function sweepRange(uint256 drawId, uint16 count) external {
+        Draw storage d = draws[drawId];
+        if (!d.settled) revert DrawNotSettled();
+        if (d.period != currentPeriod) revert AlreadyChecked();
+
+        uint16 from = sweepCursor[drawId];
+        if (from >= slotsUsed) revert SweepOutOfOrder();
+
+        uint16 to = from + count;
+        if (to > slotsUsed) to = slotsUsed;
+
+        euint64 edge = from == 0 ? _zero() : _sweepEdge[drawId];
+
+        for (uint16 slot = from; slot < to; slot++) {
+            edge = _sweepSlot(drawId, slot, edge);
+        }
+
+        _sweepEdge[drawId] = edge;
+        FHE.allowThis(edge);
+        sweepCursor[drawId] = to;
+    }
+
+    /// @dev One slot of a sweep. Split out only because the loop ran the stack out of depth.
+    /// @return upper The band's upper edge, which is the next slot's lower edge.
+    function _sweepSlot(uint256 drawId, uint16 slot, euint64 edge) private returns (euint64 upper) {
+        Draw storage d = draws[drawId];
+
+        upper = FHE.add(edge, _weightOf(uint256(LEAF_OFFSET) + slot));
+
+        euint64 award = FHE.select(
+            FHE.and(FHE.ge(d.drawPoint, edge), FHE.lt(d.drawPoint, upper)),
+            FHE.asEuint64(d.prize),
+            FHE.asEuint64(0)
+        );
+
+        _pendingAward[slot] = FHE.add(_pendingAward[slot], award);
+        FHE.allowThis(_pendingAward[slot]);
+
+        claimChecked[drawId][slot] = true;
+        emit ClaimChecked(drawId, slot, msg.sender);
     }
 }

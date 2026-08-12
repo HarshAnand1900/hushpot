@@ -229,6 +229,29 @@ task("hushpot:sweep", "Check a draw for every depositor, paying whoever won")
   });
 
 /**
+ * Retry a transaction through a transient RPC failure.
+ *
+ * Public Sepolia endpoints lag behind their own mempool, so a burst of transactions from
+ * one wallet gets rejected as "replacement transaction underpriced" even when the previous
+ * one was mined — the node hands out a stale nonce. Backing off and retrying is enough.
+ */
+async function withRetry<T>(label: string, fn: () => Promise<T>, attempts = 4): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const transient = /underpriced|nonce|already known|timeout|missing response|ETIMEDOUT/i.test(message);
+      if (!transient || attempt >= attempts) throw error;
+
+      const pause = 5000 * attempt;
+      console.log(`  ${label} failed: ${message.slice(0, 70)} — retrying in ${pause / 1000}s`);
+      await new Promise((resolve) => setTimeout(resolve, pause));
+    }
+  }
+}
+
+/**
  * Fill the pool with several depositors of different sizes.
  *
  * A pool with one participant demonstrates nothing: odds read 100%, there is no second
@@ -237,7 +260,7 @@ task("hushpot:sweep", "Check a draw for every depositor, paying whoever won")
  * the configured mnemonic already derives.
  */
 task("hushpot:seed", "Fill the pool with several depositors, so the demo means something")
-  .addOptionalParam("count", "How many extra depositors (max 9)", "4", types.string)
+  .addOptionalParam("count", "How many extra depositors", "4", types.string)
   .setAction(async (args, hre) => {
     const pool = await getPool(hre);
     const poolAddress = await pool.getAddress();
@@ -247,9 +270,16 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
     const funder = signers[0];
     const count = Math.min(Number(args.count), signers.length - 1);
 
-    // Deliberately uneven, so odds are visibly different per depositor.
-    const amounts = [420_000n, 180_000n, 640_000n, 95_000n, 310_000n, 55_000n, 720_000n, 240_000n, 130_000n];
-    const GAS_TOPUP = hre.ethers.parseEther("0.03");
+    // Deliberately uneven, and long-tailed rather than evenly spread: a real pool is a
+    // few large depositors and a lot of small ones, which is also the shape that makes
+    // the odds column worth looking at.
+    const amounts = [
+      420_000n, 180_000n, 640_000n, 95_000n, 310_000n, 55_000n, 720_000n, 240_000n, 130_000n,
+      38_000n, 505_000n, 72_000n, 890_000n, 21_000n, 265_000n, 148_000n, 60_000n, 410_000n, 87_000n,
+    ];
+    // Enough for an approve and a confidential deposit (~2.4M gas) with headroom for a
+    // gas spike, without stranding ETH in wallets we only use to make the demo real.
+    const GAS_TOPUP = hre.ethers.parseEther("0.02");
 
     console.log(`seeding ${count} depositors into ${poolAddress}\n`);
 
@@ -259,11 +289,21 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
 
       console.log(`--- depositor ${i}: ${who.address}`);
 
+      // Resumable. Public RPCs drop transactions and lag on nonces, so this task will be
+      // re-run; anyone already holding a slot is already a depositor and re-depositing
+      // for them just burns gas and skews the spread we set up.
+      if (await pool.hasSlot(who.address)) {
+        console.log(`  already in the pool · slot ${await pool.slotOf(who.address)}\n`);
+        continue;
+      }
+
       // Gas, if they need it.
       const eth = await hre.ethers.provider.getBalance(who.address);
       if (eth < hre.ethers.parseEther("0.015")) {
         console.log(`  topping up gas...`);
-        await (await funder.sendTransaction({ to: who.address, value: GAS_TOPUP })).wait();
+        await withRetry("top-up", async () =>
+          (await funder.sendTransaction({ to: who.address, value: GAS_TOPUP })).wait(),
+        );
       }
 
       // The faucet mints to any address, so the funder can do this on their behalf.
@@ -273,16 +313,19 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
         let remaining = amount - held;
         while (remaining > 0n) {
           const chunk = remaining > MINT_CHUNK ? MINT_CHUNK : remaining;
-          await (await underlying.mint(who.address, chunk)).wait();
+          await withRetry("mint", async () => (await underlying.mint(who.address, chunk)).wait());
           remaining -= chunk;
         }
       }
 
-      await ensureAllowance(underlying.connect(who), who.address, poolAddress, amount);
+      await withRetry("approve", () =>
+        ensureAllowance(underlying.connect(who), who.address, poolAddress, amount),
+      );
 
       console.log(`  depositing ${amount / 1_000_000n}...`);
-      const tx = await (pool.connect(who) as typeof pool).depositUnderlying(amount);
-      const receipt = await tx.wait();
+      const receipt = await withRetry("deposit", async () =>
+        (await (pool.connect(who) as typeof pool).depositUnderlying(amount)).wait(),
+      );
       console.log(`  done · slot ${await pool.slotOf(who.address)} · gas ${receipt?.gasUsed}\n`);
     }
 
