@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useAccount, useConfig, usePublicClient, useWriteContract } from "wagmi";
+import { useAccount, useConfig, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { POOL_ADDRESS, TOKEN_DECIMALS, UNDERLYING_ADDRESS, erc20Abi, poolAbi } from "@/lib/contract";
@@ -26,8 +26,18 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
   const { writeContractAsync } = useWriteContract();
 
   const [raw, setRaw] = useState("");
-  const [state, setState] = useState<"idle" | "approving" | "sponsoring" | "done" | "error">("idle");
+  const [state, setState] = useState<"idle" | "approving" | "sponsoring" | "minting" | "done" | "error">("idle");
   const [error, setError] = useState<string>();
+
+  const { data: walletBalance, refetch: refetchWallet } = useReadContract({
+    address: UNDERLYING_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  });
+
+  const held = (walletBalance as bigint | undefined) ?? 0n;
 
   const amount = (() => {
     const n = Number(raw);
@@ -35,7 +45,37 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
     return BigInt(Math.floor(n * Number(SCALE)));
   })();
 
-  const busy = state === "approving" || state === "sponsoring";
+  const busy = state === "approving" || state === "sponsoring" || state === "minting";
+  const short = amount > held;
+
+  /**
+   * The underlying is a mock with an open `mint`, which is the whole faucet.
+   *
+   * It belongs in the interface rather than only in a task: someone arriving with a fresh
+   * wallet holds no test tokens, and without this there is nothing they can do here but
+   * read. A judge is exactly that person.
+   */
+  const faucet = useCallback(async () => {
+    if (!address) return;
+    setError(undefined);
+    setState("minting");
+
+    try {
+      const tx = await writeContractAsync({
+        address: UNDERLYING_ADDRESS,
+        abi: erc20Abi,
+        functionName: "mint",
+        args: [address, 10_000n * SCALE],
+      });
+      await waitForTransactionReceipt(config, { hash: tx, confirmations: 2 });
+      await refetchWallet();
+      setState("idle");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not reach the faucet.";
+      setError(/user rejected|denied/i.test(message) ? "Transaction declined." : message.slice(0, 160));
+      setState("error");
+    }
+  }, [address, config, refetchWallet, writeContractAsync]);
 
   const sponsor = useCallback(async () => {
     if (!address || !publicClient || amount <= 0n) return;
@@ -123,18 +163,33 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
             aria-label="Amount to sponsor"
           />
           <span className={styles.unit}>tUSDT</span>
-          <button className="btnOutlineYellow" onClick={sponsor} disabled={!isConnected || busy || amount === 0n}>
+          <button
+            className="btnOutlineYellow"
+            onClick={short && amount > 0n ? faucet : sponsor}
+            disabled={!isConnected || busy || amount === 0n}
+          >
             {!isConnected
               ? "Connect a wallet"
-              : state === "approving"
-                ? "Approving…"
-                : state === "sponsoring"
-                  ? "Sponsoring…"
-                  : amount === 0n
-                    ? "Enter an amount"
-                    : `Sponsor ${formatUnits(amount)}`}
+              : state === "minting"
+                ? "Minting…"
+                : state === "approving"
+                  ? "Approving…"
+                  : state === "sponsoring"
+                    ? "Sponsoring…"
+                    : amount === 0n
+                      ? "Enter an amount"
+                      : short
+                        ? "Get test tokens first"
+                        : `Sponsor ${formatUnits(amount)}`}
           </button>
         </div>
+
+        {isConnected && (
+          <div className={styles.wallet}>
+            YOUR tUSDT <strong>{formatUnits(held)}</strong>
+            {short && amount > 0n && <> — not enough for this. The faucet mints 10,000 to anyone who asks.</>}
+          </div>
+        )}
 
         {state === "done" && <div className={styles.ok}>Added to the pot. It will be paid out at the next draw.</div>}
         {error && <div className={styles.error}>{error}</div>}

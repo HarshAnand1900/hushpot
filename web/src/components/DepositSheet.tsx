@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAccount, useReadContract } from "wagmi";
+import { useAccount, useConfig, useReadContract, useWriteContract } from "wagmi";
+import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { useDeposit } from "@/hooks/useDeposit";
 import { TOKEN_DECIMALS, UNDERLYING_ADDRESS, erc20Abi } from "@/lib/contract";
@@ -30,6 +31,8 @@ export function DepositSheet({
   drawNumber?: number;
 }) {
   const { address } = useAccount();
+  const config = useConfig();
+  const { writeContractAsync } = useWriteContract();
   const { step, error, deposit, withdraw, reset, busy } = useDeposit();
 
   // The two directions live in one sheet, so changing your mind costs a tab rather than
@@ -42,13 +45,38 @@ export function DepositSheet({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const { data: walletBalance } = useReadContract({
+  const { data: walletBalance, refetch: refetchWallet } = useReadContract({
     address: UNDERLYING_ADDRESS,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
     query: { enabled: !!address && mode === "deposit" },
   });
+
+  const [minting, setMinting] = useState(false);
+
+  /**
+   * The underlying is a mock whose `mint` is open to anyone — that is the faucet.
+   *
+   * Surfaced here because an empty wallet is the default state of every new visitor, and
+   * without it the deposit sheet is a dead end for exactly the people we want to reach.
+   */
+  const faucet = async () => {
+    if (!address) return;
+    setMinting(true);
+    try {
+      const tx = await writeContractAsync({
+        address: UNDERLYING_ADDRESS,
+        abi: erc20Abi,
+        functionName: "mint",
+        args: [address, 10_000n * SCALE],
+      });
+      await waitForTransactionReceipt(config, { hash: tx, confirmations: 2 });
+      await refetchWallet();
+    } finally {
+      setMinting(false);
+    }
+  };
 
   const available = mode === "deposit" ? ((walletBalance as bigint | undefined) ?? 0n) : (inPool ?? 0n);
 
@@ -222,6 +250,12 @@ export function DepositSheet({
           </ol>
 
           {error && <div className={styles.error}>{error}</div>}
+
+          {mode === "deposit" && available === 0n && (
+            <button className={styles.faucet} onClick={faucet} disabled={minting || busy}>
+              {minting ? "Minting…" : "Your wallet is empty — get 10,000 test tUSDT"}
+            </button>
+          )}
 
           <button className={styles.submit} onClick={submit} disabled={!canSubmit}>
             {busy
