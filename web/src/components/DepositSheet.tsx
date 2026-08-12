@@ -174,9 +174,15 @@ export function DepositSheet({
                   : "Withdrawing…"
               : step === "done"
                 ? "Done"
-                : mode === "deposit"
-                  ? "Put it in the pot"
-                  : "Take it back out"}
+                : // A disabled button with a confident label reads as broken. Say what is
+                  // missing instead, so the sheet looks like it is waiting, not stuck.
+                  amount === 0n
+                  ? "Enter an amount above"
+                  : tooMuch
+                    ? "More than you hold"
+                    : mode === "deposit"
+                      ? "Put it in the pot"
+                      : "Take it back out"}
           </button>
 
           {step === "error" && (
