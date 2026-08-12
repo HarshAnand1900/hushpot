@@ -4,7 +4,6 @@ import { useCallback, useState } from "react";
 import { useAccount, useConfig, usePublicClient, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
-import { useSweepStatus } from "@/hooks/useSweepStatus";
 import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { decryptHandle } from "@/lib/fhe";
 import { formatUnits } from "@/lib/format";
@@ -40,7 +39,6 @@ export function DidIWin({
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
 
-  const sweep = useSweepStatus(drawId);
   const [phase, setPhase] = useState<Phase>("idle");
   const [delta, setDelta] = useState<bigint>(0n);
   const [error, setError] = useState<string>();
@@ -50,6 +48,20 @@ export function DidIWin({
     setError(undefined);
 
     try {
+      // No deposit, no slot, and `slotOf` reverts rather than returning one.
+      const joined = await publicClient.readContract({
+        address: POOL_ADDRESS,
+        abi: poolAbi,
+        functionName: "hasSlot",
+        args: [address],
+      });
+
+      if (!joined) {
+        setError("You were not in this draw — deposit before the next one closes.");
+        setPhase("error");
+        return;
+      }
+
       const slot = await publicClient.readContract({
         address: POOL_ADDRESS,
         abi: poolAbi,
@@ -125,23 +137,9 @@ export function DidIWin({
               This draw paid {formatUnits(prize)} cUSDT to exactly one depositor. Nobody — not the other players, not
               the contract, not us — can say which.
             </p>
-            {sweep.total > 0 && (
-              <div className={styles.sweepStatus}>
-                <span className={styles.sweepCount}>
-                  {sweep.checked} / {sweep.total}
-                </span>
-                {sweep.checked >= sweep.total
-                  ? "depositors already swept. If you won, the prize is in your balance now — this only opens it."
-                  : "depositors swept so far. A keeper is paying this draw out; you do not have to be here for it."}
-              </div>
-            )}
             {error && <div className={styles.error}>{error}</div>}
             <button className="btnPrimary" onClick={check} disabled={!unlocked || busy}>
-              {unlocked
-                ? sweep.checked >= sweep.total && sweep.total > 0
-                  ? "Open my balance"
-                  : "Did I win?"
-                : "Reveal your position first"}
+              {unlocked ? "Did I win?" : "Reveal your position first"}
             </button>
           </>
         )}

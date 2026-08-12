@@ -46,6 +46,22 @@ export function useMyPosition() {
         await openSession(address, signTypedDataAsync as never);
       }
 
+      // A slot is only assigned by depositing, and `slotOf` reverts without one. Ask
+      // first: an address that has never deposited is the ordinary case for a visitor,
+      // not an error to show them a decoded revert signature for.
+      const joined = await publicClient.readContract({
+        address: POOL_ADDRESS,
+        abi: poolAbi,
+        functionName: "hasSlot",
+        args: [address],
+      });
+
+      if (!joined) {
+        setStage("locked");
+        setError("You have no position in this pool yet — make a deposit and it will appear here.");
+        return;
+      }
+
       const slot = await publicClient.readContract({
         address: POOL_ADDRESS,
         abi: poolAbi,

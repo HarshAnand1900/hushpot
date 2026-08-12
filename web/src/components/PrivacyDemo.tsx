@@ -39,6 +39,20 @@ export function PrivacyDemo() {
         await openSession(address, signTypedDataAsync as never);
       }
 
+      // The demo compares your own ciphertext against someone else's, so it needs you to
+      // have one. Without a deposit there is no slot and `slotOf` reverts.
+      const joined = await publicClient.readContract({
+        address: POOL_ADDRESS,
+        abi: poolAbi,
+        functionName: "hasSlot",
+        args: [address],
+      });
+
+      if (!joined) {
+        setNote("Deposit first — this compares your own ciphertext against another depositor's.");
+        return;
+      }
+
       const mySlot = await publicClient.readContract({
         address: POOL_ADDRESS,
         abi: poolAbi,
