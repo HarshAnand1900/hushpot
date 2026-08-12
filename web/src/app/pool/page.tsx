@@ -48,7 +48,7 @@ export default function PoolTab() {
   return (
     <>
       <Pot3D variant="exhibit" dim="faint" />
-      <AppHeader pot={pot} sessionOpen={isUnlocked} onSession={reveal} />
+      <AppHeader pot={pot} />
 
       <main className={`${styles.page} rise`}>
         {/* status strip -------------------------------------------------- */}

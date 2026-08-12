@@ -13,16 +13,15 @@ const TABS = [
   { href: "/proof", label: "Proof" },
 ];
 
-export function AppHeader({
-  pot,
-  sessionOpen,
-  onSession,
-}: {
-  pot: bigint;
-  sessionOpen: boolean;
-  /** Opens a decryption session. Omitted on tabs that have nothing to decrypt. */
-  onSession?: () => void;
-}) {
+/**
+ * There is deliberately no session control here.
+ *
+ * A header chip offering to unlock competed with the Pool tab's own reveal button, and
+ * for anyone who had not deposited it was a button whose only possible outcome was an
+ * error. Session state is stated where it means something — on the position panel, which
+ * reads ENCRYPTED ON-CHAIN or DECRYPTED IN THIS TAB.
+ */
+export function AppHeader({ pot }: { pot: bigint }) {
   const pathname = usePathname();
 
   return (
@@ -58,26 +57,6 @@ export function AppHeader({
           <span className={styles.potLive}>LIVE</span>
           <span className={styles.hair} />
         </div>
-
-        {onSession ? (
-          <button
-            className={`${styles.session} ${sessionOpen ? styles.sessionOpen : ""}`}
-            onClick={onSession}
-            title={sessionOpen ? "Your position is decrypted for this visit" : "Sign once to read your own position"}
-          >
-            <span className={styles.sessionDot} />
-            {sessionOpen ? "Session open" : "Unlock"}
-          </button>
-        ) : (
-          <Link
-            className={`${styles.session} ${sessionOpen ? styles.sessionOpen : ""}`}
-            href="/pool"
-            title="Your position lives on the Pool tab"
-          >
-            <span className={styles.sessionDot} />
-            {sessionOpen ? "Session open" : "Locked"}
-          </Link>
-        )}
 
         <ConnectButton />
       </div>

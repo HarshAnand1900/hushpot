@@ -60,7 +60,7 @@ export default function ProofTab() {
   return (
     <>
       <Pot3D variant="exhibit" dim />
-      <AppHeader pot={pot} sessionOpen={false} />
+      <AppHeader pot={pot} />
 
       <main className={`${styles.page} rise`}>
         {/* the demonstration comes first, before any prose */}
