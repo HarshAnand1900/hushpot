@@ -81,7 +81,9 @@ export function useDeposit() {
             functionName: "approve",
             args: [POOL_ADDRESS, amount],
           });
-          await waitForTransactionReceipt(config, { hash: approveTx });
+          // Two confirmations: the deposit below is estimated against whatever node the
+          // wallet talks to, and that node has to be able to see this allowance.
+          await waitForTransactionReceipt(config, { hash: approveTx, confirmations: 2 });
         }
 
         // One transaction shields the tokens and credits an encrypted position.
@@ -91,6 +93,12 @@ export function useDeposit() {
           abi: poolAbi,
           functionName: "depositUnderlying",
           args: [amount],
+          // Stated, not estimated. If the approval has not reached the estimating node,
+          // `eth_estimateGas` reverts and the wallet falls back to an enormous limit that
+          // the RPC rejects as over its cap — a confusing "gas limit too high" for a
+          // transaction that was never going to be large. Measured at ~2.5M on Sepolia;
+          // unused gas is refunded.
+          gas: 3_600_000n,
         });
         await waitForTransactionReceipt(config, { hash: depositTx });
 

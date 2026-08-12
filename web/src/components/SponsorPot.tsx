@@ -68,7 +68,9 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
           functionName: "approve",
           args: [POOL_ADDRESS, amount],
         });
-        await waitForTransactionReceipt(config, { hash: ok });
+        // Two confirmations, so the allowance is visible to whichever node estimates the
+        // sponsorship next. One is not enough — see the gas note below.
+        await waitForTransactionReceipt(config, { hash: ok, confirmations: 2 });
       }
 
       setState("sponsoring");
@@ -77,6 +79,12 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
         abi: poolAbi,
         functionName: "sponsorPrize",
         args: [amount],
+        // Stated rather than estimated. If the approval above has not reached the node
+        // doing the estimating, `eth_estimateGas` reverts and the wallet substitutes an
+        // enormous fallback — which the RPC then rejects outright as over its cap, giving
+        // a "gas limit too high" error for a transaction that actually costs very little.
+        // Measured on Sepolia: 364,977 used, 499,195 estimated. Unused gas is refunded.
+        gas: 1_200_000n,
       });
       await waitForTransactionReceipt(config, { hash: tx });
 
