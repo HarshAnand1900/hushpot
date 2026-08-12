@@ -194,7 +194,7 @@ export default function PoolTab() {
                       ? "Recomputing on-chain… (two transactions)"
                       : stage === "decrypting"
                         ? "Decrypting locally with your key…"
-                        : "Reveal my position"}
+                        : "Reveal my position · 1 signature"}
               </button>
               {busy && (
                 <div className={styles.sweepTrack}>
@@ -277,6 +277,7 @@ export default function PoolTab() {
       {sheet && (
         <DepositSheet
           mode={sheet}
+          drawNumber={drawNumber}
           inPool={position.balance}
           onClose={() => setSheet(null)}
           onDone={() => {

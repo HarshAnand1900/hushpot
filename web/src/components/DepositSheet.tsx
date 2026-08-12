@@ -13,19 +13,28 @@ type Mode = "deposit" | "withdraw";
 
 const SCALE = 10n ** BigInt(TOKEN_DECIMALS);
 
+/** Round numbers a depositor actually reaches for, rather than fractions of a balance. */
+const QUICK = [100, 500, 1_000, 2_500];
+
 export function DepositSheet({
-  mode,
+  mode: initialMode,
   onClose,
   onDone,
   inPool,
+  drawNumber,
 }: {
   mode: Mode;
   onClose: () => void;
   onDone: () => void;
   inPool?: bigint;
+  drawNumber?: number;
 }) {
   const { address } = useAccount();
   const { step, error, deposit, withdraw, reset, busy } = useDeposit();
+
+  // The two directions live in one sheet, so changing your mind costs a tab rather than
+  // closing, finding the other button, and reopening.
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [raw, setRaw] = useState("");
 
   // Portalled to <body> for the same reason as the wallet picker: a fixed overlay
@@ -49,7 +58,7 @@ export function DepositSheet({
     return BigInt(Math.floor(n * Number(SCALE)));
   }, [raw]);
 
-  const tooMuch = mode === "deposit" && amount > available;
+  const tooMuch = amount > available;
   const canSubmit = amount > 0n && !tooMuch && !busy;
 
   useEffect(() => {
@@ -62,15 +71,6 @@ export function DepositSheet({
     }
   }, [step, onDone, onClose]);
 
-  // Escape closes, unless a transaction is in flight.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [busy, onClose]);
-
   const submit = () => {
     if (!canSubmit) return;
     void (mode === "deposit" ? deposit(amount) : withdraw(amount));
@@ -79,85 +79,143 @@ export function DepositSheet({
   const steps =
     mode === "deposit"
       ? [
-          { key: "approving", label: "APPROVE", note: "one-time, lets the pool pull your tokens" },
-          { key: "depositing", label: "SHIELD & DEPOSIT", note: "wrapped and credited as a number nobody can read" },
+          { key: "approving", label: "Approve tUSDT", note: "one-time, lets the pool pull tokens" },
+          { key: "encrypting", label: "Encrypt the amount", note: "client-side, before broadcast" },
+          { key: "depositing", label: "Submit ciphertext", note: "the contract stores a number it can't read" },
         ]
-      : [{ key: "withdrawing", label: "ENCRYPT & WITHDRAW", note: "the amount is sealed in this browser first" }];
+      : [
+          { key: "encrypting", label: "Encrypt the amount", note: "sealed in this browser first" },
+          { key: "withdrawing", label: "Submit ciphertext", note: "the pool returns your principal in full" },
+        ];
 
-  const activeIndex = steps.findIndex((s) => s.key === step);
+  // `useDeposit` reports approving/depositing/withdrawing; encryption happens inside the
+  // deposit step, so it lights up alongside it rather than as its own transaction.
+  const activeKey = step === "depositing" || step === "withdrawing" ? "encrypting" : step;
+  const activeIndex = steps.findIndex((s) => s.key === activeKey);
 
   if (!mounted) return null;
+
+  const pretty = amount > 0n ? formatUnits(amount) : "";
 
   return createPortal(
     <div className={styles.scrim} onClick={() => !busy && onClose()}>
       <div
-        className={mode === "deposit" ? `${styles.sheet} yellowBand` : styles.sheet}
+        className={styles.sheet}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label={mode === "deposit" ? "Deposit" : "Withdraw"}
       >
         <div className={styles.head}>
-          <span>{mode === "deposit" ? "DEPOSIT INTO THE POOL" : "WITHDRAW YOUR PRINCIPAL"}</span>
+          <div className={styles.tabs} role="tablist">
+            {(["deposit", "withdraw"] as Mode[]).map((m) => (
+              <button
+                key={m}
+                role="tab"
+                aria-selected={mode === m}
+                className={mode === m ? `${styles.tab} ${styles.tabOn}` : styles.tab}
+                onClick={() => {
+                  if (busy) return;
+                  setMode(m);
+                  setRaw("");
+                  reset();
+                }}
+                disabled={busy}
+              >
+                {m === "deposit" ? "Deposit" : "Withdraw"}
+              </button>
+            ))}
+          </div>
           <button className={styles.close} onClick={onClose} disabled={busy} aria-label="Close">
             ✕
           </button>
         </div>
 
         <div className={styles.body}>
-          <label className={styles.label} htmlFor="amount">
-            AMOUNT
-          </label>
-          <input
-            id="amount"
-            className={styles.input}
-            inputMode="decimal"
-            placeholder="0.00"
-            value={raw}
-            onChange={(e) => setRaw(e.target.value.replace(/[^0-9.]/g, ""))}
-            disabled={busy}
-            autoFocus
-          />
+          {/* amount ------------------------------------------------------- */}
+          <div className={styles.amountCard}>
+            <div className={styles.amountTop}>
+              <label className={styles.amountLabel} htmlFor="amount">
+                Amount
+              </label>
+              <span className={styles.avail}>
+                {mode === "deposit" ? "Wallet:" : "In pool:"} <strong>{formatUnits(available)}</strong>
+              </span>
+            </div>
 
-          <div className={styles.chips}>
-            {[0.25, 0.5, 1].map((frac) => (
+            <div className={styles.amountRow}>
+              <input
+                id="amount"
+                className={styles.input}
+                inputMode="decimal"
+                placeholder="0.00"
+                value={raw}
+                onChange={(e) => setRaw(e.target.value.replace(/[^0-9.]/g, ""))}
+                disabled={busy}
+                autoFocus
+              />
+              <span className={styles.unit}>cUSDT</span>
               <button
-                key={frac}
-                className={styles.chip}
+                className={styles.max}
                 disabled={busy || available === 0n}
-                onClick={() => setRaw((Number((available * BigInt(Math.round(frac * 100))) / 100n) / Number(SCALE)).toString())}
+                onClick={() => setRaw((Number(available) / Number(SCALE)).toString())}
               >
-                {frac === 1 ? "MAX" : `${frac * 100}%`}
+                Max
               </button>
-            ))}
+            </div>
+
+            <div className={styles.chips}>
+              {QUICK.map((q) => (
+                <button
+                  key={q}
+                  className={styles.chip}
+                  disabled={busy || BigInt(q) * SCALE > available}
+                  onClick={() => setRaw(String(q))}
+                >
+                  {q.toLocaleString()}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className={styles.source}>
-            {mode === "deposit" ? "Wallet:" : "In pool:"} <strong>{formatUnits(available)}</strong>{" "}
-            {mode === "deposit" ? "tUSDT" : "cUSDT"}
-          </div>
-
-          {tooMuch && <div className={styles.warn}>More than you hold. An oversized deposit would move nothing.</div>}
-
-          {mode === "deposit" && (
-            <div className={styles.privacy}>
-              This route takes plain tokens, so <strong>this deposit&apos;s size is public</strong>. Everything after it
-              — your position, your odds, your winnings — is encrypted. Already holding cUSDT? That path hides the
-              amount too.
+          {tooMuch && (
+            <div className={styles.warn}>
+              More than you {mode === "deposit" ? "hold" : "have in the pool"}. A confidential transfer that exceeds
+              your balance moves nothing — it would cost gas and do nothing at all.
             </div>
           )}
 
+          {/* what this actually does -------------------------------------- */}
+          <div className={styles.note}>
+            <span className={styles.noteMark} aria-hidden="true" />
+            {mode === "deposit" ? (
+              <span>
+                This starts earning odds the moment it lands — no waiting for the draw boundary. Odds are weighted by
+                amount and by how long it sits, so the earlier it arrives the more of
+                {drawNumber !== undefined ? ` draw #${drawNumber}` : " this draw"} it earns. Deposit once and you are in
+                every draw until you withdraw.
+              </span>
+            ) : (
+              <span>
+                Your principal was never at risk and comes back in full. Withdrawing keeps the odds this money already
+                earned for the current draw — you only stop earning from now on.
+              </span>
+            )}
+          </div>
+
+          {/* steps --------------------------------------------------------- */}
           <ol className={styles.steps}>
             {steps.map((s, i) => {
               const done = step === "done" || (activeIndex >= 0 && i < activeIndex);
-              const active = step === s.key;
+              const active = activeIndex === i;
               return (
-                <li key={s.key} className={active ? styles.stepActive : done ? styles.stepDone : styles.step}>
-                  <span className={styles.stepMark}>{done ? "OK" : active ? "···" : "—"}</span>
-                  <span>
+                <li key={s.key} className={active ? styles.stepOn : done ? styles.stepDone : styles.step}>
+                  <span className={styles.stepNum}>{done ? "✓" : i + 1}</span>
+                  <span className={styles.stepText}>
                     <strong>{s.label}</strong>
                     <span className={styles.stepNote}>{s.note}</span>
                   </span>
+                  {active && <span className={styles.stepNow}>now</span>}
                 </li>
               );
             })}
@@ -169,20 +227,18 @@ export function DepositSheet({
             {busy
               ? step === "approving"
                 ? "Approving…"
-                : step === "depositing"
+                : mode === "deposit"
                   ? "Depositing…"
                   : "Withdrawing…"
               : step === "done"
                 ? "Done"
-                : // A disabled button with a confident label reads as broken. Say what is
-                  // missing instead, so the sheet looks like it is waiting, not stuck.
+                : // A confident label on a dead button reads as a broken page. Say what is
+                  // missing instead, so the sheet looks like it is waiting.
                   amount === 0n
-                  ? "Enter an amount above"
+                  ? "Enter an amount"
                   : tooMuch
-                    ? "More than you hold"
-                    : mode === "deposit"
-                      ? "Put it in the pot"
-                      : "Take it back out"}
+                    ? "More than you have"
+                    : `${mode === "deposit" ? "Deposit" : "Withdraw"} ${pretty} cUSDT`}
           </button>
 
           {step === "error" && (
