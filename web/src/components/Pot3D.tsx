@@ -414,10 +414,13 @@ export function Pot3D({
   size = 190,
   variant = "solo",
   dim = false,
+  quiet = false,
   className,
 }: {
   size?: number;
   variant?: Variant;
+  /** Drop the instruction line and the quips, for places that carry their own copy. */
+  quiet?: boolean;
   /**
    * Pushed back behind app content: same room, lower presence. "faint" goes further
    * still, for tabs where the panels are doing the work and the room is only a hint.
@@ -1414,11 +1417,13 @@ export function Pot3D({
 
       {!exhibit && <div className={styles.shadow} aria-hidden="true" />}
 
-      <div className={exhibit ? styles.exhibitHint : styles.hint}>
-        {hovering ? "DRAG TO TURN · CLICK TO DROP · SCROLL TO ZOOM" : "IT TURNS ON ITS OWN · HOVER TO TAKE THE WHEEL"}
-      </div>
+      {quiet ? null : (
+        <div className={exhibit ? styles.exhibitHint : styles.hint}>
+          {hovering ? "DRAG TO TURN · CLICK TO DROP · SCROLL TO ZOOM" : "IT TURNS ON ITS OWN · HOVER TO TAKE THE WHEEL"}
+        </div>
+      )}
 
-      {quip && <div className={exhibit ? styles.exhibitQuip : styles.quip}>{quip}</div>}
+      {quip && !quiet && <div className={exhibit ? styles.exhibitQuip : styles.quip}>{quip}</div>}
     </div>
   );
 }

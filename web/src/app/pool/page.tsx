@@ -99,7 +99,25 @@ export default function PoolTab() {
 
           <div className={styles.niche}>
             <span className={styles.seam} />
-            <Pot3D size={172} />
+            <span className={styles.shimmer} aria-hidden="true" />
+
+            <div className={styles.nicheKicker}>
+              ALL OF IT · TO ONE OF {state.depositors || "—"}
+            </div>
+
+            <Pot3D size={158} quiet />
+
+            <div className={`editorial ${styles.nicheLine}`}>
+              All this
+              <br />
+              can be yours.
+            </div>
+            <div className={styles.nicheSub}>and nobody need ever know it was</div>
+
+            <button className={styles.nicheCta} onClick={() => setSheet("deposit")}>
+              Take your shot
+            </button>
+
             <span className={`${styles.seam} ${styles.seamRight}`} />
           </div>
 

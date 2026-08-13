@@ -142,12 +142,94 @@
 
 .niche {
   position: relative;
+  overflow: hidden;
   background: var(--near-black);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px 8px;
+  gap: 2px;
+  padding: 20px 14px 22px;
+  text-align: center;
+}
+
+/* A slow diagonal glint across the niche. The pot is the object on display and this is
+   the light moving over it — enough to catch the eye, slow enough not to nag. */
+.shimmer {
+  position: absolute;
+  top: -60%;
+  left: -60%;
+  width: 220%;
+  height: 220%;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 42%,
+    rgba(255, 210, 8, 0.09) 50%,
+    transparent 58%
+  );
+  animation: niche-glint 6.5s ease-in-out infinite;
+}
+
+@keyframes niche-glint {
+  0%,
+  100% {
+    transform: translate3d(-18%, -18%, 0);
+  }
+  50% {
+    transform: translate3d(18%, 18%, 0);
+  }
+}
+
+.nicheKicker {
+  position: relative;
+  font-family: var(--font-mono), monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.22em;
+  color: var(--yellow);
+  opacity: 0.85;
+}
+
+.nicheLine {
+  position: relative;
+  margin-top: 10px;
+  font-size: 21px;
+  line-height: 1.12;
+  color: var(--white);
+}
+
+.nicheSub {
+  position: relative;
+  margin-top: 7px;
+  max-width: 24ch;
+  font-family: var(--font-mono), monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  line-height: 1.7;
+  color: var(--text-3);
+}
+
+.nicheCta {
+  position: relative;
+  margin-top: 15px;
+  padding: 11px 22px;
+  background: var(--yellow);
+  border: 2px solid var(--black);
+  color: var(--black);
+  font-size: 13.5px;
+  font-weight: 800;
+  transition: background 0.16s, transform 0.16s;
+}
+
+.nicheCta:hover {
+  background: var(--white);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none;
+  }
 }
 
 .seam {
