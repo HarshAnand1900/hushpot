@@ -1,6 +1,15 @@
 "use client";
 
-import { POOL_ADDRESS } from "./contract";
+import { POOL_ADDRESS, TOKEN_ADDRESS } from "./contract";
+
+/**
+ * Contracts this session can decrypt for.
+ *
+ * The pool holds your position; the confidential token holds your wallet balance. Both
+ * have to be named when the session is signed — an EIP-712 grant is scoped to a fixed
+ * list, so a handle from a contract missing here is refused however clearly you own it.
+ */
+const SESSION_CONTRACTS: string[] = [POOL_ADDRESS, TOKEN_ADDRESS];
 
 const PUBLIC_RPC = "https://ethereum-sepolia-rpc.publicnode.com";
 
@@ -110,7 +119,7 @@ export async function openSession(
   const startTimestamp = Math.floor(Date.now() / 1000);
   const durationDays = 1;
 
-  const eip712 = fhevm.createEIP712(publicKey, [POOL_ADDRESS], startTimestamp, durationDays);
+  const eip712 = fhevm.createEIP712(publicKey, SESSION_CONTRACTS, startTimestamp, durationDays);
 
   const signature = await signTypedDataAsync({
     domain: eip712.domain as Record<string, unknown>,
@@ -127,7 +136,7 @@ export async function openSession(
  * Decrypt one of your own ciphertext handles using the open session.
  * Returns undefined for an uninitialised handle — an empty slot, not an error.
  */
-export async function decryptHandle(handle: string): Promise<bigint | undefined> {
+export async function decryptHandle(handle: string, contract: string = POOL_ADDRESS): Promise<bigint | undefined> {
   if (!session) throw new Error("No decryption session open.");
   if (!handle || /^0x0+$/.test(handle)) return undefined;
 
@@ -151,11 +160,11 @@ export async function decryptHandle(handle: string): Promise<bigint | undefined>
 
     try {
       const result = await fhevm.userDecrypt(
-        [{ handle, contractAddress: POOL_ADDRESS }],
+        [{ handle, contractAddress: contract }],
         session.privateKey,
         session.publicKey,
         session.signature.replace(/^0x/, ""),
-        [POOL_ADDRESS],
+        SESSION_CONTRACTS,
         session.user,
         session.startTimestamp,
         session.durationDays,

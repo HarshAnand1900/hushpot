@@ -111,6 +111,20 @@
   font-weight: 500;
 }
 
+/* Opens the sealed wallet figure. Small and inline — it is an offer, not an instruction. */
+.reveal {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--yellow);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.reveal:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .amountRow {
   display: flex;
   align-items: center;

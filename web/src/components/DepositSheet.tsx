@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAccount, useConfig, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useConfig, usePublicClient, useReadContract, useSignTypedData, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { useDeposit } from "@/hooks/useDeposit";
-import { TOKEN_DECIMALS, UNDERLYING_ADDRESS, erc20Abi } from "@/lib/contract";
+import { TOKEN_ADDRESS, TOKEN_DECIMALS, UNDERLYING_ADDRESS, confidentialTokenAbi, erc20Abi } from "@/lib/contract";
 import { formatUnits } from "@/lib/format";
 import styles from "./DepositSheet.module.css";
 
@@ -32,6 +32,8 @@ export function DepositSheet({
 }) {
   const { address } = useAccount();
   const config = useConfig();
+  const publicClient = usePublicClient();
+  const { signTypedDataAsync } = useSignTypedData();
   const { writeContractAsync } = useWriteContract();
   const { step, error, deposit, depositConfidential, withdraw, reset, busy } = useDeposit();
 
@@ -62,6 +64,38 @@ export function DepositSheet({
   });
 
   const [minting, setMinting] = useState(false);
+
+  /**
+   * Your cUSDT balance, once you ask for it.
+   *
+   * Left sealed by default rather than decrypted on open: a confidential balance is
+   * private from the page as much as from the chain, and reading it costs a relayer round
+   * trip. Asking is one click, and the answer never leaves the browser.
+   */
+  const [shielded, setShielded] = useState<bigint>();
+  const [revealing, setRevealing] = useState(false);
+
+  const revealShielded = async () => {
+    if (!address) return;
+    setRevealing(true);
+    try {
+      const { currentSession, openSession, decryptHandle } = await import("@/lib/fhe");
+      if (!currentSession()) await openSession(address, signTypedDataAsync as never);
+
+      const handle = (await publicClient?.readContract({
+        address: TOKEN_ADDRESS,
+        abi: confidentialTokenAbi,
+        functionName: "confidentialBalanceOf",
+        args: [address],
+      })) as string | undefined;
+
+      if (handle) setShielded((await decryptHandle(handle, TOKEN_ADDRESS)) ?? 0n);
+    } catch {
+      /* a declined signature is not worth an error banner here */
+    } finally {
+      setRevealing(false);
+    }
+  };
 
   /**
    * The underlying is a mock whose `mint` is open to anyone — that is the faucet.
@@ -190,9 +224,18 @@ export function DepositSheet({
               </label>
               <span className={styles.avail}>
                 {!balanceKnown ? (
-                  <>
-                    Wallet: <strong>encrypted</strong>
-                  </>
+                  shielded !== undefined ? (
+                    <>
+                      Wallet: <strong>{formatUnits(shielded)}</strong>
+                    </>
+                  ) : (
+                    <>
+                      Wallet: <strong>encrypted</strong>{" "}
+                      <button className={styles.reveal} onClick={revealShielded} disabled={revealing || busy}>
+                        {revealing ? "opening…" : "reveal"}
+                      </button>
+                    </>
+                  )
                 ) : (
                   <>
                     {mode === "deposit" ? "Wallet:" : "In pool:"} <strong>{formatUnits(available)}</strong>
