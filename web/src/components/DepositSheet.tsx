@@ -86,6 +86,10 @@ export function DepositSheet({
     }
   };
 
+  // A confidential balance is a ciphertext, so there is no figure to show and no Max to
+  // offer. Comparing the requested amount against the *plain* balance would be worse than
+  // useless here — it is a different token.
+  const balanceKnown = mode === "withdraw" || route === "plain";
   const available = mode === "deposit" ? ((walletBalance as bigint | undefined) ?? 0n) : (inPool ?? 0n);
 
   const amount = useMemo(() => {
@@ -94,7 +98,7 @@ export function DepositSheet({
     return BigInt(Math.floor(n * Number(SCALE)));
   }, [raw]);
 
-  const tooMuch = amount > available;
+  const tooMuch = balanceKnown && amount > available;
   const canSubmit = amount > 0n && !tooMuch && !busy;
 
   useEffect(() => {
@@ -131,7 +135,7 @@ export function DepositSheet({
           ]
       : [
           { key: "encrypting", label: "Encrypt the amount", note: "sealed in this browser first" },
-          { key: "withdrawing", label: "Submit ciphertext", note: "the pool returns your principal in full" },
+          { key: "withdrawing", label: "Receive cUSDT", note: "your principal back in full, still encrypted" },
         ];
 
   // `useDeposit` reports approving/depositing/withdrawing; encryption happens inside the
@@ -185,7 +189,15 @@ export function DepositSheet({
                 Amount
               </label>
               <span className={styles.avail}>
-                {mode === "deposit" ? "Wallet:" : "In pool:"} <strong>{formatUnits(available)}</strong>
+                {!balanceKnown ? (
+                  <>
+                    Wallet: <strong>encrypted</strong>
+                  </>
+                ) : (
+                  <>
+                    {mode === "deposit" ? "Wallet:" : "In pool:"} <strong>{formatUnits(available)}</strong>
+                  </>
+                )}
               </span>
             </div>
 
@@ -203,7 +215,8 @@ export function DepositSheet({
               <span className={styles.unit}>cUSDT</span>
               <button
                 className={styles.max}
-                disabled={busy || available === 0n}
+                disabled={busy || !balanceKnown || available === 0n}
+                title={!balanceKnown ? "Your confidential balance is a ciphertext — there is no figure to fill in" : undefined}
                 onClick={() => setRaw((Number(available) / Number(SCALE)).toString())}
               >
                 Max
@@ -215,7 +228,7 @@ export function DepositSheet({
                 <button
                   key={q}
                   className={styles.chip}
-                  disabled={busy || BigInt(q) * SCALE > available}
+                  disabled={busy || (balanceKnown && BigInt(q) * SCALE > available)}
                   onClick={() => setRaw(String(q))}
                 >
                   {q.toLocaleString()}
@@ -236,8 +249,8 @@ export function DepositSheet({
             <div className={styles.routes} role="radiogroup" aria-label="Deposit route">
               {(
                 [
-                  { key: "plain", title: "Plain tUSDT", sub: "This amount is public" },
-                  { key: "confidential", title: "cUSDT", sub: "Amount never in the clear" },
+                  { key: "plain", title: "Plain tUSDT", sub: "Shielded for you · size public" },
+                  { key: "confidential", title: "cUSDT", sub: "Goes straight in · size hidden" },
                 ] as const
               ).map((r) => (
                 <button
@@ -261,8 +274,9 @@ export function DepositSheet({
             {mode === "deposit" && route === "confidential" ? (
               <span>
                 Nothing but a ciphertext leaves this browser. The chain will record that you deposited, and when — but
-                not how much, not now and not ever. Requires cUSDT; the plain route shields for you but publishes the
-                size on the way in.
+                not how much, not now and not ever. Asking for more cUSDT than you hold moves nothing rather than
+                failing, so check the figure: a confidential transfer cannot revert on a balance it is not allowed to
+                read.
               </span>
             ) : mode === "deposit" ? (
               <span>
@@ -273,8 +287,10 @@ export function DepositSheet({
               </span>
             ) : (
               <span>
-                Your principal was never at risk and comes back in full. Withdrawing keeps the odds this money already
-                earned for the current draw — you only stop earning from now on.
+                Your principal was never at risk and comes back in full, as <strong>cUSDT</strong> — still encrypted.
+                Unwrapping it to plain tUSDT would publish the amount, so that stays your decision rather than ours.
+                Withdrawing keeps the odds this money already earned for the current draw; you only stop earning from
+                now on.
               </span>
             )}
           </div>
@@ -299,7 +315,7 @@ export function DepositSheet({
 
           {error && <div className={styles.error}>{error}</div>}
 
-          {mode === "deposit" && available === 0n && (
+          {mode === "deposit" && route === "plain" && available === 0n && (
             <button className={styles.faucet} onClick={faucet} disabled={minting || busy}>
               {minting ? "Minting…" : "Your wallet is empty — get 10,000 test tUSDT"}
             </button>
