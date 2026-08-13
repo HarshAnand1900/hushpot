@@ -77,10 +77,12 @@ export function DepositSheet({
    */
   const [shielded, setShielded] = useState<bigint>();
   const [revealing, setRevealing] = useState(false);
+  const [revealError, setRevealError] = useState<string>();
 
   const revealShielded = async () => {
     if (!address) return;
     setRevealing(true);
+    setRevealError(undefined);
     try {
       const { currentSession, openSession, decryptHandle } = await import("@/lib/fhe");
       if (!currentSession()) await openSession(address, signTypedDataAsync as never);
@@ -92,9 +94,14 @@ export function DepositSheet({
         args: [address],
       })) as string | undefined;
 
-      if (handle) setShielded((await decryptHandle(handle, TOKEN_ADDRESS)) ?? 0n);
-    } catch {
-      /* a declined signature is not worth an error banner here */
+      // A zero handle is an untouched balance, not a failure: you simply hold no cUSDT.
+      if (!handle || /^0x0+$/.test(handle)) setShielded(0n);
+      else setShielded((await decryptHandle(handle, TOKEN_ADDRESS)) ?? 0n);
+    } catch (e) {
+      // Swallowing this made a failed reveal look like a dead button, which is the worst
+      // possible reading — say what happened instead.
+      const message = e instanceof Error ? e.message : "Could not open your balance.";
+      setRevealError(/user rejected|denied/i.test(message) ? "Signature declined." : message.slice(0, 140));
     } finally {
       setRevealing(false);
     }
@@ -282,6 +289,8 @@ export function DepositSheet({
               ))}
             </div>
           </div>
+
+          {revealError && <div className={styles.warn}>{revealError}</div>}
 
           {tooMuch && (
             <div className={styles.warn}>

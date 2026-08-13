@@ -83,6 +83,8 @@ export interface DecryptSession {
   startTimestamp: number;
   durationDays: number;
   user: `0x${string}`;
+  /** Exactly what the signature authorises. A session is only valid for these. */
+  contracts: string[];
 }
 
 let session: DecryptSession | null = null;
@@ -98,7 +100,16 @@ let session: DecryptSession | null = null;
  * Nothing sensitive to anyone but you is in here. The keypair is generated in the browser
  * and never leaves it, and the signature only authorises decrypting your own handles.
  */
-const STORE_KEY = "hushpot.session.v1";
+/**
+ * Keyed by the contracts the signature actually names.
+ *
+ * An EIP-712 decrypt grant is bound to a fixed list of contracts. Persisting a session
+ * therefore has a failure mode holding it in memory never had: redeploy the pool, and a
+ * stored signature still names the *old* address, so every decrypt is refused for handles
+ * the user plainly owns. Folding the addresses into the key retires that session the
+ * moment the deployment moves, instead of leaving it to fail confusingly.
+ */
+const STORE_KEY = `hushpot.session.${POOL_ADDRESS.slice(2, 10)}.${TOKEN_ADDRESS.slice(2, 10)}`;
 
 function persist(s: DecryptSession | null) {
   try {
@@ -115,8 +126,17 @@ function restore(): DecryptSession | null {
     if (!raw) return null;
 
     const s = JSON.parse(raw) as DecryptSession;
+
     const expiresAt = (s.startTimestamp + s.durationDays * 86_400) * 1000;
-    if (Date.now() >= expiresAt) {
+    // A signature authorises a fixed set of contracts. If that set has moved — a redeploy,
+    // or a contract added to the list — the stored one cannot speak for the new one, and
+    // reusing it fails as "not authorized" for handles the user demonstrably owns.
+    const covers =
+      Array.isArray(s.contracts) &&
+      s.contracts.length === SESSION_CONTRACTS.length &&
+      SESSION_CONTRACTS.every((c) => s.contracts.some((h) => h.toLowerCase() === c.toLowerCase()));
+
+    if (Date.now() >= expiresAt || !covers) {
       sessionStorage.removeItem(STORE_KEY);
       return null;
     }
@@ -126,8 +146,23 @@ function restore(): DecryptSession | null {
   }
 }
 
+/** Drop any session stored under a previous deployment's key. */
+function sweepStaleSessions() {
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith("hushpot.session.") && key !== STORE_KEY) sessionStorage.removeItem(key);
+    }
+  } catch {
+    /* storage unavailable — nothing was stored to go stale */
+  }
+}
+
 export function currentSession(): DecryptSession | null {
-  if (!session && typeof window !== "undefined") session = restore();
+  if (!session && typeof window !== "undefined") {
+    sweepStaleSessions();
+    session = restore();
+  }
   return session;
 }
 
@@ -170,7 +205,7 @@ export async function openSession(
     message: eip712.message as Record<string, unknown>,
   });
 
-  session = { privateKey, publicKey, signature, startTimestamp, durationDays, user };
+  session = { privateKey, publicKey, signature, startTimestamp, durationDays, user, contracts: SESSION_CONTRACTS };
   persist(session);
   return session;
 }
