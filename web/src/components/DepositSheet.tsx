@@ -23,12 +23,15 @@ export function DepositSheet({
   onDone,
   inPool,
   drawNumber,
+  lockMode = false,
 }: {
   mode: Mode;
   onClose: () => void;
   onDone: () => void;
   inPool?: bigint;
   drawNumber?: number;
+  /** Hide the other tab. Used by the "take your shot" entry, which is only ever a way in. */
+  lockMode?: boolean;
 }) {
   const { address } = useAccount();
   const config = useConfig();
@@ -192,7 +195,7 @@ export function DepositSheet({
       >
         <div className={styles.head}>
           <div className={styles.tabs} role="tablist">
-            {(["deposit", "withdraw"] as Mode[]).map((m) => (
+            {(lockMode ? ([initialMode] as Mode[]) : (["deposit", "withdraw"] as Mode[])).map((m) => (
               <button
                 key={m}
                 role="tab"

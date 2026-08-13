@@ -19,8 +19,10 @@ export default function PoolTab() {
   const state = usePoolState();
   const lastDraw = useLastDraw(state.drawCount);
   const { isConnected } = useAccount();
-  const { stage, position, error, reveal, isUnlocked } = useMyPosition();
-  const [sheet, setSheet] = useState<"deposit" | "withdraw" | null>(null);
+  const { stage, position, error, reveal, needsSignature, isUnlocked } = useMyPosition();
+  // "join" is deposit with the withdraw tab hidden: it is the way in for someone who
+  // has nothing in yet, and withdrawing would need a decrypted balance to mean anything.
+  const [sheet, setSheet] = useState<"deposit" | "withdraw" | "join" | null>(null);
 
   const drawNumber = Number(state.drawCount);
   const mounted = now > 0;
@@ -114,7 +116,7 @@ export default function PoolTab() {
             </div>
             <div className={styles.nicheSub}>and nobody need ever know it was</div>
 
-            <button className={styles.nicheCta} onClick={() => setSheet("deposit")}>
+            <button className={styles.nicheCta} onClick={() => setSheet("join")}>
               Take your shot
             </button>
 
@@ -247,7 +249,8 @@ export default function PoolTab() {
 
       {sheet && (
         <DepositSheet
-          mode={sheet}
+          mode={sheet === "join" ? "deposit" : sheet}
+          lockMode={sheet === "join"}
           drawNumber={drawNumber}
           inPool={position.balance}
           onClose={() => setSheet(null)}

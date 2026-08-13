@@ -31,7 +31,16 @@ export function useMyPosition() {
   const { writeContractAsync } = useWriteContract();
   const { signTypedDataAsync } = useSignTypedData();
 
-  const [stage, setStage] = useState<RevealStage>(currentSession() ? "unlocked" : "locked");
+  // Always starts locked, even when a session is stored. Holding a session means the next
+  // reveal costs no signature — it does not mean the position has been fetched, and
+  // claiming otherwise would show "decrypted" over figures nobody has decrypted yet.
+  const [stage, setStage] = useState<RevealStage>("locked");
+
+  // Whether revealing will need a signature, so the button can stop promising one it is
+  // not going to ask for. Read in an effect: `sessionStorage` is invisible to the server,
+  // and reading it during the first render would break hydration.
+  const [needsSignature, setNeedsSignature] = useState(true);
+  useEffect(() => setNeedsSignature(!currentSession()), []);
   const [position, setPosition] = useState<MyPosition>({});
   const [error, setError] = useState<string>();
 
@@ -115,5 +124,5 @@ export function useMyPosition() {
     setStage("locked");
   }, []);
 
-  return { stage, position, error, reveal, lock, isUnlocked: stage === "unlocked" };
+  return { stage, position, error, reveal, lock, needsSignature, isUnlocked: stage === "unlocked" };
 }

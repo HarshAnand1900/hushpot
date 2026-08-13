@@ -281,6 +281,21 @@ describe("HushpotPool — draws and claims", function () {
       );
     });
 
+    it("holds the period back for thirty days, so a claim is not a race", async function () {
+      // Anyone advancing the period ends every open claim. Without a grace that could
+      // happen minutes after settlement, and a winner who was not watching lost the lot.
+      await expect(pool.connect(alice).startNextPeriod()).to.be.revertedWithCustomError(pool, "ClaimWindowOpen");
+
+      await time.increase(30 * 24 * 60 * 60);
+      await expect(pool.connect(alice).startNextPeriod()).to.not.be.reverted;
+    });
+
+    it("still lets a winner claim weeks after the draw settled", async function () {
+      await time.increase(29 * 24 * 60 * 60);
+      // The weights froze when the period ended, so the claim is as valid now as on day one.
+      await expect(pool.connect(owner).checkClaim(0, alice.address)).to.not.be.reverted;
+    });
+
     it("closes the window once the next period starts", async function () {
       await (await pool.connect(owner).startNextPeriod()).wait();
       await expect(pool.connect(owner).checkClaim(0, alice.address)).to.be.revertedWithCustomError(

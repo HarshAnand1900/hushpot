@@ -37,6 +37,7 @@ export function usePositionHistory(drawCount: number, currentOdds?: number) {
   const [deposits, setDeposits] = useState<DepositRow[]>();
   const [drawsEntered, setDrawsEntered] = useState<number>();
   const [blocksHeld, setBlocksHeld] = useState<bigint>();
+  const [heldFor, setHeldFor] = useState<string>();
   const [odds, setOdds] = useState<OddsPoint[]>([]);
 
   // --- chain half ----------------------------------------------------------
@@ -106,10 +107,23 @@ export function usePositionHistory(drawCount: number, currentOdds?: number) {
         setDeposits(rows);
 
         if (rows.length > 0) {
-          setBlocksHeld(head - rows[0].block);
+          const blocks = head - rows[0].block;
+          setBlocksHeld(blocks);
+
+          // Sepolia targets 12s a block. Approximate on purpose — "6 days" is what a
+          // depositor wants to know, and pretending to the second would be false anyway.
+          const hours = Number(blocks) / 300;
+          setHeldFor(
+            hours < 1
+              ? `${Math.max(1, Math.round(hours * 60))} min`
+              : hours < 48
+                ? `${Math.round(hours)} hr`
+                : `${Math.round(hours / 24)} days`,
+          );
           setDrawsEntered(Math.max(0, drawCount - rows[0].draw));
         } else {
           setBlocksHeld(undefined);
+          setHeldFor(undefined);
           setDrawsEntered(undefined);
         }
       } catch {
@@ -157,5 +171,5 @@ export function usePositionHistory(drawCount: number, currentOdds?: number) {
     }
   }, [address, currentOdds, drawCount, read]);
 
-  return { deposits, drawsEntered, blocksHeld, odds };
+  return { deposits, drawsEntered, blocksHeld, heldFor, odds };
 }

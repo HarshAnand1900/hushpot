@@ -83,6 +83,15 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// return by arriving. See `docs/THREAT-MODEL.md`.
     uint256 public annualRateBps = 500;
 
+    /// @notice How long a settled draw stays claimable before the period may roll.
+    /// @dev Thirty days. A winner who deposits and wanders off for a few weeks still
+    /// collects; the old behaviour let the prize evaporate the moment anyone advanced the
+    /// period, which could be minutes after settlement.
+    uint256 public constant CLAIM_GRACE = 30 days;
+
+    /// @notice When the most recent draw settled. The claim window runs from here.
+    uint256 public lastDrawSettledAt;
+
     /// @dev Which slots have already had a given draw evaluated. Public, and it reveals
     /// only that someone was checked — never whether they won.
     mapping(uint256 => mapping(uint16 => bool)) public claimChecked;
@@ -100,6 +109,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     error DrawAlreadySettledThisPeriod();
     error NoDrawPending();
     error PeriodNotElapsed();
+    error ClaimWindowOpen();
     error DrawNotSettled();
     error AlreadyChecked();
     error EmptyPool();
@@ -452,15 +462,34 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         draws[id] = Draw({total: total, prize: prize, drawPoint: point, period: currentPeriod, settled: true});
         drawCount = id + 1;
         drawPending = false;
+        lastDrawSettledAt = block.timestamp;
 
         emit DrawSettled(id, total, prize);
     }
 
     /// @notice Open the next period, closing the claim window on the last draw.
+    ///
+    /// @dev Held back for {CLAIM_GRACE} after settlement, and that delay *is* the claim
+    /// window.
+    ///
+    /// A claim recomputes your band from the live tree, which is only sound while the
+    /// weights the draw was settled against still stand. They do: once `minuteOfPeriod`
+    /// saturates at the end of a period, a deposit adds `amount * PERIOD_MINUTES` to the
+    /// balance term and the same to late credit, so it cancels exactly — and a withdrawal
+    /// cancels through early exit the same way. Nothing can move underneath a settled
+    /// draw until the period rolls.
+    ///
+    /// Which means the roll is the only thing that ends a claim, and holding it back costs
+    /// nothing at all: no snapshots, no per-slot state, no encrypted work. The price is
+    /// paid in cycle length rather than gas — no draw runs during the grace, and deposits
+    /// made in it earn their full credit when the next period opens.
     function startNextPeriod() external {
         if (drawPending) revert DrawAlreadyPending();
         if (drawCount == 0 || draws[drawCount - 1].period != currentPeriod) revert DrawNotSettled();
         if (!periodEnded() && msg.sender != owner()) revert PeriodNotElapsed();
+        // The owner may cut the grace short, for the same reason they may open a draw
+        // early: a testnet demonstration cannot wait a month to show the second cycle.
+        if (block.timestamp < lastDrawSettledAt + CLAIM_GRACE && msg.sender != owner()) revert ClaimWindowOpen();
 
         _advancePeriod();
         emit PeriodStarted(currentPeriod);

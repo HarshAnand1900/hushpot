@@ -82,7 +82,33 @@ export function PositionPanel({
 
   const delta = projected !== undefined && odds !== undefined ? projected - odds : 0;
 
-  const bars = history.odds.slice(-6);
+  /**
+   * Your odds across this period, minute by minute.
+   *
+   * The six-draw history was the wrong chart: draws are weekly, so it took over a month to
+   * fill and showed five empty boxes in the meantime. This one is full immediately and
+   * shows the thing that actually moves — odds are weighted by time held, so a position
+   * climbs all period and a late deposit visibly starts behind.
+   *
+   * Computed, not recorded. Your weight rises by your balance every minute that passes,
+   * and the pool total the draw will use is the frozen one, so the whole curve is known.
+   */
+  const curve = useMemo(() => {
+    if (weight === undefined || balance === undefined || !poolTotal || poolTotal === 0n) return [];
+
+    const now = Number(minuteOfPeriod);
+    const perMinute = Number(balance);
+
+    return Array.from({ length: 24 }, (_, i) => {
+      const minute = Math.round(((i + 1) / 24) * Number(PERIOD_MINUTES));
+      // Before now it is history, after now it is the projection if nothing changes.
+      const mine = Number(weight) + perMinute * Math.max(0, minute - now);
+      const all = Number(poolTotal) + perMinute * Math.max(0, minute - now);
+      return { minute, odds: all > 0 ? (mine / all) * 100 : 0, future: minute > now };
+    });
+  }, [weight, balance, poolTotal, minuteOfPeriod]);
+
+  const curvePeak = Math.max(...curve.map((p) => p.odds), 0.0001);
 
   return (
     <section className="panel">
@@ -127,12 +153,14 @@ export function PositionPanel({
               </dd>
             </div>
 
+            {/* Blocks held was the honest figure and a useless one. Time is what odds are
+                actually weighted by, so time is what belongs here. */}
             <div className={styles.row}>
               <dt>
-                BLOCKS HELD <span className={styles.rowNote}>earning the whole time</span>
+                TIME IN THE POOL <span className={styles.rowNote}>odds accrue every minute</span>
               </dt>
               <dd className={isUnlocked ? styles.rowValue : styles.rowMasked}>
-                {isUnlocked ? (history.blocksHeld !== undefined ? Number(history.blocksHeld).toLocaleString() : "—") : masked}
+                {isUnlocked ? (history.heldFor ?? "—") : masked}
               </dd>
             </div>
           </dl>
@@ -153,38 +181,30 @@ export function PositionPanel({
           </div>
 
           <div className={styles.spark}>
-            {Array.from({ length: 6 }, (_, i) => {
-              const point = bars[i];
-              const peak = Math.max(...bars.map((b) => b.odds), odds ?? 0, 0.01);
-              const h = point ? Math.max(12, (point.odds / peak) * 100) : 34;
-              const newest = i === bars.length - 1 && bars.length > 0;
-              return (
-                <span
-                  key={i}
-                  className={styles.bar}
-                  style={{
-                    height: `${h}%`,
-                    background: !point
-                      ? "rgba(255,255,255,.06)"
-                      : newest
-                        ? "var(--yellow)"
-                        : "rgba(255,210,8,.42)",
-                  }}
-                  title={point ? `Draw #${point.draw} · ${point.odds.toFixed(2)}%` : "no reading"}
-                />
-              );
-            })}
+            {(curve.length ? curve : Array.from({ length: 24 }, () => null)).map((p, i) => (
+              <span
+                key={i}
+                className={styles.bar}
+                style={{
+                  height: p ? `${Math.max(6, (p.odds / curvePeak) * 100)}%` : "22%",
+                  background: !p
+                    ? "rgba(255,255,255,.05)"
+                    : p.future
+                      ? "rgba(255,210,8,.28)"
+                      : "var(--yellow)",
+                }}
+                title={p ? `minute ${p.minute} · ${p.odds.toFixed(3)}%` : undefined}
+              />
+            ))}
           </div>
           <div className={styles.sparkFoot}>
-            <span>YOUR ODDS · LAST 6 DRAWS</span>
-            <span>NOW</span>
+            <span>YOUR ODDS · THIS PERIOD</span>
+            <span>{isUnlocked ? "SOLID = SO FAR" : "SEALED"}</span>
           </div>
 
           <div className={styles.oddsNote}>
             {isUnlocked
-              ? bars.length > 1
-                ? "rising as your deposit accrues time"
-                : "computed here, never transmitted"
+              ? "climbing every minute you stay in — computed here, never transmitted"
               : "computed here, never transmitted"}
           </div>
         </div>

@@ -87,12 +87,53 @@ export interface DecryptSession {
 
 let session: DecryptSession | null = null;
 
+/**
+ * Where a session survives a reload.
+ *
+ * Kept in `sessionStorage`, not `localStorage`: it lives for the life of the tab and dies
+ * when the tab closes, which is the same lifetime the in-memory session already had. The
+ * gain is that refreshing the page, or bouncing through a wallet redirect, no longer costs
+ * another signature — the single most common reason people were signing twice.
+ *
+ * Nothing sensitive to anyone but you is in here. The keypair is generated in the browser
+ * and never leaves it, and the signature only authorises decrypting your own handles.
+ */
+const STORE_KEY = "hushpot.session.v1";
+
+function persist(s: DecryptSession | null) {
+  try {
+    if (!s) sessionStorage.removeItem(STORE_KEY);
+    else sessionStorage.setItem(STORE_KEY, JSON.stringify(s));
+  } catch {
+    /* private mode, or storage disabled — the session simply stays in memory */
+  }
+}
+
+function restore(): DecryptSession | null {
+  try {
+    const raw = sessionStorage.getItem(STORE_KEY);
+    if (!raw) return null;
+
+    const s = JSON.parse(raw) as DecryptSession;
+    const expiresAt = (s.startTimestamp + s.durationDays * 86_400) * 1000;
+    if (Date.now() >= expiresAt) {
+      sessionStorage.removeItem(STORE_KEY);
+      return null;
+    }
+    return s;
+  } catch {
+    return null;
+  }
+}
+
 export function currentSession(): DecryptSession | null {
+  if (!session && typeof window !== "undefined") session = restore();
   return session;
 }
 
 export function clearSession() {
   session = null;
+  persist(null);
 }
 
 /**
@@ -110,14 +151,15 @@ export async function openSession(
     message: Record<string, unknown>;
   }) => Promise<`0x${string}`>,
 ): Promise<DecryptSession> {
-  if (session && session.user.toLowerCase() === user.toLowerCase()) return session;
+  const existing = currentSession();
+  if (existing && existing.user.toLowerCase() === user.toLowerCase()) return existing;
 
   const fhevm = await getFhevm();
   const { publicKey, privateKey } = fhevm.generateKeypair();
 
   // Timestamps must be numbers here, not strings — the SDK is strict about it.
   const startTimestamp = Math.floor(Date.now() / 1000);
-  const durationDays = 1;
+  const durationDays = 7;
 
   const eip712 = fhevm.createEIP712(publicKey, SESSION_CONTRACTS, startTimestamp, durationDays);
 
@@ -129,6 +171,7 @@ export async function openSession(
   });
 
   session = { privateKey, publicKey, signature, startTimestamp, durationDays, user };
+  persist(session);
   return session;
 }
 
