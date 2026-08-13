@@ -1,0 +1,137 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--rule);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+/* ---------------------------------------------------------------- track -- */
+
+.track {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step,
+.stepDone,
+.stepLive {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 18px;
+}
+
+/* The rail between markers. Drawn from each step rather than behind them, so it lines up
+   with the dots at any column width. */
+.step::before,
+.stepDone::before,
+.stepLive::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 4px;
+  right: 0;
+  height: 1px;
+  background: var(--rule);
+}
+
+.track > li:last-child::before {
+  display: none;
+}
+
+.dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: var(--black);
+}
+
+.stepDone {
+  color: var(--text-3);
+}
+.stepDone .dot {
+  background: var(--text-3);
+}
+
+.stepLive {
+  color: var(--yellow);
+}
+.stepLive .dot {
+  background: var(--yellow);
+  box-shadow: 0 0 0 3px rgba(255, 210, 8, 0.16);
+}
+
+.step {
+  color: var(--text-4);
+}
+
+.stepLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+}
+
+.stepValue {
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+}
+
+/* --------------------------------------------------------------- status -- */
+
+.status {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.statusCell {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.statusLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--text-4);
+}
+
+.statusValue {
+  font-family: var(--font-mono), monospace;
+  font-size: 14px;
+  color: var(--white);
+}
+
+.note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-3);
+}
+
+@media (max-width: 700px) {
+  .track {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .step::before,
+  .stepDone::before,
+  .stepLive::before {
+    display: none;
+  }
+}

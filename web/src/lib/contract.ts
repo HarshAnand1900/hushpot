@@ -5,18 +5,19 @@
  * anyone who took part in an earlier Developer Program season already holds the token.
  *
  * Carries the parked-award payout — which took a claim from 2.4M gas to 454k by no longer
- * repairing ten ancestor sums to credit an encrypted zero — and open prize sponsorship.
+ * repairing ten ancestor sums to credit an encrypted zero — open prize sponsorship, and a
+ * thirty-day claim window that costs nothing because the roll is what ends a claim.
  */
 
 export const CHAIN_ID = 11155111;
 
-export const POOL_ADDRESS = "0xB3BD7aa95E8679fCCcB845D53D29700A3972436b" as const;
+export const POOL_ADDRESS = "0x418385883154b609e3eA7639969E3d0C054Fb696" as const;
 
 /**
  * Block the pool was deployed in. Log scans start here rather than at genesis — public
  * Sepolia endpoints reject unbounded ranges, and nothing about this pool exists before it.
  */
-export const DEPLOY_BLOCK = 11473823n;
+export const DEPLOY_BLOCK = 11479762n;
 
 /** cUSDTMock — "Confidential USDT (Mock)", 6 decimals, rate 1. */
 export const TOKEN_ADDRESS = "0x4E7B06D78965594eB5EF5414c357ca21E1554491" as const;
@@ -48,6 +49,14 @@ export const poolAbi = [
     stateMutability: "nonpayable",
   },
   { type: "function", name: "drawCount", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
+  { type: "function", name: "CLAIM_GRACE", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
+  {
+    type: "function",
+    name: "lastDrawSettledAt",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
   { type: "function", name: "drawPending", inputs: [], outputs: [{ type: "bool" }], stateMutability: "view" },
   { type: "function", name: "supportsAutoShield", inputs: [], outputs: [{ type: "bool" }], stateMutability: "view" },
   { type: "function", name: "underlyingToken", inputs: [], outputs: [{ type: "address" }], stateMutability: "view" },

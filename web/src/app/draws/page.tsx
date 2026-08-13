@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { AppHeader } from "@/components/AppHeader";
+import { DrawTimeline } from "@/components/DrawTimeline";
 import { Pot3D } from "@/components/Pot3D";
 import { useDraws } from "@/hooks/useDraws";
 import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
@@ -39,7 +40,7 @@ export default function DrawsTab() {
           <div className={styles.facts}>
             <Fact label="WINNERS RESOLVED ON-CHAIN" value="0" accent />
             <Fact label="TRANSACTIONS PER DRAW" value="2" />
-            <Fact label="CLAIM WINDOW" value="until next draw" />
+            <Fact label="CLAIM WINDOW" value="30 days" />
           </div>
         </section>
 
@@ -92,6 +93,8 @@ export default function DrawsTab() {
                 combined it with the committed state of every depositor. The pool total below is the only figure this
                 draw made public — and it is an aggregate, not anybody&apos;s balance.
               </p>
+
+              <DrawTimeline drawId={draw.id} isLatest={selected === 0} />
 
               {/* local verification — real read-only calls, no wallet involved */}
               <div className={styles.verify}>
