@@ -33,7 +33,15 @@ export function DepositSheet({
   const { address } = useAccount();
   const config = useConfig();
   const { writeContractAsync } = useWriteContract();
-  const { step, error, deposit, withdraw, reset, busy } = useDeposit();
+  const { step, error, deposit, depositConfidential, withdraw, reset, busy } = useDeposit();
+
+  /**
+   * Which token funds the deposit, and it is a privacy decision rather than a preference.
+   * Plain tUSDT is one approval and one call, but the amount rides in a plain ERC-20
+   * transfer and is public forever. cUSDT costs an operator grant the first time and
+   * leaves nothing in the clear.
+   */
+  const [route, setRoute] = useState<"plain" | "confidential">("plain");
 
   // The two directions live in one sheet, so changing your mind costs a tab rather than
   // closing, finding the other button, and reopening.
@@ -101,16 +109,26 @@ export function DepositSheet({
 
   const submit = () => {
     if (!canSubmit) return;
-    void (mode === "deposit" ? deposit(amount) : withdraw(amount));
+    if (mode === "withdraw") {
+      void withdraw(amount);
+      return;
+    }
+    void (route === "confidential" ? depositConfidential(amount) : deposit(amount));
   };
 
   const steps =
     mode === "deposit"
-      ? [
-          { key: "approving", label: "Approve tUSDT", note: "one-time, lets the pool pull tokens" },
-          { key: "encrypting", label: "Encrypt the amount", note: "client-side, before broadcast" },
-          { key: "depositing", label: "Submit ciphertext", note: "the contract stores a number it can't read" },
-        ]
+      ? route === "confidential"
+        ? [
+            { key: "approving", label: "Authorise the pool", note: "one-time operator grant on your cUSDT" },
+            { key: "encrypting", label: "Encrypt the amount", note: "client-side, before broadcast" },
+            { key: "depositing", label: "Submit ciphertext", note: "the size never appears in the clear" },
+          ]
+        : [
+            { key: "approving", label: "Approve tUSDT", note: "one-time, lets the pool pull tokens" },
+            { key: "encrypting", label: "Shield into cUSDT", note: "wrapped by the pool on arrival" },
+            { key: "depositing", label: "Credit your slot", note: "the position is encrypted from here on" },
+          ]
       : [
           { key: "encrypting", label: "Encrypt the amount", note: "sealed in this browser first" },
           { key: "withdrawing", label: "Submit ciphertext", note: "the pool returns your principal in full" },
@@ -213,10 +231,40 @@ export function DepositSheet({
             </div>
           )}
 
+          {/* which token, which is a privacy choice ----------------------- */}
+          {mode === "deposit" && (
+            <div className={styles.routes} role="radiogroup" aria-label="Deposit route">
+              {(
+                [
+                  { key: "plain", title: "Plain tUSDT", sub: "This amount is public" },
+                  { key: "confidential", title: "cUSDT", sub: "Amount never in the clear" },
+                ] as const
+              ).map((r) => (
+                <button
+                  key={r.key}
+                  role="radio"
+                  aria-checked={route === r.key}
+                  className={route === r.key ? `${styles.route} ${styles.routeOn}` : styles.route}
+                  onClick={() => !busy && setRoute(r.key)}
+                  disabled={busy}
+                >
+                  <span className={styles.routeTitle}>{r.title}</span>
+                  <span className={styles.routeSub}>{r.sub}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* what this actually does -------------------------------------- */}
           <div className={styles.note}>
             <span className={styles.noteMark} aria-hidden="true" />
-            {mode === "deposit" ? (
+            {mode === "deposit" && route === "confidential" ? (
+              <span>
+                Nothing but a ciphertext leaves this browser. The chain will record that you deposited, and when — but
+                not how much, not now and not ever. Requires cUSDT; the plain route shields for you but publishes the
+                size on the way in.
+              </span>
+            ) : mode === "deposit" ? (
               <span>
                 This starts earning odds the moment it lands — no waiting for the draw boundary. Odds are weighted by
                 amount and by how long it sits, so the earlier it arrives the more of

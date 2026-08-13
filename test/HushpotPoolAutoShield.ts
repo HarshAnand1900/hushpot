@@ -171,9 +171,10 @@ describe("HushpotPool — auto-shielding plain tokens", function () {
       expect(await poolBalance(bob)).to.eq(400n);
       expect(await poolWeight(alice)).to.eq(await poolWeight(bob));
 
-      await (await pool.connect(alice).refreshTotal()).wait();
-      const total = await fhevm.userDecryptEuint(FhevmType.euint64, await pool.totalHandle(), poolAddress, alice);
-      expect(total).to.eq(800n * PERIOD_MINUTES);
+      // Only a draw publishes the total — there is no on-demand reader, by design.
+      await (await pool.openDraw()).wait();
+      const published = await fhevm.publicDecrypt([await pool.pendingTotalHandle()]);
+      expect(BigInt(Object.values(published.clearValues ?? {})[0] as string)).to.eq(800n * PERIOD_MINUTES);
     });
   });
 

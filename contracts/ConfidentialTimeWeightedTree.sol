@@ -317,19 +317,30 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         _weightCache[slot] = weight;
     }
 
-    /// @notice Compute the pool's total ticket-minutes and mark it publicly decryptable.
-    /// @dev The total is the one aggregate Hushpot publishes, and only at a draw boundary.
-    /// Publishing it continuously would let anyone recover individual deposits by
-    /// subtracting one reading from the next.
-    function refreshTotal() external {
+    /// @dev Compute the pool's total ticket-minutes and mark it publicly decryptable.
+    ///
+    /// Deliberately **internal**. The total is the one aggregate Hushpot publishes, and
+    /// only at a draw boundary — {HushpotPool-openDraw} is the sole caller in production.
+    ///
+    /// This used to be `external`, which meant anyone could publish the live total on
+    /// demand. That is not a small leak: read it, wait for a deposit to land, read it
+    /// again, and the difference is that depositor's amount in the clear. Two calls and
+    /// the encryption is worth nothing. A subclass exposes it for tests; the pool does
+    /// not expose it at all.
+    function _refreshTotal() internal {
         euint64 t = _weightOf(1);
         _totalCache = t;
         FHE.allowThis(t);
         FHE.makePubliclyDecryptable(t);
-        FHE.allow(t, msg.sender);
     }
 
     function totalHandle() external view returns (euint64) {
+        return _totalCache;
+    }
+
+    /// @dev For subclasses that need to grant rights over the cached total. Test harnesses
+    /// only — the pool never hands this out.
+    function _totalCacheHandle() internal view returns (euint64) {
         return _totalCache;
     }
 

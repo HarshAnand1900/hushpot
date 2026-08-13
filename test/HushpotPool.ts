@@ -325,9 +325,12 @@ describe("HushpotPool", function () {
       await deposit(alice, 400n);
       await deposit(bob, 600n);
 
-      await (await pool.connect(alice).refreshTotal()).wait();
-      const handle = await pool.totalHandle();
-      const total = await fhevm.userDecryptEuint(FhevmType.euint64, handle, poolAddress, alice);
+      // Through a draw, because that is the only way the total is ever published. There
+      // is deliberately no on-demand reader: two readings either side of a deposit would
+      // give away that deposit's size.
+      await (await pool.openDraw()).wait();
+      const published = await fhevm.publicDecrypt([await pool.pendingTotalHandle()]);
+      const total = BigInt(Object.values(published.clearValues ?? {})[0] as string);
 
       expect(total).to.eq(1000n * PERIOD_MINUTES);
     });

@@ -200,6 +200,43 @@ export const poolAbi = [
   },
 ] as const;
 
+/**
+ * The ERC-7984 confidential token, as far as depositing needs it.
+ *
+ * `confidentialTransferFrom` is pulled by the pool rather than called here, and it needs
+ * standing permission — hence `setOperator`, which is the confidential analogue of an
+ * ERC-20 approval and grants until a deadline rather than up to an amount.
+ */
+export const confidentialTokenAbi = [
+  {
+    type: "function",
+    name: "setOperator",
+    inputs: [
+      { name: "operator", type: "address" },
+      { name: "until", type: "uint48" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "isOperator",
+    inputs: [
+      { name: "holder", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ type: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "confidentialBalanceOf",
+    inputs: [{ type: "address" }],
+    outputs: [{ type: "bytes32" }],
+    stateMutability: "view",
+  },
+] as const;
+
 export const erc20Abi = [
   {
     type: "function",
