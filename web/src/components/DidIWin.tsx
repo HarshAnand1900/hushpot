@@ -21,15 +21,18 @@ type Phase = "idle" | "checking" | "reading" | "won" | "lost" | "error";
  * So the only way to find out is to open your own balance and see whether it moved. That
  * is what this does: run the check, then decrypt your balance and compare.
  */
+export type CheckableDraw = { id: bigint; prize: bigint; period: number };
+
 export function DidIWin({
-  drawId,
-  prize,
+  draws,
+  currentPeriod,
   balanceBefore,
   unlocked,
   onClaimed,
 }: {
-  drawId: bigint;
-  prize: bigint;
+  /** Every settled draw, newest first. */
+  draws: CheckableDraw[];
+  currentPeriod: number;
   balanceBefore?: bigint;
   unlocked: boolean;
   onClaimed: () => void;
@@ -42,9 +45,21 @@ export function DidIWin({
   const [phase, setPhase] = useState<Phase>("idle");
   const [delta, setDelta] = useState<bigint>(0n);
   const [error, setError] = useState<string>();
+  const [picked, setPicked] = useState(0);
+
+  const draw = draws[picked];
+
+  /**
+   * A draw is only claimable while its own period is still the current one.
+   *
+   * `checkClaim` requires it, and for a good reason: the check recomputes your band from
+   * the live tree, which only matches what the draw was settled against until the period
+   * rolls. So an older draw is not merely closed by policy — it is no longer answerable.
+   */
+  const claimable = draw !== undefined && draw.period === currentPeriod;
 
   const check = useCallback(async () => {
-    if (!address || !publicClient || balanceBefore === undefined) return;
+    if (!address || !publicClient || balanceBefore === undefined || !draw) return;
     setError(undefined);
 
     try {
@@ -73,7 +88,7 @@ export function DidIWin({
         address: POOL_ADDRESS,
         abi: poolAbi,
         functionName: "claimChecked",
-        args: [drawId, slot],
+        args: [draw.id, slot],
       });
 
       // Anyone can run this for anyone — a keeper may already have swept you.
@@ -83,7 +98,7 @@ export function DidIWin({
           address: POOL_ADDRESS,
           abi: poolAbi,
           functionName: "checkClaim",
-          args: [drawId, address],
+          args: [draw.id, address],
         });
         await waitForTransactionReceipt(config, { hash: tx });
       }
@@ -114,32 +129,61 @@ export function DidIWin({
       setError(/user rejected|denied/i.test(message) ? "Transaction declined." : message.slice(0, 160));
       setPhase("error");
     }
-  }, [address, balanceBefore, config, drawId, onClaimed, publicClient, writeContractAsync]);
+  }, [address, balanceBefore, config, draw, onClaimed, publicClient, writeContractAsync]);
 
   const busy = phase === "checking" || phase === "reading";
 
   return (
     <section className="panel">
       <div className="panelHead">
-        <span>DRAW #{String(drawId)} · SETTLED</span>
+        <span>DRAW #{draw ? String(draw.id) : "—"} · SETTLED</span>
         <span style={{ color: phase === "won" ? "var(--yellow)" : undefined }}>
-          {phase === "won" ? "YOURS ONLY" : phase === "lost" ? "CHECKED" : "UNREAD"}
+          {phase === "won" ? "YOURS ONLY" : phase === "lost" ? "CHECKED" : claimable ? "OPEN" : "WINDOW CLOSED"}
         </span>
       </div>
 
       <div className={styles.body}>
+        {draws.length > 1 && (
+          <div className={styles.picker}>
+            {draws.map((d, i) => (
+              <button
+                key={String(d.id)}
+                className={i === picked ? `${styles.pick} ${styles.pickOn}` : styles.pick}
+                onClick={() => {
+                  setPicked(i);
+                  setPhase("idle");
+                  setError(undefined);
+                }}
+                title={d.period === currentPeriod ? "Still claimable" : "Claim window closed"}
+              >
+                #{String(d.id)}
+                {d.period !== currentPeriod && <span className={styles.pickShut}>·</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
         {(phase === "idle" || phase === "error") && (
           <>
             <p className={styles.copy}>
               The pot landed in somebody&apos;s balance with no announcement. The only way to know is to open yours.
             </p>
             <p className={styles.cipher}>
-              This draw paid {formatUnits(prize)} cUSDT to exactly one depositor. Nobody — not the other players, not
-              the contract, not us — can say which.
+              This draw paid {draw ? formatUnits(draw.prize) : "—"} cUSDT to exactly one depositor. Nobody — not the
+              other players, not the contract, not us — can say which.
             </p>
+
+            {!claimable && draw && (
+              <div className={styles.expired}>
+                The claim window for this draw closed when period #{draw.period} rolled over. A claim recomputes your
+                band from the live tree, and those numbers moved on — so this one can no longer be answered, by anyone.
+                Draws are swept before the roll for exactly this reason.
+              </div>
+            )}
+
             {error && <div className={styles.error}>{error}</div>}
-            <button className="btnPrimary" onClick={check} disabled={!unlocked || busy}>
-              {unlocked ? "Did I win?" : "Reveal your position first"}
+            <button className="btnPrimary" onClick={check} disabled={!unlocked || busy || !claimable}>
+              {!claimable ? "Window closed" : unlocked ? "Did I win?" : "Reveal your position first"}
             </button>
           </>
         )}

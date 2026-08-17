@@ -9,6 +9,7 @@ import { DidIWin } from "@/components/DidIWin";
 import { PositionPanel } from "@/components/PositionPanel";
 import { Pot3D } from "@/components/Pot3D";
 import { useMyPosition } from "@/hooks/useMyPosition";
+import { useDraws } from "@/hooks/useDraws";
 import { useLastDraw, useNow, usePoolState } from "@/hooks/usePoolState";
 import { POOL_ADDRESS } from "@/lib/contract";
 import { formatCountdown, formatUnits, shortenAddress, splitUnits } from "@/lib/format";
@@ -18,6 +19,7 @@ export default function PoolTab() {
   const now = useNow();
   const state = usePoolState();
   const lastDraw = useLastDraw(state.drawCount);
+  const { draws } = useDraws(state.drawCount);
   const { isConnected } = useAccount();
   const { stage, position, error, reveal, needsSignature, isUnlocked } = useMyPosition();
   // "join" is deposit with the withdraw tab hidden: it is the way in for someone who
@@ -202,10 +204,10 @@ export default function PoolTab() {
         </PositionPanel>
 
         {/* did I win ------------------------------------------------------ */}
-        {lastDraw && state.drawCount > 0n && (
+        {draws.length > 0 && (
           <DidIWin
-            drawId={state.drawCount - 1n}
-            prize={lastDraw.prize}
+            draws={draws.map((d) => ({ id: d.id, prize: d.prize, period: Number(d.period) }))}
+            currentPeriod={state.currentPeriod}
             balanceBefore={position.balance}
             unlocked={isUnlocked}
             onClaimed={() => state.refetch()}
