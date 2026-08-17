@@ -145,7 +145,7 @@ authoritative — build from these, not from the bundle.
 | "No oracle" | True of the randomness. The total is decrypted off-chain and relayed back with a proof | "No randomness oracle — the network rolls the die itself" |
 | `odds = balance ÷ pool` | Ticket-minutes ÷ pool ticket-minutes | Time-weighted, see below |
 | `projected = (balance+add) ÷ (pool+add)` | A mid-week deposit earns only the time remaining | Scale `add` by remaining time |
-| `CLAIM WINDOW — 4d` | Runs until the next period opens | `CLAIM WINDOW — until next draw` |
+| `CLAIM WINDOW — 4d` | Runs until the next period opens | `CLAIM WINDOW — 30 days` |
 | `APY 4.10%` | `annualRateBps = 500` | `5.00%`, or set the contract to 410 |
 | Faucet "once per hour" | The underlying's `mint` is unrestricted | Drop the rate-limit line |
 | `Hushpot.sol` | `HushpotPool.sol` | Rename in the Proof tab |
@@ -192,6 +192,12 @@ the behaviour the mechanism is designed to encourage.
 ## 7. New mechanics that need a home in the UI
 
 ### The claim window
+> **Superseded.** The claim window is now 30 days (`CLAIM_GRACE`), enforced by holding the
+> period roll back rather than by any per-draw bookkeeping. Weights freeze on their own when
+> a period ends, so the roll is the only thing that can end a claim — which makes a long
+> window free. Unclaimed prizes are not rolled over; a sweep before the roll is what ensures
+> they are delivered. The paragraph below records the original design.
+
 A prize must be claimed within a week. Unclaimed, it rolls into the next draw and makes
 that pot bigger. Needs a countdown on the "did I win?" surface, and a note in draw history
 when a pot was a rollover.

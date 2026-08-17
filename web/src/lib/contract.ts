@@ -11,13 +11,13 @@
 
 export const CHAIN_ID = 11155111;
 
-export const POOL_ADDRESS = "0x418385883154b609e3eA7639969E3d0C054Fb696" as const;
+export const POOL_ADDRESS = "0x38DcB3cf3f057A866c4BB5534C3ecCe742A441a2" as const;
 
 /**
  * Block the pool was deployed in. Log scans start here rather than at genesis — public
  * Sepolia endpoints reject unbounded ranges, and nothing about this pool exists before it.
  */
-export const DEPLOY_BLOCK = 11479762n;
+export const DEPLOY_BLOCK = 11508735n;
 
 /** cUSDTMock — "Confidential USDT (Mock)", 6 decimals, rate 1. */
 export const TOKEN_ADDRESS = "0x4E7B06D78965594eB5EF5414c357ca21E1554491" as const;
@@ -58,6 +58,15 @@ export const poolAbi = [
     stateMutability: "view",
   },
   { type: "function", name: "drawPending", inputs: [], outputs: [{ type: "bool" }], stateMutability: "view" },
+  { type: "function", name: "owner", inputs: [], outputs: [{ type: "address" }], stateMutability: "view" },
+  {
+    type: "function",
+    name: "sweepCursor",
+    inputs: [{ type: "uint256" }],
+    outputs: [{ type: "uint16" }],
+    stateMutability: "view",
+  },
+  { type: "function", name: "pendingTotalHandle", inputs: [], outputs: [{ type: "bytes32" }], stateMutability: "view" },
   { type: "function", name: "supportsAutoShield", inputs: [], outputs: [{ type: "bool" }], stateMutability: "view" },
   { type: "function", name: "underlyingToken", inputs: [], outputs: [{ type: "address" }], stateMutability: "view" },
   { type: "function", name: "token", inputs: [], outputs: [{ type: "address" }], stateMutability: "view" },
@@ -167,6 +176,28 @@ export const poolAbi = [
     outputs: [],
     stateMutability: "nonpayable",
   },
+  { type: "function", name: "openDraw", inputs: [], outputs: [], stateMutability: "nonpayable" },
+  { type: "function", name: "startNextPeriod", inputs: [], outputs: [], stateMutability: "nonpayable" },
+  {
+    type: "function",
+    name: "settleDraw",
+    inputs: [
+      { name: "abiEncodedCleartexts", type: "bytes" },
+      { name: "decryptionProof", type: "bytes" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "sweepRange",
+    inputs: [
+      { name: "drawId", type: "uint256" },
+      { name: "count", type: "uint16" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
   {
     type: "function",
     name: "checkClaim",
@@ -234,6 +265,16 @@ export const confidentialTokenAbi = [
     ],
     outputs: [{ type: "bool" }],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "wrap",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
     type: "function",

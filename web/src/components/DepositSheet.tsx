@@ -46,7 +46,7 @@ export function DepositSheet({
    * transfer and is public forever. cUSDT costs an operator grant the first time and
    * leaves nothing in the clear.
    */
-  const [route, setRoute] = useState<"plain" | "confidential">("plain");
+  const [route, setRoute] = useState<"plain" | "confidential">("confidential");
 
   // The two directions live in one sheet, so changing your mind costs a tab rather than
   // closing, finding the other button, and reopening.
@@ -113,17 +113,43 @@ export function DepositSheet({
    * Surfaced here because an empty wallet is the default state of every new visitor, and
    * without it the deposit sheet is a dead end for exactly the people we want to reach.
    */
-  const faucet = async () => {
+  const faucet = async (shield: boolean) => {
     if (!address) return;
     setMinting(true);
     try {
-      const tx = await writeContractAsync({
+      const amount = 10_000n * SCALE;
+
+      const mint = await writeContractAsync({
         address: UNDERLYING_ADDRESS,
         abi: erc20Abi,
         functionName: "mint",
-        args: [address, 10_000n * SCALE],
+        args: [address, amount],
       });
-      await waitForTransactionReceipt(config, { hash: tx, confirmations: 2 });
+      await waitForTransactionReceipt(config, { hash: mint, confirmations: 2 });
+
+      // Wrap it, so the confidential route is usable from an empty wallet. Without this
+      // the private path is unreachable for a newcomer — the faucet only hands out plain
+      // tokens — and the route that actually keeps the promise looks broken.
+      if (shield) {
+        const approve = await writeContractAsync({
+          address: UNDERLYING_ADDRESS,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [TOKEN_ADDRESS, amount],
+        });
+        await waitForTransactionReceipt(config, { hash: approve, confirmations: 2 });
+
+        const wrap = await writeContractAsync({
+          address: TOKEN_ADDRESS,
+          abi: confidentialTokenAbi,
+          functionName: "wrap",
+          args: [address, amount],
+          gas: 1_500_000n,
+        });
+        await waitForTransactionReceipt(config, { hash: wrap, confirmations: 2 });
+        setShielded(undefined);
+      }
+
       await refetchWallet();
     } finally {
       setMinting(false);
@@ -304,8 +330,10 @@ export function DepositSheet({
             <div className={styles.routes} role="radiogroup" aria-label="Deposit route">
               {(
                 [
-                  { key: "plain", title: "Plain tUSDT", sub: "Shielded for you · size public" },
-                  { key: "confidential", title: "cUSDT", sub: "Goes straight in · size hidden" },
+                  // The privacy consequence stated on the control itself, not buried in a
+                  // doc. Honesty reads as intentional when it is where the choice is made.
+                  { key: "confidential", title: "cUSDT", sub: "Amount hidden · recommended" },
+                  { key: "plain", title: "Plain tUSDT", sub: "Amount public · quick demo" },
                 ] as const
               ).map((r) => (
                 <button
@@ -370,9 +398,19 @@ export function DepositSheet({
 
           {error && <div className={styles.error}>{error}</div>}
 
-          {mode === "deposit" && route === "plain" && available === 0n && (
-            <button className={styles.faucet} onClick={faucet} disabled={minting || busy}>
-              {minting ? "Minting…" : "Your wallet is empty — get 10,000 test tUSDT"}
+          {mode === "deposit" && (route === "confidential" ? !shielded : available === 0n) && (
+            <button
+              className={styles.faucet}
+              onClick={() => faucet(route === "confidential")}
+              disabled={minting || busy}
+            >
+              {minting
+                ? route === "confidential"
+                  ? "Minting and shielding…"
+                  : "Minting…"
+                : route === "confidential"
+                  ? "No cUSDT yet — get 10,000, shielded"
+                  : "Your wallet is empty — get 10,000 test tUSDT"}
             </button>
           )}
 

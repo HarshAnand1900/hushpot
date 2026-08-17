@@ -6,7 +6,31 @@ This document is deliberately unflattering. A confidential system that only adve
 strengths is harder to evaluate than one that names its edges, and every claim below can be
 checked against the deployed contract.
 
-**Contract:** `HushpotPool` · Sepolia · `0x0B6c8A1f573215f25041616987Aa8f269ABDFa4e`
+**Contract:** `HushpotPool` · Sepolia · `0x38DcB3cf3f057A866c4BB5534C3ecCe742A441a2`
+
+> The live address always matches [`web/src/lib/contract.ts`](../web/src/lib/contract.ts).
+> Earlier deployments referenced in git history are superseded.
+
+## Findings from review, and what changed
+
+**The live pool total was publishable on demand — fixed.** `refreshTotal()` was `external`
+and marked the running total publicly decryptable. Read it, wait for a deposit, read it
+again, and the difference is that depositor's amount in the clear. Two calls and the
+encryption was worth nothing. It is now `internal`, and `openDraw` is the only caller, so
+the total is published once per period and never otherwise. A test harness exposes it with
+a comment saying why that would be a break in production.
+
+**A self-check followed by a sweep credited twice — fixed.** `sweepRange` did not skip slots
+already settled by `checkClaim`, so a winner could be paid the prize twice out of a reserve
+that had only set one aside. `sweepRange` now skips already-checked slots — after advancing
+the running band edge, which matters: returning early without advancing would shift every
+subsequent band and pick the wrong winner.
+
+**The confidential deposit route was unreachable — fixed.** The contract has always had
+`deposit(externalEuint64, proof)`, but the app only ever called `depositUnderlying`, whose
+amount is public. The faucet handed out plain tokens only, so a newcomer could not use the
+private path at all. The faucet now shields on request, and the confidential route is the
+default.
 
 ---
 

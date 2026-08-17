@@ -9,8 +9,9 @@ and the draw is still something a stranger can verify.
 
 Built for the Zama Developer Program, Mainnet Season 4.
 
-- **Live app:** _pending deployment — see “Running it yourself” below_
-- **Contract:** [`0x0B6c8A1f573215f25041616987Aa8f269ABDFa4e`](https://sepolia.etherscan.io/address/0x0B6c8A1f573215f25041616987Aa8f269ABDFa4e) (Sepolia)
+- **Live app:** <https://hushpot-fhevm.vercel.app>
+- **Contract:** [`0x38DcB3cf3f057A866c4BB5534C3ecCe742A441a2`](https://sepolia.etherscan.io/address/0x38DcB3cf3f057A866c4BB5534C3ecCe742A441a2) (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0x38DcB3cf3f057A866c4BB5534C3ecCe742A441a2#code). The address in [`web/src/lib/contract.ts`](web/src/lib/contract.ts) is always the live one
+- **Operator panel:** [`/operator`](https://hushpot-fhevm.vercel.app/operator) — run a whole draw cycle from the browser, no terminal
 - **Token:** Zama's official `cUSDTMock` — [`0x4E7B…4491`](https://sepolia.etherscan.io/address/0x4E7B06D78965594eB5EF5414c357ca21E1554491)
 - **Faucet:** the underlying [`USDTMock`](https://sepolia.etherscan.io/address/0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0) has an open `mint`, so anyone can self-serve
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) — what leaks, and when
@@ -72,9 +73,18 @@ learns nothing. It adds `FHE.select(won, prize, 0)` to that depositor's balance.
 A loser's claim adds an encrypted zero. On-chain it is indistinguishable from a winner's,
 down to the gas. You find out by opening your own balance and seeing whether it moved.
 
-Because anyone can run it, a keeper sweeps every participant after each draw and the prize
-simply *appears*. Nobody has to remember to check — and since everyone is checked, the fact
-that someone was checked says nothing.
+**Checking for yourself is the default**, and it costs you nothing until you want the
+answer. `sweepRange(drawId, count)` is the operator's alternative: it walks slots in order,
+carrying the running band edge rather than rederiving it per person, which makes it about
+1.6× cheaper each. Either path credits the same encrypted award, and a slot already checked
+is skipped rather than credited twice.
+
+A sweep is worth running before the period rolls, because rolling ends every open claim.
+That is what stops a winner who never came back from losing the prize.
+
+Claims stay open for **30 days** after settlement (`CLAIM_GRACE`). The window costs nothing
+to provide: weights freeze on their own when a period ends, so holding the roll back is the
+whole mechanism — no snapshots, no per-slot state.
 
 ### Weights freeze on their own
 
@@ -219,17 +229,56 @@ Point `POOL_ADDRESS` in `web/src/lib/contract.ts` at your deployment.
 
 On Sepolia, against the live coprocessor:
 
-| Operation | Gas |
+| Operation | Gas | Note |
+|---|---|---|
+| Deploy | 3,422,388 | |
+| Deposit | 565k–2.7M | grows with pool size, see below |
+| Claim, per depositor | **454,492** | was 2.4M |
+| Sweep, per depositor | **283,697** | four slots per transaction |
+| Reveal your position | 1 signature + 1 transaction | signature cached for the visit |
+
+Two measured optimisations, both of which changed the numbers above by more than they look.
+
+**Claims went from 2.4M to 454k — 5.3×.** Crediting a prize used to repair all ten ancestor
+sums in the tree, thirty encrypted additions, for everyone — and for all but one person the
+amount being added was an encrypted zero. Awards are now parked on the slot and folded into
+the tree on that slot's next deposit or withdrawal, which walks that path anyway.
+
+**Deposits scale with the pool rather than the capacity.** The tree walks only as far as the
+highest node covering the slots in use, so depth arrives with the crowd:
+
+| Depositors | Deposit gas |
 |---|---|
-| Deploy | 3,132,784 |
-| Deposit | ~2.4M warm, ~3.0M first touch |
-| Claim, per depositor | ~2.4M |
-| Reveal your position | ~1 signature + 1 transaction |
+| 1st | 565,154 |
+| 5th | 1,140,748 |
+| 9th | 1,335,821 |
+
+Against the old fixed full-depth walk those same deposits cost 2.72M, 2.21M and 2.25M — a
+41–79% saving, largest when a pool is new.
 
 FHE work is metered separately in HCU, capped at 20M global and 5M sequential per
-transaction. One claim is roughly 60–80 encrypted operations, so **claims must be sent one
-per transaction** — batching even five exceeds the ceiling. `hushpot:sweep` pages through
-accordingly, and the contract documentation says so rather than implying a whole-pool sweep.
+transaction. A page of four slots fits comfortably; the old one-claim-per-transaction limit
+came from the pre-optimisation claim cost and no longer applies.
+
+---
+
+## Invariants under test
+
+114 tests, run against the FHEVM mock. The ones worth naming:
+
+- exactly one depositor is paid, and exactly the prize — verified by decrypting every
+  participant's balance before and after a sweep
+- a self-check followed by a sweep does **not** credit the same slot twice
+- the pool total is published only at a draw boundary, never on demand
+- bands tile the number line with no gaps and no overlaps, checked exhaustively against a
+  plaintext oracle
+- a withdrawal is clamped to the balance held, because a ciphertext cannot be branched on
+- no second draw can settle in the same period
+- a prize never touches principal
+- weights freeze when a period ends, so deposits during a claim window cannot move a
+  settled draw
+- odds are proportional to amount *and* time — a small deposit held all week beats a 5×
+  larger one made at the deadline
 
 ---
 
