@@ -1,0 +1,288 @@
+.page {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 26px var(--page-pad) 120px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pool-gap);
+}
+
+/* ----------------------------------------------------------------- hero -- */
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  border: 1px solid var(--rule);
+}
+
+.heroCell {
+  padding: 36px 38px 34px;
+}
+
+.kicker {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--on-yellow-strong);
+}
+
+.heroTitle {
+  margin: 16px 0 0;
+  font-size: clamp(30px, 4vw, 50px);
+  line-height: 1.04;
+  color: var(--black);
+}
+
+.heroCopy {
+  margin: 18px 0 0;
+  max-width: 52ch;
+  font-size: 14px;
+  line-height: 1.62;
+  color: var(--on-yellow);
+}
+
+.heroSide {
+  background: var(--near-black);
+  border-left: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+}
+
+.sideRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.sideLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--text-4);
+}
+
+.sideValue {
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  color: var(--white);
+  text-align: right;
+}
+
+.reset {
+  margin: 16px 20px 20px;
+  padding: 12px;
+  border: 1px solid var(--rule);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  transition: border-color 0.16s;
+}
+.reset:hover {
+  border-color: var(--yellow);
+}
+
+/* ---------------------------------------------------------------- steps -- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px 16px;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+.cardDone {
+  border-color: rgba(255, 210, 8, 0.35);
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.stepNo {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--text-4);
+}
+
+.role {
+  padding: 3px 8px;
+  border: 1px solid var(--rule);
+  font-family: var(--font-mono), monospace;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.cardTitle {
+  font-size: 16.5px;
+  font-weight: 700;
+  color: var(--white);
+}
+
+.sig {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  color: var(--yellow);
+  overflow-wrap: anywhere;
+}
+
+.cardNote {
+  margin: 0;
+  flex: 1;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+
+.status {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--text-4);
+}
+.status[data-state="ready"] {
+  color: var(--text-2);
+}
+.status[data-state="running"],
+.status[data-state="done"] {
+  color: var(--yellow);
+}
+
+.run {
+  padding: 9px 20px;
+  background: var(--yellow);
+  color: var(--black);
+  font-size: 13.5px;
+  font-weight: 700;
+  transition: background 0.16s, opacity 0.16s;
+}
+.run:hover:not(:disabled) {
+  background: var(--white);
+}
+.run:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ log -- */
+
+.log {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.logEmpty {
+  padding: 22px 24px;
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--text-4);
+}
+
+.logRow {
+  display: grid;
+  grid-template-columns: 220px 1fr 70px;
+  gap: 14px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+}
+.log > div:first-child {
+  border-top: none;
+}
+
+.logCall {
+  color: var(--white);
+  overflow-wrap: anywhere;
+}
+
+.logNote {
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+
+.logOk {
+  color: var(--yellow);
+  text-align: right;
+}
+
+.logBad {
+  color: #ff8a7a;
+  text-align: right;
+}
+
+/* ------------------------------------------------------------- boundary -- */
+
+.boundary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+
+.bCol {
+  padding: 20px 22px 22px;
+  background: var(--black);
+}
+
+.bCol p {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.bHead {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--text-4);
+}
+
+@media (max-width: 1000px) {
+  .hero,
+  .grid,
+  .boundary {
+    grid-template-columns: 1fr;
+  }
+  .heroSide {
+    border-left: none;
+    border-top: 1px solid var(--rule);
+  }
+  .logRow {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .logOk,
+  .logBad {
+    text-align: left;
+  }
+}

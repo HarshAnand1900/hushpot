@@ -13,7 +13,7 @@ const TABS = [
   { href: "/proof", label: "Proof" },
   // Reachable rather than a URL you have to know. Most of what it does is open to anyone
   // anyway, so hiding it only made the app look like half a product.
-  { href: "/operator", label: "Operator" },
+  { href: "/judge", label: "Judge" },
 ];
 
 /**
