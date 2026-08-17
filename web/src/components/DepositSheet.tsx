@@ -131,13 +131,36 @@ export function DepositSheet({
       // the private path is unreachable for a newcomer — the faucet only hands out plain
       // tokens — and the route that actually keeps the promise looks broken.
       if (shield) {
-        const approve = await writeContractAsync({
+        // USDTMock copies real Tether: raising a non-zero allowance reverts, so a stale
+        // one has to be cleared first. The deposit path already does this dance; the
+        // faucet approved directly and would have reverted for anyone who had wrapped
+        // before — which is exactly the returning user, not the newcomer I tested with.
+        const existing = (await publicClient!.readContract({
           address: UNDERLYING_ADDRESS,
           abi: erc20Abi,
-          functionName: "approve",
-          args: [TOKEN_ADDRESS, amount],
-        });
-        await waitForTransactionReceipt(config, { hash: approve, confirmations: 2 });
+          functionName: "allowance",
+          args: [address, TOKEN_ADDRESS],
+        })) as bigint;
+
+        if (existing > 0n && existing < amount) {
+          const clear = await writeContractAsync({
+            address: UNDERLYING_ADDRESS,
+            abi: erc20Abi,
+            functionName: "approve",
+            args: [TOKEN_ADDRESS, 0n],
+          });
+          await waitForTransactionReceipt(config, { hash: clear, confirmations: 2 });
+        }
+
+        if (existing < amount) {
+          const approve = await writeContractAsync({
+            address: UNDERLYING_ADDRESS,
+            abi: erc20Abi,
+            functionName: "approve",
+            args: [TOKEN_ADDRESS, amount],
+          });
+          await waitForTransactionReceipt(config, { hash: approve, confirmations: 2 });
+        }
 
         const wrap = await writeContractAsync({
           address: TOKEN_ADDRESS,
@@ -360,6 +383,11 @@ export function DepositSheet({
                 not how much, not now and not ever. Asking for more cUSDT than you hold moves nothing rather than
                 failing, so check the figure: a confidential transfer cannot revert on a balance it is not allowed to
                 read.
+                <br />
+                <br />
+                Getting cUSDT in the first place is public — minting and shielding are plain transfers. Shield 10,000
+                and deposit 10,000 a minute later and the two are trivially linked by timing. Shield once, deposit a
+                different amount later, and that link is gone.
               </span>
             ) : mode === "deposit" ? (
               <span>

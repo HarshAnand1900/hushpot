@@ -131,29 +131,45 @@ export default function PoolTab() {
                 <span className="liveDot" /> ACCRUED SO FAR · THIS PERIOD
               </div>
               <div className={`num ${styles.yieldValue}`}>+{formatUnits(accrued, 2)}</div>
+              {/* Named for what it is. There is no ERC-4626 strategy behind this on Sepolia —
+                  the reserve is funded directly — and the rate is read from the contract
+                  rather than written into the page. */}
               <div className={styles.yieldNote}>
-                {state.annualRateBps ? `${Number(state.annualRateBps) / 100}% APY` : "—"} · SCALES WITH THE POOL
+                {state.annualRateBps ? `${Number(state.annualRateBps) / 100}% APY` : "—"} · FUNDED RESERVE
               </div>
             </div>
 
+            {/* Real prizes from settled draws. This was a sine wave dressed up as data —
+                fabricated history on a page that asks people to verify everything else.
+                Empty slots stay empty rather than inventing a shape. */}
             <div className={styles.bars}>
               {Array.from({ length: 14 }, (_, i) => {
-                const h = 42 + Math.abs(Math.sin(i * 1.7 + Number(state.currentPeriod))) * 58;
-                const newest = i === 13;
+                const recent = draws.slice(0, 14).reverse();
+                const offset = 14 - recent.length;
+                const d = i >= offset ? recent[i - offset] : undefined;
+                const peak = recent.reduce((m, x) => (x.prize > m ? x.prize : m), 1n);
+                const h = d ? Math.max(8, (Number(d.prize) / Number(peak)) * 100) : 0;
+                const newest = d !== undefined && i === 13;
+
                 return (
                   <span
                     key={i}
                     className={styles.bar}
                     style={{
-                      height: `${h}%`,
-                      background: newest ? "var(--yellow)" : `rgba(255,210,8,${0.2 + 0.045 * i})`,
+                      height: d ? `${h}%` : "3%",
+                      background: !d
+                        ? "rgba(255,255,255,.06)"
+                        : newest
+                          ? "var(--yellow)"
+                          : `rgba(255,210,8,${0.3 + 0.03 * i})`,
                     }}
+                    title={d ? `Draw #${d.id} · ${formatUnits(d.prize)} cUSDT` : "no draw yet"}
                   />
                 );
               })}
             </div>
             <div className={styles.yieldFoot}>
-              <span>YIELD PER PERIOD · LAST 14</span>
+              <span>PRIZE PER DRAW · {draws.length} SETTLED</span>
               <span>PERIOD #{state.currentPeriod}</span>
             </div>
           </div>

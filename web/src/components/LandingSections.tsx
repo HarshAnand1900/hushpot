@@ -32,7 +32,7 @@ const FLOW: { tag: string; title: string; body: string; cols: number; gap: strin
   {
     tag: "02",
     title: "Yield builds the pot",
-    body: "Pooled principal earns in a lending market. All of that interest — and only the interest — becomes this week's prize.",
+    body: "Pooled principal earns yield, and all of that yield — only ever the yield — becomes the prize. On Sepolia it comes from a funded reserve rather than a live lending market; in production the same reserve would be fed by a strategy.",
     cols: 6,
     gap: "8px",
     cells: Array.from({ length: 18 }, (_, i) => (i % 5 === 0 ? CELL.gold : i % 3 === 0 ? CELL.mid : CELL.dark)),
@@ -69,7 +69,7 @@ const TERMS: { label: string; body: string; value: string; accent?: boolean }[] 
 const FAQ: [string, string][] = [
   [
     "Can I lose my deposit?",
-    "No. Principal sits in the pool and is withdrawable in full at any time. Only the yield the pool generates is ever put up as a prize, so a losing week costs you the interest you would have earned — nothing more.",
+    "No. Principal sits in the pool and is withdrawable in full at any time. Only the yield is ever put up as a prize, so a losing week costs you the interest you would have earned — nothing more.",
   ],
   [
     "If nobody can see the winner, how is it fair?",
@@ -85,7 +85,7 @@ const FAQ: [string, string][] = [
   ],
   [
     "What happens if a winner never claims?",
-    "A prize must be claimed within a week. Unclaimed, it rolls into the next draw and makes that pot bigger — draw history marks those rows as rollovers.",
+    "Thirty days. The window is the gap between a draw settling and the next period opening, and the contract holds that roll back for a month — so a claim is never a race. In practice a keeper sweeps every depositor before the roll, and the prize simply appears in the winner's balance without anyone having to remember.",
   ],
 ];
 

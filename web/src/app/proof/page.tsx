@@ -36,8 +36,8 @@ const CONTRACTS = [
 
 const LIMITS = [
   {
-    now: "Depositing plain tokens makes that deposit's size public.",
-    next: "Bring cUSDT instead and the amount never appears in the clear.",
+    now: "The plain-token route publishes the deposit's size. It is offered as a quick demo.",
+    next: "The cUSDT route is the default and leaves nothing in the clear — the faucet shields for you.",
   },
   {
     now: "The pool total is published once per draw.",
@@ -49,7 +49,7 @@ const LIMITS = [
   },
   {
     now: "One address may hold a large share of a small pool.",
-    next: "An encrypted cap on odds is possible without touching principal.",
+    next: "Capping odds was built and removed: it takes from depositors without giving anyone else more, and the prize scales with the pool anyway.",
   },
 ];
 
@@ -176,9 +176,8 @@ function Solvency() {
         functionName: "solvencyHandle",
       })) as string;
 
-      const { getFhevm } = await import("@/lib/fhe");
-      const fhevm = await getFhevm();
-      const result = await fhevm.publicDecrypt([handle]);
+      const { publicDecryptRetry } = await import("@/lib/fhe");
+      const result = await publicDecryptRetry([handle]);
       const value = Object.values(result.clearValues ?? {})[0];
       setState(value ? "backed" : "short");
     } catch {
@@ -197,7 +196,9 @@ function Solvency() {
 
     try {
       const tx = await writeContractAsync({ address: POOL_ADDRESS, abi: poolAbi, functionName: "proveSolvency" });
-      await waitForTransactionReceipt(config, { hash: tx });
+      // The relayer has to see the publish grant this transaction made; one confirmation
+      // leaves too little room for that to reach whichever node it reads.
+      await waitForTransactionReceipt(config, { hash: tx, confirmations: 2 });
 
       const handle = (await publicClient.readContract({
         address: POOL_ADDRESS,
@@ -205,9 +206,8 @@ function Solvency() {
         functionName: "solvencyHandle",
       })) as string;
 
-      const { getFhevm } = await import("@/lib/fhe");
-      const fhevm = await getFhevm();
-      const result = await fhevm.publicDecrypt([handle]);
+      const { publicDecryptRetry } = await import("@/lib/fhe");
+      const result = await publicDecryptRetry([handle]);
       const value = Object.values(result.clearValues ?? {})[0];
 
       setState(value ? "backed" : "short");

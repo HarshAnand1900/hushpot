@@ -107,9 +107,8 @@ export default function OperatorTab() {
       functionName: "pendingTotalHandle",
     })) as string;
 
-    const { getFhevm } = await import("@/lib/fhe");
-    const fhevm = await getFhevm();
-    const res = await fhevm.publicDecrypt([handle]);
+    const { publicDecryptRetry } = await import("@/lib/fhe");
+    const res = await publicDecryptRetry([handle]);
 
     await send("settleDraw", [
       (res as unknown as { abiEncodedClearValues: string }).abiEncodedClearValues,
@@ -118,6 +117,20 @@ export default function OperatorTab() {
   };
 
   const sweptAll = cursor !== undefined && cursor >= state.depositors && state.depositors > 0;
+
+  /**
+   * Rolling the period ends every open claim on the settled draw, so anyone not yet swept
+   * loses their shot at the prize permanently. The page said that in prose and then let
+   * you click the button anyway.
+   *
+   * Now it is gated. The owner can still force it — a demo cannot wait thirty days — but
+   * they have to say so deliberately rather than reach for the same button.
+   */
+  const [forceRoll, setForceRoll] = useState(false);
+  const rollBlocked = state.drawCount > 0n && !sweptAll && !forceRoll;
+
+  // Which step wants attention, so the sequence reads as a path rather than five buttons.
+  const activeStep = state.drawPending ? 2 : state.drawCount === 0n ? 1 : !sweptAll ? 3 : 4;
 
   return (
     <>
@@ -157,6 +170,8 @@ export default function OperatorTab() {
             <ol className={styles.steps}>
               <Step
                 n={1}
+                active={activeStep === 1}
+                done={state.drawCount > 0n && !state.drawPending}
                 title="Open the draw"
                 note="Seals the pool total and publishes it for decryption. Anyone may do this once the period has elapsed; the owner may do it early."
                 action="Open draw"
@@ -167,6 +182,8 @@ export default function OperatorTab() {
 
               <Step
                 n={2}
+                active={activeStep === 2}
+                done={state.drawCount > 0n && !state.drawPending}
                 title="Relay the total and settle"
                 note="Decrypts the published total through the relayer and hands it back with its proof. The contract checks the signatures, so a forged total is rejected."
                 action="Decrypt and settle"
@@ -177,6 +194,8 @@ export default function OperatorTab() {
 
               <Step
                 n={3}
+                active={activeStep === 3}
+                done={sweptAll}
                 title="Pay everyone out"
                 note="Credits every slot the prize or an encrypted zero. Nobody learns who won, including whoever runs it. Four slots per transaction."
                 action={sweptAll ? "All swept" : "Sweep four"}
@@ -187,16 +206,33 @@ export default function OperatorTab() {
 
               <Step
                 n={4}
+                active={activeStep === 4}
+                done={false}
                 title="Roll the period"
-                note="Ends the claim window and starts the next period. Held back thirty days after settlement so a claim is never a race — the owner may cut that short here."
+                note={
+                  rollBlocked
+                    ? `Locked until everyone is swept — ${cursor ?? 0} of ${state.depositors} so far. Rolling now would end the claim window on anyone still unpaid, permanently.`
+                    : "Ends the claim window and starts the next period. Held back thirty days after settlement so a claim is never a race — the owner may cut that short here."
+                }
                 action="Start next period"
-                disabled={state.drawCount === 0n || state.drawPending || !!busy}
+                disabled={state.drawCount === 0n || state.drawPending || rollBlocked || !!busy}
                 running={busy === "Roll period"}
                 onRun={() => run("Roll period", () => send("startNextPeriod"))}
               />
 
+              {rollBlocked && (
+                <li className={styles.override}>
+                  <label>
+                    <input type="checkbox" checked={forceRoll} onChange={(e) => setForceRoll(e.target.checked)} />{" "}
+                    Roll anyway, without sweeping. Owner only, and anyone unswept loses this draw.
+                  </label>
+                </li>
+              )}
+
               <Step
                 n={5}
+                active={false}
+                done={false}
                 title="Prove solvency"
                 note="Compares what the pool holds against what it owes, on ciphertext, and publishes the single bit that falls out. Anyone may run it."
                 action="Prove it"
@@ -245,6 +281,8 @@ function Step({
   action,
   disabled,
   running,
+  active,
+  done,
   onRun,
 }: {
   n: number;
@@ -253,11 +291,13 @@ function Step({
   action: string;
   disabled: boolean;
   running: boolean;
+  active: boolean;
+  done: boolean;
   onRun: () => void;
 }) {
   return (
-    <li className={styles.step}>
-      <span className={styles.stepNum}>{n}</span>
+    <li className={done ? `${styles.step} ${styles.stepDone}` : active ? `${styles.step} ${styles.stepActive}` : styles.step}>
+      <span className={styles.stepNum}>{done ? "✓" : n}</span>
       <div className={styles.stepText}>
         <strong>{title}</strong>
         <span className={styles.stepNote}>{note}</span>

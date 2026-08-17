@@ -211,6 +211,37 @@ export async function openSession(
 }
 
 /**
+ * Publicly decrypt a handle, waiting out the propagation lag.
+ *
+ * `makePubliclyDecryptable` is an on-chain grant like any other, and the relayer checks it
+ * against its own view of the chain. Ask the instant the transaction lands and you can be
+ * told the handle "is not allowed for public decryption" when it demonstrably is — the
+ * same race that made user decryption fail, wearing a different error message.
+ *
+ * Needs no session: a public decryption is public, and a solvency proof only its operator
+ * could read would defeat the point of publishing it.
+ */
+export async function publicDecryptRetry(handles: string[]) {
+  const fhevm = await getFhevm();
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 1500 * attempt));
+
+    try {
+      return await fhevm.publicDecrypt(handles);
+    } catch (e) {
+      lastError = e;
+      const message = e instanceof Error ? e.message : String(e);
+      // Only a missing grant is worth waiting out. Anything else fails immediately.
+      if (!/not allowed|not authorized|unauthorized/i.test(message)) throw e;
+    }
+  }
+
+  throw lastError;
+}
+
+/**
  * Decrypt one of your own ciphertext handles using the open session.
  * Returns undefined for an uninitialised handle — an empty slot, not an error.
  */

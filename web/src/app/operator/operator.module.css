@@ -74,6 +74,42 @@
   border-top: none;
 }
 
+/* The step that wants attention, and the ones already behind you. A sequence should look
+   like a path rather than five equally-plausible buttons. */
+.stepActive {
+  background: rgba(255, 210, 8, 0.05);
+}
+
+.stepActive .stepNum {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+
+.stepDone .stepNum {
+  border-color: rgba(255, 210, 8, 0.5);
+  color: var(--yellow);
+}
+
+.stepDone .stepText strong {
+  color: var(--text-2);
+}
+
+.override {
+  display: flex;
+  padding: 12px 14px;
+  border-top: 1px solid var(--rule);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #ffb3a8;
+}
+
+.override label {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
 .stepNum {
   flex: none;
   display: grid;
