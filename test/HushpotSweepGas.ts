@@ -52,9 +52,9 @@ describe("HushpotPool — what a payout costs", function () {
       (await ethers.getContractFactory("TestConfidentialWrapper")) as TestConfidentialWrapper__factory
     ).deploy(await usdt.getAddress())) as TestConfidentialWrapper;
 
-    pool = (await (
-      (await ethers.getContractFactory("HushpotPool")) as HushpotPool__factory
-    ).deploy(await cusdt.getAddress())) as HushpotPool;
+    pool = (await ((await ethers.getContractFactory("HushpotPool")) as HushpotPool__factory).deploy(
+      await cusdt.getAddress(),
+    )) as HushpotPool;
     poolAddress = await pool.getAddress();
 
     await (await usdt.mint(owner.address, 1_000_000_000n)).wait();
@@ -195,9 +195,9 @@ describe("HushpotPool — what a payout costs", function () {
     const c = (await (
       (await ethers.getContractFactory("TestConfidentialWrapper")) as TestConfidentialWrapper__factory
     ).deploy(await u.getAddress())) as TestConfidentialWrapper;
-    const p = (await (
-      (await ethers.getContractFactory("HushpotPool")) as HushpotPool__factory
-    ).deploy(await c.getAddress())) as HushpotPool;
+    const p = (await ((await ethers.getContractFactory("HushpotPool")) as HushpotPool__factory).deploy(
+      await c.getAddress(),
+    )) as HushpotPool;
     const addr = await p.getAddress();
 
     await (await u.mint(o.address, 1_000_000_000n)).wait();

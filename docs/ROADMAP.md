@@ -10,28 +10,26 @@
 
 The weighted-selection engine is built and proven in plaintext, 34/34 tests green:
 
-- `SegmentTree.sol` — proportional selection, with an exhaustive test sweeping every
-  possible draw point and confirming each participant is picked exactly in proportion to
-  their share. Plus a proof that the per-user self-check is equivalent to a central walk
-  and never produces two winners.
-- `TimeWeightedTree.sol` — odds weighted by amount *and* time held, with no end-of-period
-  settlement loop. Includes a direct test that a last-minute deposit five times larger
-  loses badly to a small one held all week.
+- `SegmentTree.sol` — proportional selection, with an exhaustive test sweeping every possible draw point and confirming
+  each participant is picked exactly in proportion to their share. Plus a proof that the per-user self-check is
+  equivalent to a central walk and never produces two winners.
+- `TimeWeightedTree.sol` — odds weighted by amount _and_ time held, with no end-of-period settlement loop. Includes a
+  direct test that a last-minute deposit five times larger loses badly to a small one held all week.
 
-Also settled: the full architecture, the confidentiality model, the gas budget (measured
-against published costs — both heavy transactions fit with room), and the two design docs.
+Also settled: the full architecture, the confidentiality model, the gas budget (measured against published costs — both
+heavy transactions fit with room), and the two design docs.
 
-**What that means:** the novel, risky, could-have-failed part is finished and tested.
-Everything remaining is assembly, integration, and polish. Substantial work, but the
-kind where you can see the end from the start.
+**What that means:** the novel, risky, could-have-failed part is finished and tested. Everything remaining is assembly,
+integration, and polish. Substantial work, but the kind where you can see the end from the start.
 
 ---
 
 ## Phase 1 — Encrypt the engine
+
 **Aug 8 – Aug 14 · ~5 days**
 
-Port the proven plaintext contracts to encrypted integers. The plaintext versions stay in
-the repo as a correctness oracle — that's what makes this safe rather than a rewrite.
+Port the proven plaintext contracts to encrypted integers. The plaintext versions stay in the repo as a correctness
+oracle — that's what makes this safe rather than a rewrite.
 
 - [ ] `euint64` port of the time-weighted tree
 - [ ] Encrypted win-check that is never decrypted, only fed into a select
@@ -41,12 +39,13 @@ the repo as a correctness oracle — that's what makes this safe rather than a r
 - [ ] Port the full test suite to the FHE mock environment
 - [ ] Real gas measurement against the 20M / 5M HCU ceilings
 
-**Risk:** if encrypted gas overruns the limits, fall back to simpler weighting. That's a
-small, contained change, and it's why the fallback was kept viable.
+**Risk:** if encrypted gas overruns the limits, fall back to simpler weighting. That's a small, contained change, and
+it's why the fallback was kept viable.
 
 ---
 
 ## Phase 2 — The rest of the protocol
+
 **Aug 15 – Aug 21 · ~6 days**
 
 - [ ] Draw: on-chain encrypted randomness, period management
@@ -58,12 +57,13 @@ small, contained change, and it's why the fallback was kept viable.
 - [ ] Admin draw trigger and keeper flow
 - [ ] Deploy to Sepolia and verify on Etherscan
 
-**Milestone:** the entire cycle — deposit, draw, claim, withdraw — working end to end
-on Sepolia, driven from scripts. No UI yet.
+**Milestone:** the entire cycle — deposit, draw, claim, withdraw — working end to end on Sepolia, driven from scripts.
+No UI yet.
 
 ---
 
 ## Phase 3 — Frontend
+
 **Aug 22 – Aug 29 · ~8 days**
 
 The largest single block, and where the bounty is won or lost.
@@ -78,28 +78,28 @@ The largest single block, and where the bounty is won or lost.
 - [ ] "Did I win?" reveal — including a losing state that doesn't deflate
 - [ ] Draw history and Draw Explorer
 - [ ] Faucet screen
-- [ ] Error handling for the four named cases: missing approval, insufficient balance,
-      network mismatch, unsupported token
+- [ ] Error handling for the four named cases: missing approval, insufficient balance, network mismatch, unsupported
+      token
 - [ ] Responsive and dark mode
 - [ ] Deploy to Vercel
 
-**Risk:** the Zama relayer and SDK wiring has historically eaten more time than expected.
-Budget for it; start it on day one of this phase rather than last.
+**Risk:** the Zama relayer and SDK wiring has historically eaten more time than expected. Budget for it; start it on day
+one of this phase rather than last.
 
 ---
 
 ## Phase 4 — Documentation, submission, buffer
+
 **Aug 30 – Sep 4 · ~6 days**
 
-- [ ] `README.md` — live URL, how the pool and draws work, the confidentiality design,
-      the yield mock and how real yield plugs in, deployment scripts
-- [ ] `THREAT-MODEL.md` — what's encrypted, what leaks, under what conditions.
-      **Not optional:** the guidelines require documenting leakage, and it's a scored
-      judging criterion. Also the single best defence against being marked down for
-      overclaiming.
+- [ ] `README.md` — live URL, how the pool and draws work, the confidentiality design, the yield mock and how real yield
+      plugs in, deployment scripts
+- [ ] `THREAT-MODEL.md` — what's encrypted, what leaks, under what conditions. **Not optional:** the guidelines require
+      documenting leakage, and it's a scored judging criterion. Also the single best defence against being marked down
+      for overclaiming.
 - [ ] Public GitHub repo, cleaned history, no leaked keys
-- [ ] Demo video — max 3 minutes, real person, normal speed, no AI voice. Must show
-      deposit, balance decryption, a draw, a claim, and a withdrawal.
+- [ ] Demo video — max 3 minutes, real person, normal speed, no AI voice. Must show deposit, balance decryption, a draw,
+      a claim, and a withdrawal.
 - [ ] X thread tagging @zama with #ZamaDeveloperProgram
 - [ ] Submit the form
 
@@ -111,19 +111,18 @@ Budget for it; start it on day one of this phase rather than last.
 
 If you have spare capacity, in priority order:
 
-1. **The "did I win?" reveal.** The most novel interaction in the product and the one
-   judges will remember. Most visits end in a loss — make that state good.
-2. **The Draw Explorer.** Verifiability is a scored criterion and almost every submission
-   will merely claim it rather than show it.
-3. **Session-cached decryption.** The difference between "clunky crypto app" and
-   "product." Cheap to build, disproportionately noticeable.
-4. **Sponsored prizes.** Anyone can top up the pot without taking odds. Roughly twenty
-   lines, and it signals that we studied the real protocol.
-5. **Error states.** The guidelines name four specific cases. Free marks, frequently
-   skipped.
+1. **The "did I win?" reveal.** The most novel interaction in the product and the one judges will remember. Most visits
+   end in a loss — make that state good.
+2. **The Draw Explorer.** Verifiability is a scored criterion and almost every submission will merely claim it rather
+   than show it.
+3. **Session-cached decryption.** The difference between "clunky crypto app" and "product." Cheap to build,
+   disproportionately noticeable.
+4. **Sponsored prizes.** Anyone can top up the pot without taking odds. Roughly twenty lines, and it signals that we
+   studied the real protocol.
+5. **Error states.** The guidelines name four specific cases. Free marks, frequently skipped.
 
-Deliberately *not* on this list: real yield integration, multiple prize tiers, multiple
-pools. All three add risk and dilute what's already working.
+Deliberately _not_ on this list: real yield integration, multiple prize tiers, multiple pools. All three add risk and
+dilute what's already working.
 
 ---
 
@@ -131,43 +130,38 @@ pools. All three add risk and dilute what's already working.
 
 Kept out of scope for 5 September, recorded here so the reasoning isn't lost.
 
-**Prize tiers.** PoolTogether V5 pays `4^t` prizes per tier — one grand prize down to many
-small ones — plus two canary tiers that raise or lower the tier count according to whether
-they get claimed, which tunes prize size to live gas costs. It is the single biggest UX
-gap: winner-take-all means almost nobody ever wins, and a pool where nothing visibly
+**Prize tiers.** PoolTogether V5 pays `4^t` prizes per tier — one grand prize down to many small ones — plus two canary
+tiers that raise or lower the tier count according to whether they get claimed, which tunes prize size to live gas
+costs. It is the single biggest UX gap: winner-take-all means almost nobody ever wins, and a pool where nothing visibly
 happens is a dull pool.
 
-The blocker is cost, not design. Each tier adds another range comparison and
-`FHE.select` to every claim, and a single-tier claim already measures ~2.4M gas on
-Sepolia, with five batched together reverting on the HCU ceiling. So tiers need the
-per-claim HCU measured before any of it is committed to — if one tier is 2.4M, four tiers
-is not obviously affordable.
+The blocker is cost, not design. Each tier adds another range comparison and `FHE.select` to every claim, and a
+single-tier claim already measures ~2.4M gas on Sepolia, with five batched together reverting on the HCU ceiling. So
+tiers need the per-claim HCU measured before any of it is committed to — if one tier is 2.4M, four tiers is not
+obviously affordable.
 
-**Confidential delegation — considered and rejected.** PoolTogether lets you delegate your
-odds to another address while keeping your principal, and encrypting the delegated weight
-looked like a genuinely new primitive. It isn't safe here: delegating means a transaction
-from your address touching someone else's slot, so even with the amount encrypted the
-transaction itself is a public edge between two people. That would ship a social graph
-inside a product whose entire claim is that it leaks nothing. Hiding the target as well is
-possible but costs more than the feature is worth.
+**Confidential delegation — considered and rejected.** PoolTogether lets you delegate your odds to another address while
+keeping your principal, and encrypting the delegated weight looked like a genuinely new primitive. It isn't safe here:
+delegating means a transaction from your address touching someone else's slot, so even with the amount encrypted the
+transaction itself is a public edge between two people. That would ship a social graph inside a product whose entire
+claim is that it leaks nothing. Hiding the target as well is possible but costs more than the feature is worth.
 
 ---
 
 ## Known risks
 
-| Risk | Mitigation |
-|---|---|
-| Encrypted gas exceeds HCU limits | Fallback to simpler weighting; contained change |
-| Zama SDK / relayer integration slippage | Start it first in Phase 3, not last |
-| Sepolia deploy or verification issues | Deploy in Phase 2, not the final week |
-| Video and thread underestimated | Both scheduled in Phase 4 with buffer after |
-| Scope creep from new feature ideas | Anything new goes below the priority list above |
+| Risk                                    | Mitigation                                      |
+| --------------------------------------- | ----------------------------------------------- |
+| Encrypted gas exceeds HCU limits        | Fallback to simpler weighting; contained change |
+| Zama SDK / relayer integration slippage | Start it first in Phase 3, not last             |
+| Sepolia deploy or verification issues   | Deploy in Phase 2, not the final week           |
+| Video and thread underestimated         | Both scheduled in Phase 4 with buffer after     |
+| Scope creep from new feature ideas      | Anything new goes below the priority list above |
 
 ---
 
 ## The honest summary
 
-Four weeks is enough, comfortably, **provided the frontend starts on schedule.** The
-contract work is de-risked because the difficult algorithm is already proven. The main
-threat now isn't technical failure — it's spending week three still refining design
-decisions instead of building screens.
+Four weeks is enough, comfortably, **provided the frontend starts on schedule.** The contract work is de-risked because
+the difficult algorithm is already proven. The main threat now isn't technical failure — it's spending week three still
+refining design decisions instead of building screens.

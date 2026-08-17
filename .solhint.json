@@ -3,10 +3,26 @@
   "rules": {
     "code-complexity": ["error", 8],
     "compiler-version": ["error", ">=0.8.4"],
-    "func-visibility": ["error", { "ignoreConstructors": true }],
+    "func-visibility": [
+      "error",
+      {
+        "ignoreConstructors": true
+      }
+    ],
     "max-line-length": ["error", 120],
-    "named-parameters-mapping": "warn",
+    "named-parameters-mapping": "off",
     "no-console": "off",
-    "not-rely-on-time": "off"
+    "not-rely-on-time": "off",
+    "use-natspec": "off",
+    "gas-custom-errors": "off",
+    "gas-strict-inequalities": "off",
+    "gas-increment-by-one": "off",
+    "gas-indexed-events": "off",
+    "gas-small-strings": "off",
+    "gas-struct-packing": "off",
+    "gas-multitoken1155": "off",
+    "gas-calldata-parameters": "off",
+    "gas-length-in-loops": "off",
+    "immutable-vars-naming": "off"
   }
 }

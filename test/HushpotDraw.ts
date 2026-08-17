@@ -53,9 +53,9 @@ describe("HushpotPool — draws and claims", function () {
     ).deploy(usdtAddress)) as TestConfidentialWrapper;
     cusdtAddress = await cusdt.getAddress();
 
-    pool = (await (
-      (await ethers.getContractFactory("HushpotPool")) as HushpotPool__factory
-    ).deploy(cusdtAddress)) as HushpotPool;
+    pool = (await ((await ethers.getContractFactory("HushpotPool")) as HushpotPool__factory).deploy(
+      cusdtAddress,
+    )) as HushpotPool;
     poolAddress = await pool.getAddress();
 
     // Stock the pot.
@@ -146,10 +146,7 @@ describe("HushpotPool — draws and claims", function () {
       await time.increase(PERIOD_SECONDS);
       await runDraw();
 
-      await expect(pool.connect(alice).openDraw()).to.be.revertedWithCustomError(
-        pool,
-        "DrawAlreadySettledThisPeriod",
-      );
+      await expect(pool.connect(alice).openDraw()).to.be.revertedWithCustomError(pool, "DrawAlreadySettledThisPeriod");
     });
 
     it("allows the next draw once the period has rolled", async function () {

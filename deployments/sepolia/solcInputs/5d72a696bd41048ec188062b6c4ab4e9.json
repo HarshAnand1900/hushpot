@@ -118,9 +118,7 @@
           "storageLayout",
           "evm.gasEstimates"
         ],
-        "": [
-          "ast"
-        ]
+        "": ["ast"]
       }
     }
   }

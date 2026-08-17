@@ -90,9 +90,9 @@ describe("HushpotPool — auto-shielding plain tokens", function () {
         (await ethers.getContractFactory("TestConfidentialToken")) as TestConfidentialToken__factory
       ).deploy()) as TestConfidentialToken;
 
-      const other = (await (
-        (await ethers.getContractFactory("HushpotPool")) as HushpotPool__factory
-      ).deploy(await plain.getAddress())) as HushpotPool;
+      const other = (await ((await ethers.getContractFactory("HushpotPool")) as HushpotPool__factory).deploy(
+        await plain.getAddress(),
+      )) as HushpotPool;
 
       expect(await other.supportsAutoShield()).to.eq(false);
       expect(await other.underlyingToken()).to.eq(ethers.ZeroAddress);

@@ -4,12 +4,7 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers, fhevm } from "hardhat";
 
-import {
-  HushpotPool,
-  HushpotPool__factory,
-  TestConfidentialToken,
-  TestConfidentialToken__factory,
-} from "../types";
+import { HushpotPool, HushpotPool__factory, TestConfidentialToken, TestConfidentialToken__factory } from "../types";
 
 const PERIOD_MINUTES = 10080n;
 const PERIOD_SECONDS = PERIOD_MINUTES * 60n;

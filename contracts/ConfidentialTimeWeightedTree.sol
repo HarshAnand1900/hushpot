@@ -96,7 +96,6 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// accounting detail and leaks nothing.
     mapping(uint16 => euint64) internal _pendingAward;
 
-
     event PeriodAdvanced(uint32 indexed period, uint256 startedAt);
     event SlotAssigned(address indexed account, uint16 indexed slot);
 
@@ -293,12 +292,12 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         uint256 root = _treeRoot();
         node /= 2;
         while (node >= root) {
-            uint256 l = 2 * node;
-            uint256 r = l + 1;
+            uint256 left = 2 * node;
+            uint256 right = left + 1;
 
-            _balance[node] = FHE.add(_balance[l], _balance[r]);
-            _lateCredit[node] = FHE.add(_lateCreditOf(l), _lateCreditOf(r));
-            _earlyExit[node] = FHE.add(_earlyExitOf(l), _earlyExitOf(r));
+            _balance[node] = FHE.add(_balance[left], _balance[right]);
+            _lateCredit[node] = FHE.add(_lateCreditOf(left), _lateCreditOf(right));
+            _earlyExit[node] = FHE.add(_earlyExitOf(left), _earlyExitOf(right));
             _persist(node);
 
             node /= 2;

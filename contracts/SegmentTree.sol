@@ -79,7 +79,7 @@ contract SegmentTree {
     /// on ciphertext: one bit per level, ten bits total, and never a balance.
     function findLeaf(uint64 drawPoint) external view returns (uint16 slot) {
         // Out of range would walk off the right edge and return a meaningless slot.
-        require(drawPoint < _tree[1], "SegmentTree: draw point out of range");
+        require(drawPoint < _tree[1], "SegmentTree: point out of range");
 
         uint256 node = 1;
         while (node < LEAF_OFFSET) {

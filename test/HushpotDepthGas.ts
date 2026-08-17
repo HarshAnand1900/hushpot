@@ -36,9 +36,9 @@ describe("HushpotPool — deposit cost against pool size", function () {
       (await ethers.getContractFactory("TestConfidentialWrapper")) as TestConfidentialWrapper__factory
     ).deploy(await usdt.getAddress())) as TestConfidentialWrapper;
 
-    pool = (await (
-      (await ethers.getContractFactory("HushpotPool")) as HushpotPool__factory
-    ).deploy(await cusdt.getAddress())) as HushpotPool;
+    pool = (await ((await ethers.getContractFactory("HushpotPool")) as HushpotPool__factory).deploy(
+      await cusdt.getAddress(),
+    )) as HushpotPool;
     poolAddress = await pool.getAddress();
   });
 

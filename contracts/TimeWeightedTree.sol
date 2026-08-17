@@ -130,13 +130,13 @@ contract TimeWeightedTree {
     function _repairPath(uint256 node) internal {
         node /= 2;
         while (node >= 1) {
-            uint256 l = 2 * node;
-            uint256 r = l + 1;
+            uint256 left = 2 * node;
+            uint256 right = left + 1;
 
             _refresh(node);
-            _balance[node] = _balance[l] + _balance[r];
-            _lateCredit[node] = _lateCreditOf(l) + _lateCreditOf(r);
-            _earlyExit[node] = _earlyExitOf(l) + _earlyExitOf(r);
+            _balance[node] = _balance[left] + _balance[right];
+            _lateCredit[node] = _lateCreditOf(left) + _lateCreditOf(right);
+            _earlyExit[node] = _earlyExitOf(left) + _earlyExitOf(right);
 
             node /= 2;
         }

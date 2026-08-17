@@ -1,4 +1,12 @@
+import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { task, types } from "hardhat/config";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+
+/** The slice of an ERC-20 these tasks touch, so the helpers need no `any`. */
+interface ApprovableToken {
+  allowance(owner: string, spender: string): Promise<bigint>;
+  approve(spender: string, amount: bigint): Promise<{ wait(): Promise<unknown> }>;
+}
 
 /**
  * Operator tasks for Hushpot.
@@ -16,7 +24,7 @@ const POOL = "HushpotPool";
  * Also initialises the FHEVM plugin. On a real network anything that touches the
  * coprocessor — which is every write here — fails with "The Hardhat Fhevm plugin is not
  * initialized" without it. Cheap and idempotent, so it lives in the shared path. */
-async function getPool(hre: any) {
+async function getPool(hre: HardhatRuntimeEnvironment) {
   await hre.fhevm.initializeCLIApi();
   const deployment = await hre.deployments.get(POOL);
   return hre.ethers.getContractAt(POOL, deployment.address);
@@ -78,7 +86,7 @@ const MINT_CHUNK = 1_000_000_000_000n; // 1,000,000 tokens at 6 decimals
  * non-zero allowance already exists reverts. So any leftover allowance has to be zeroed
  * first. The frontend's deposit flow needs this same dance.
  */
-async function ensureAllowance(token: any, owner: string, spender: string, amount: bigint) {
+async function ensureAllowance(token: ApprovableToken, owner: string, spender: string, amount: bigint) {
   const current: bigint = await token.allowance(owner, spender);
   if (current >= amount) return;
 
@@ -274,10 +282,44 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
     // few large depositors and a lot of small ones, which is also the shape that makes
     // the odds column worth looking at.
     const amounts = [
-      420_000n, 180_000n, 640_000n, 95_000n, 310_000n, 55_000n, 720_000n, 240_000n, 130_000n,
-      38_000n, 505_000n, 72_000n, 890_000n, 21_000n, 265_000n, 148_000n, 60_000n, 410_000n, 87_000n,
-      1_150_000n, 44_000n, 330_000n, 96_500n, 610_000n, 27_000n, 480_000n, 155_000n, 780_000n,
-      63_000n, 205_000n, 118_000n, 925_000n, 33_500n, 570_000n, 82_000n, 290_000n, 141_000n, 690_000n,
+      420_000n,
+      180_000n,
+      640_000n,
+      95_000n,
+      310_000n,
+      55_000n,
+      720_000n,
+      240_000n,
+      130_000n,
+      38_000n,
+      505_000n,
+      72_000n,
+      890_000n,
+      21_000n,
+      265_000n,
+      148_000n,
+      60_000n,
+      410_000n,
+      87_000n,
+      1_150_000n,
+      44_000n,
+      330_000n,
+      96_500n,
+      610_000n,
+      27_000n,
+      480_000n,
+      155_000n,
+      780_000n,
+      63_000n,
+      205_000n,
+      118_000n,
+      925_000n,
+      33_500n,
+      570_000n,
+      82_000n,
+      290_000n,
+      141_000n,
+      690_000n,
     ];
     // Enough for an approve and a confidential deposit (~2.4M gas) with headroom for a
     // gas spike, without stranding ETH in wallets we only use to make the demo real.
@@ -320,9 +362,7 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
         }
       }
 
-      await withRetry("approve", () =>
-        ensureAllowance(underlying.connect(who), who.address, poolAddress, amount),
-      );
+      await withRetry("approve", () => ensureAllowance(underlying.connect(who), who.address, poolAddress, amount));
 
       console.log(`  depositing ${amount / 1_000_000n}...`);
       const receipt = await withRetry("deposit", async () =>
@@ -379,8 +419,8 @@ task("hushpot:activity", "Simulate one day of deposits, top-ups and withdrawals"
     const funder = signers[0];
     const GAS_TOPUP = hre.ethers.parseEther("0.008");
 
-    const joiners: any[] = [];
-    const holders: any[] = [];
+    const joiners: HardhatEthersSigner[] = [];
+    const holders: HardhatEthersSigner[] = [];
     for (const s of signers) {
       ((await pool.hasSlot(s.address)) ? holders : joiners).push(s);
     }
