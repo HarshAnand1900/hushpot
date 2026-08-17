@@ -127,7 +127,6 @@ export const poolAbi = [
     outputs: [{ type: "bytes32" }],
     stateMutability: "view",
   },
-  { type: "function", name: "totalHandle", inputs: [], outputs: [{ type: "bytes32" }], stateMutability: "view" },
 
   // --- writes ---------------------------------------------------------------
   // Computing an encrypted value is a transaction, not a call: FHE operations mutate
@@ -141,7 +140,6 @@ export const poolAbi = [
   { type: "function", name: "proveSolvency", inputs: [], outputs: [], stateMutability: "nonpayable" },
   { type: "function", name: "solvencyHandle", inputs: [], outputs: [{ type: "bytes32" }], stateMutability: "view" },
   { type: "function", name: "solvencyProvenAt", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
-  { type: "function", name: "refreshTotal", inputs: [], outputs: [], stateMutability: "nonpayable" },
   {
     type: "function",
     name: "depositUnderlying",

@@ -67,6 +67,14 @@ export function PrivacyDemo() {
         args: [mySlot],
       })) as string;
 
+      // `balanceHandle` is a cache, filled by refreshMyPosition. Deposit without ever
+      // revealing and it is still zero — and decrypting nothing would report "opened"
+      // with no value, making the demo look broken while the contract is perfectly fine.
+      if (!myHandle || /^0x0+$/.test(myHandle)) {
+        setNote("Reveal your position on the Pool tab first — there is no ciphertext of yours cached yet.");
+        return;
+      }
+
       // Yours — opens.
       try {
         const value = await decryptHandle(myHandle);

@@ -31,10 +31,22 @@ contract ConfidentialTreeHarness is ConfidentialTimeWeightedTree {
 
     /// @dev Credits a slot out of thin air. Test-only, obviously.
     function depositTo(uint16 slot, externalEuint64 encryptedAmount, bytes calldata inputProof) external {
+        _reserve(slot);
         _creditSlot(slot, FHE.fromExternal(encryptedAmount, inputProof));
     }
 
+    /// @dev Raise the slot high-water mark, which the pool gets for free from `_ensureSlot`.
+    ///
+    /// The tree only walks as far as the highest node covering `slotsUsed`, so writing to a
+    /// slot without counting it leaves the walk stopping short and every sum reading zero.
+    /// `HushpotPool` cannot hit this — it hands out slots sequentially — but this harness
+    /// writes to arbitrary slots on purpose, so it has to declare them.
+    function _reserve(uint16 slot) private {
+        if (slot >= slotsUsed) slotsUsed = slot + 1;
+    }
+
     function withdrawFrom(uint16 slot, externalEuint64 encryptedAmount, bytes calldata inputProof) external {
+        _reserve(slot);
         _debitSlot(slot, FHE.fromExternal(encryptedAmount, inputProof));
     }
 

@@ -276,10 +276,12 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
     const amounts = [
       420_000n, 180_000n, 640_000n, 95_000n, 310_000n, 55_000n, 720_000n, 240_000n, 130_000n,
       38_000n, 505_000n, 72_000n, 890_000n, 21_000n, 265_000n, 148_000n, 60_000n, 410_000n, 87_000n,
+      1_150_000n, 44_000n, 330_000n, 96_500n, 610_000n, 27_000n, 480_000n, 155_000n, 780_000n,
+      63_000n, 205_000n, 118_000n, 925_000n, 33_500n, 570_000n, 82_000n, 290_000n, 141_000n, 690_000n,
     ];
     // Enough for an approve and a confidential deposit (~2.4M gas) with headroom for a
     // gas spike, without stranding ETH in wallets we only use to make the demo real.
-    const GAS_TOPUP = hre.ethers.parseEther("0.02");
+    const GAS_TOPUP = hre.ethers.parseEther("0.008");
 
     console.log(`seeding ${count} depositors into ${poolAddress}\n`);
 
@@ -299,7 +301,7 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
 
       // Gas, if they need it.
       const eth = await hre.ethers.provider.getBalance(who.address);
-      if (eth < hre.ethers.parseEther("0.015")) {
+      if (eth < hre.ethers.parseEther("0.006")) {
         console.log(`  topping up gas...`);
         await withRetry("top-up", async () =>
           (await funder.sendTransaction({ to: who.address, value: GAS_TOPUP })).wait(),
@@ -353,3 +355,102 @@ task("hushpot:next-period", "Close the claim window and start the next period").
   await (await pool.startNextPeriod()).wait();
   console.log(`now in period #${await pool.currentPeriod()}`);
 });
+
+/**
+ * A day in the life of the pool.
+ *
+ * Seeding once produces a snapshot: everyone joined in the same minute holding round
+ * numbers, which is not what a pool looks like and not what exercises the code. This
+ * moves it — a few people join, a few add to what they hold, one or two take money out —
+ * so deposits land at different times and odds actually differ by more than size.
+ *
+ * Deliberately does not draw. Run it, look at the app, then run `hushpot:draw` yourself:
+ * the interesting states are between the steps, not after them.
+ */
+task("hushpot:activity", "Simulate one day of deposits, top-ups and withdrawals")
+  .addOptionalParam("join", "How many new depositors join", "3", types.string)
+  .addOptionalParam("moves", "How many existing depositors act", "4", types.string)
+  .setAction(async (args, hre) => {
+    const pool = await getPool(hre);
+    const poolAddress = await pool.getAddress();
+    const underlying = await hre.ethers.getContractAt("TestERC20", await pool.underlyingToken());
+
+    const signers = await hre.ethers.getSigners();
+    const funder = signers[0];
+    const GAS_TOPUP = hre.ethers.parseEther("0.008");
+
+    const joiners: any[] = [];
+    const holders: any[] = [];
+    for (const s of signers) {
+      ((await pool.hasSlot(s.address)) ? holders : joiners).push(s);
+    }
+
+    console.log(`pool has ${holders.length} depositors; ${joiners.length} accounts still outside\n`);
+
+    // --- new blood ----------------------------------------------------------
+    const joinCount = Math.min(Number(args.join), joiners.length);
+    for (let i = 0; i < joinCount; i++) {
+      const who = joiners[i];
+      // Long-tailed on purpose: a pool of identical deposits makes the odds column dull
+      // and hides any bug that only shows up at a lopsided weight.
+      const amount = BigInt(15_000 + Math.floor(Math.random() * 900_000)) * 1_000_000n;
+
+      console.log(`join  ${who.address}  ${amount / 1_000_000n}`);
+
+      if ((await hre.ethers.provider.getBalance(who.address)) < hre.ethers.parseEther("0.006")) {
+        await withRetry("top-up", async () =>
+          (await funder.sendTransaction({ to: who.address, value: GAS_TOPUP })).wait(),
+        );
+      }
+      if ((await underlying.balanceOf(who.address)) < amount) {
+        await withRetry("mint", async () => (await underlying.mint(who.address, amount)).wait());
+      }
+      await withRetry("approve", () => ensureAllowance(underlying.connect(who), who.address, poolAddress, amount));
+
+      const receipt = await withRetry("deposit", async () =>
+        (await (pool.connect(who) as typeof pool).depositUnderlying(amount)).wait(),
+      );
+      console.log(`      slot ${await pool.slotOf(who.address)} · gas ${receipt?.gasUsed}`);
+    }
+
+    // --- existing depositors move -------------------------------------------
+    const movers = holders.filter((h) => h.address !== funder.address).slice(0, Number(args.moves));
+
+    for (const who of movers) {
+      // Roughly one in three takes money out. Withdrawals matter more than they look:
+      // they are the only path that exercises the early-exit credit, and the only one
+      // where the amount is encrypted on the way in as well as out.
+      const withdrawing = Math.random() < 0.34;
+      const amount = BigInt(10_000 + Math.floor(Math.random() * 200_000)) * 1_000_000n;
+
+      if ((await hre.ethers.provider.getBalance(who.address)) < hre.ethers.parseEther("0.006")) {
+        await withRetry("top-up", async () =>
+          (await funder.sendTransaction({ to: who.address, value: GAS_TOPUP })).wait(),
+        );
+      }
+
+      if (withdrawing) {
+        console.log(`out   ${who.address}  ${amount / 1_000_000n} (clamped to what they hold)`);
+        const enc = await hre.fhevm.createEncryptedInput(poolAddress, who.address).add64(amount).encrypt();
+        const receipt = await withRetry("withdraw", async () =>
+          (await (pool.connect(who) as typeof pool).withdraw(enc.handles[0], enc.inputProof)).wait(),
+        );
+        console.log(`      gas ${receipt?.gasUsed}`);
+      } else {
+        console.log(`add   ${who.address}  ${amount / 1_000_000n}`);
+        if ((await underlying.balanceOf(who.address)) < amount) {
+          await withRetry("mint", async () => (await underlying.mint(who.address, amount)).wait());
+        }
+        await withRetry("approve", () => ensureAllowance(underlying.connect(who), who.address, poolAddress, amount));
+        const receipt = await withRetry("deposit", async () =>
+          (await (pool.connect(who) as typeof pool).depositUnderlying(amount)).wait(),
+        );
+        console.log(`      gas ${receipt?.gasUsed}`);
+      }
+    }
+
+    console.log(`\ndepositors now: ${await pool.slotsUsed()}`);
+    console.log(`\nNext, when you have looked around:`);
+    console.log(`  npx hardhat hushpot:draw --force --network ${hre.network.name}`);
+    console.log(`  npx hardhat hushpot:sweep --draw <id> --network ${hre.network.name}`);
+  });

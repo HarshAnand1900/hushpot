@@ -260,12 +260,39 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         FHE.allowThis(actual);
     }
 
-    /// @dev Restore the subtree sums along the 10 ancestors of a leaf. Only ancestors can
+    /// @dev The highest node that still covers every slot in use — the tree's real root.
+    ///
+    /// A full 1024-leaf tree is ten levels deep, and every credit used to repair all ten.
+    /// With twenty depositors that is mostly ceremony: slots 0-19 sit under node 32, and
+    /// everything to its right is zero, so node 32 already *equals* node 1. The five levels
+    /// above it were being rebuilt on every deposit to copy a number that had not changed.
+    ///
+    /// So the walk stops here instead, and the depth grows with the pool rather than being
+    /// paid for up front. Crossing a power of two moves the root up one level, and the
+    /// first credit afterwards computes it — no migration, no re-indexing.
+    ///
+    /// Plain arithmetic, no ciphertext: `slotsUsed` is public, and how many people are in
+    /// the pool was never a secret.
+    function _treeRoot() internal view returns (uint256) {
+        uint16 used = slotsUsed;
+        if (used <= 1) return LEAF_OFFSET;
+
+        uint256 span = 1;
+        uint256 root = LEAF_OFFSET;
+        while (span < used) {
+            span <<= 1;
+            root >>= 1;
+        }
+        return root;
+    }
+
+    /// @dev Restore the subtree sums along the ancestors of a leaf, up to {_treeRoot}. Only ancestors can
     /// be affected by a change, which keeps this at 30 encrypted additions rather than a
     /// full re-sum of the tree — and that bound is what makes the structure viable at all.
     function _repairPath(uint256 node) internal {
+        uint256 root = _treeRoot();
         node /= 2;
-        while (node >= 1) {
+        while (node >= root) {
             uint256 l = 2 * node;
             uint256 r = l + 1;
 
@@ -328,7 +355,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// the encryption is worth nothing. A subclass exposes it for tests; the pool does
     /// not expose it at all.
     function _refreshTotal() internal {
-        euint64 t = _weightOf(1);
+        euint64 t = _weightOf(_treeRoot());
         _totalCache = t;
         FHE.allowThis(t);
         FHE.makePubliclyDecryptable(t);
@@ -360,7 +387,8 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         euint64 early = _zero();
 
         uint256 node = uint256(LEAF_OFFSET) + slot;
-        while (node > 1) {
+        uint256 root = _treeRoot();
+        while (node > root) {
             if (node % 2 == 1) {
                 uint256 sib = node - 1;
                 bal = FHE.add(bal, _balance[sib]);

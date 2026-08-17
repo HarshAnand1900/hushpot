@@ -140,6 +140,42 @@ describe("HushpotPool — what a payout costs", function () {
     expect(winners).to.eq(1);
   });
 
+  it("does not pay twice when a self-check and a sweep cover the same slot", async function () {
+    const fresh = await freshPoolWithDraw();
+    const prize = (await fresh.pool.draws(fresh.drawId)).prize;
+
+    const before: bigint[] = [];
+    for (const who of fresh.players) before.push(await balanceOf(fresh.pool, who));
+
+    // Two people check for themselves, then a keeper sweeps the whole pool. Without a
+    // guard the sweep credits their award a second time — a winner paid double out of a
+    // reserve that only ever set one prize aside.
+    await (await fresh.pool.checkClaim(fresh.drawId, fresh.players[0].address)).wait();
+    await (await fresh.pool.checkClaim(fresh.drawId, fresh.players[3].address)).wait();
+
+    while (Number(await fresh.pool.sweepCursor(fresh.drawId)) < Number(await fresh.pool.slotsUsed())) {
+      await (await fresh.pool.sweepRange(fresh.drawId, 4)).wait();
+    }
+
+    let winners = 0;
+    let paid = 0n;
+    for (let i = 0; i < fresh.players.length; i++) {
+      const who = fresh.players[i];
+      await (await fresh.usdt.mint(who.address, 1n)).wait();
+      await (await fresh.usdt.connect(who).approve(await fresh.pool.getAddress(), 1n)).wait();
+      await (await fresh.pool.connect(who).depositUnderlying(1n)).wait();
+
+      const gained = (await balanceOf(fresh.pool, who)) - before[i] - 1n;
+      if (gained > 0n) {
+        winners++;
+        paid += gained;
+      }
+    }
+
+    expect(winners).to.eq(1);
+    expect(paid).to.eq(prize);
+  });
+
   async function balanceOf(p: HushpotPool, who: HardhatEthersSigner): Promise<bigint> {
     await (await p.connect(who).refreshMyBalance()).wait();
     return fhevm.userDecryptEuint(

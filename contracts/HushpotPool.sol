@@ -376,7 +376,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// trigger is not worth much.
     function proveSolvency() external {
         euint64 held = token.confidentialBalanceOf(address(this));
-        euint64 owed = _balance[1]; // the tree root is total principal
+        euint64 owed = _balance[_treeRoot()]; // the tree root is total principal
 
         ebool backed = FHE.ge(held, owed);
 
@@ -418,7 +418,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         if (drawCount > 0 && draws[drawCount - 1].period == currentPeriod) revert DrawAlreadySettledThisPeriod();
         if (!periodEnded() && msg.sender != owner()) revert PeriodNotElapsed();
 
-        euint64 total = _weightOf(1);
+        euint64 total = _weightOf(_treeRoot());
         _pendingTotal = total;
         FHE.allowThis(total);
         FHE.makePubliclyDecryptable(total);
@@ -620,6 +620,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         Draw storage d = draws[drawId];
 
         upper = FHE.add(edge, _weightOf(uint256(LEAF_OFFSET) + slot));
+        if (claimChecked[drawId][slot]) return upper;
 
         euint64 award = FHE.select(
             FHE.and(FHE.ge(d.drawPoint, edge), FHE.lt(d.drawPoint, upper)),
