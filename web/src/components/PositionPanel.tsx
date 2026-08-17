@@ -132,7 +132,22 @@ export function PositionPanel({
 
           <div className={styles.recordHead}>YOUR RECORD · THIS BROWSER ONLY</div>
 
-          <dl className={styles.record}>
+          {!isUnlocked && (
+            <div className={styles.sealed}>
+              <div className={styles.sealedBars} aria-hidden="true">
+                {Array.from({ length: 7 }, (_, i) => (
+                  <span key={i} className={styles.sealedBar} style={{ width: `${38 + ((i * 37) % 55)}%` }} />
+                ))}
+              </div>
+              <p className={styles.sealedNote}>
+                Your whole record — deposits, withdrawals, anything you ever won — is ciphertext until you decrypt it
+                in this browser. None of it is fetched from a server, and none of it is readable by us.
+              </p>
+              <div className={styles.sealedCue}>REVEAL BELOW TO OPEN THE RECORD ↓</div>
+            </div>
+          )}
+
+          <dl className={styles.record} hidden={!isUnlocked}>
             {(history.deposits ?? []).slice(-2).map((d) => (
               <div key={String(d.block)} className={styles.row}>
                 <dt>

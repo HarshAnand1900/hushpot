@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { DrawTimeline } from "@/components/DrawTimeline";
+import { TreeWalk } from "@/components/TreeWalk";
 import { Pot3D } from "@/components/Pot3D";
 import { useDraws } from "@/hooks/useDraws";
 import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
@@ -150,6 +151,10 @@ export default function DrawsTab() {
                   ))
                 )}
               </div>
+
+              {/* how a band is actually located */}
+              <div className={styles.walkHead}>HOW A BAND IS LOCATED · THE PREFIX WALK</div>
+              <TreeWalk slotsUsed={state.depositors} />
 
               {/* the honest boundary */}
               <div className={styles.limits}>

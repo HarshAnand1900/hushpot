@@ -353,3 +353,11 @@
     border-top: 0;
   }
 }
+
+.walkHead {
+  margin-top: 6px;
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+}

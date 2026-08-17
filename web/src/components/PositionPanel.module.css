@@ -50,6 +50,40 @@
   color: var(--text-4);
 }
 
+/* The sealed record. Bars of varying length rather than a uniform block, so it reads as
+   "there is something here, and it is encrypted" instead of "there is nothing here". */
+.sealed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 0 4px;
+}
+
+.sealedBars {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.sealedBar {
+  height: 9px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.04));
+}
+
+.sealedNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-3);
+}
+
+.sealedCue {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--yellow);
+}
+
 .record {
   margin: 0;
   display: flex;

@@ -1,0 +1,150 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--rule);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.rootLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+}
+
+.legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono), monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  color: var(--text-4);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+}
+
+.dotPath {
+  background: var(--yellow);
+}
+
+.dotAdd {
+  background: rgba(255, 210, 8, 0.42);
+}
+
+.dotOther {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ------------------------------------------------------------------ tree -- */
+
+.tree {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.row {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.node {
+  flex: 1;
+  min-width: 12px;
+  max-width: 46px;
+  height: 22px;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  color: var(--black);
+  transition: background 0.2s ease, transform 0.12s ease;
+}
+
+.node:not(:disabled) {
+  cursor: pointer;
+}
+
+.node:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+/* The climb itself, and the subtrees it picks up on the way. */
+.nodePath {
+  background: var(--yellow);
+}
+
+.nodeAdd {
+  background: rgba(255, 210, 8, 0.42);
+}
+
+.nodeEmpty {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+/* --------------------------------------------------------------- readout -- */
+
+.readout {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 12px;
+  background: var(--black);
+}
+
+.cellLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.16em;
+  color: var(--text-4);
+}
+
+.cellValue {
+  font-family: var(--font-mono), monospace;
+  font-size: 15px;
+  color: var(--white);
+}
+
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+@media (max-width: 700px) {
+  .readout {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
