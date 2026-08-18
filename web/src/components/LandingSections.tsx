@@ -196,11 +196,7 @@ export function LandingSections() {
           <div className={styles.faq}>
             {FAQ.map(([q, a], i) => (
               <div key={q} className={styles.faqRow}>
-                <button
-                  className={styles.faqQ}
-                  onClick={() => setOpen(open === i ? -1 : i)}
-                  aria-expanded={open === i}
-                >
+                <button className={styles.faqQ} onClick={() => setOpen(open === i ? -1 : i)} aria-expanded={open === i}>
                   <span>{q}</span>
                   <span className={styles.faqSign}>{open === i ? "−" : "+"}</span>
                 </button>

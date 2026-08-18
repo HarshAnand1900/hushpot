@@ -223,7 +223,9 @@
   padding: 18px 20px;
   border: 1px solid var(--rule);
   background: rgba(255, 255, 255, 0.03);
-  transition: opacity 0.4s, border-color 0.4s;
+  transition:
+    opacity 0.4s,
+    border-color 0.4s;
 }
 
 .rowLabel {

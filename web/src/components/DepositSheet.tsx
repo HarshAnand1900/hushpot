@@ -318,7 +318,11 @@ export function DepositSheet({
               <button
                 className={styles.max}
                 disabled={busy || !balanceKnown || available === 0n}
-                title={!balanceKnown ? "Your confidential balance is a ciphertext — there is no figure to fill in" : undefined}
+                title={
+                  !balanceKnown
+                    ? "Your confidential balance is a ciphertext — there is no figure to fill in"
+                    : undefined
+                }
                 onClick={() => setRaw((Number(available) / Number(SCALE)).toString())}
               >
                 Max

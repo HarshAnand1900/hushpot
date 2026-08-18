@@ -179,7 +179,9 @@
   color: var(--black);
   font-size: 13.5px;
   font-weight: 700;
-  transition: background 0.16s, opacity 0.16s;
+  transition:
+    background 0.16s,
+    opacity 0.16s;
 }
 .run:hover:not(:disabled) {
   background: var(--white);

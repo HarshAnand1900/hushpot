@@ -346,7 +346,10 @@
   padding: 17px 34px;
   font-size: 16px;
   font-weight: 800;
-  transition: background 0.18s, border-color 0.18s, color 0.18s;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    color 0.18s;
 }
 
 .ctaPrimary {

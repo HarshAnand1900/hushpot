@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { keccak256 } from "viem";
+import { keccak256, toFunctionSelector } from "viem";
 import { usePublicClient } from "wagmi";
 
 import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
@@ -19,13 +19,14 @@ export interface CheckResult {
  * Genuinely recompute a settled draw from public chain state.
  *
  * Everything here is a plain `eth_call` against a public RPC — no wallet, no signature,
- * no trust in this app. Anyone can run the same four checks with cast or curl.
+ * no trust in this app. Anyone can run the same five checks with cast or curl.
  *
  * WHAT THIS PROVES
  *   - the draw exists in contract storage with the total and prize being displayed
  *   - the prize follows the published formula rather than being picked by anyone
  *   - the die is a real ciphertext handle, committed on-chain
  *   - the deployed bytecode is what it claims to be
+ *   - the contract exposes no way to ask who won
  *
  * WHAT IT CANNOT PROVE, and we say so in the UI rather than implying otherwise:
  *   - who won. Nobody can recompute that; the contract never derives it.
@@ -33,6 +34,22 @@ export interface CheckResult {
  *     published source, not on anything recomputable from a receipt.
  */
 const RATE_DIVISOR = 10_000n * 525_600n;
+
+/**
+ * Getters a pool would need if it recorded a winner anywhere.
+ *
+ * Their absence from the deployed bytecode is checkable rather than assertable: Solidity
+ * emits every external function's 4-byte selector into the dispatch table, so a selector
+ * that does not appear in the code cannot be called. This is the negative claim the whole
+ * design rests on, so it is worth proving instead of writing in a paragraph.
+ */
+const WINNER_GETTERS = [
+  "function winner(uint256) view returns (address)",
+  "function winnerOf(uint256) view returns (address)",
+  "function getWinner(uint256) view returns (address)",
+  "function drawWinner(uint256) view returns (address)",
+  "function winners(uint256) view returns (address)",
+] as const;
 
 export function useVerifyDraw() {
   const publicClient = usePublicClient();
@@ -116,6 +133,22 @@ export function useVerifyDraw() {
           detail: `keccak256 of ${code ? ((code.length - 2) / 2).toLocaleString() : 0} bytes of deployed bytecode`,
         });
         setStep(4);
+
+        // 5 ── the absence of a winner
+        const codeHex = (code ?? "0x").toLowerCase();
+        const present = WINNER_GETTERS.filter((sig) => codeHex.includes(toFunctionSelector(sig).slice(2)));
+        push({
+          label: "NO WINNER FIELD",
+          question: "Can anyone ask this contract who won?",
+          value:
+            present.length === 0
+              ? `${WINNER_GETTERS.length} winner-getter selectors searched, 0 found`
+              : `found ${present.length}`,
+          ok: present.length === 0,
+          detail:
+            "the draw record holds a total, a prize and a ciphertext handle — no address field, and no function that would return one",
+        });
+        setStep(5);
       } catch (e) {
         setError(e instanceof Error ? e.message.slice(0, 160) : "Verification failed.");
         setStep(-1);
@@ -124,5 +157,5 @@ export function useVerifyDraw() {
     [publicClient],
   );
 
-  return { verify, results, step, error, verifying: step >= 0 && step < 4, done: step >= 4 };
+  return { verify, results, step, error, verifying: step >= 0 && step < 5, done: step >= 5 };
 }

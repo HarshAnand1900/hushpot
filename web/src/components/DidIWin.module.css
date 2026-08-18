@@ -61,7 +61,9 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--text-2);
-  transition: border-color 0.16s, color 0.16s;
+  transition:
+    border-color 0.16s,
+    color 0.16s;
 }
 
 .pick:hover:not(.pickOn) {
@@ -141,4 +143,28 @@
   font-size: clamp(52px, 6vw, 76px);
   color: var(--yellow);
   line-height: 0.9;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.actions > :global(.btnPrimary) {
+  flex: 1 1 220px;
+}
+
+/* A rehearsal, drawn so it can never be mistaken for the real screen: dashed edge,
+   no yellow fill, and a tag on top saying what it is. */
+.preview {
+  border: 1px dashed rgba(255, 210, 8, 0.4);
+  background: none;
+}
+
+.previewTag {
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--yellow);
+  margin-bottom: 12px;
 }

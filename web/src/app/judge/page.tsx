@@ -69,8 +69,7 @@ export default function JudgeTab() {
     void refresh();
   }, [refresh]);
 
-  const say = (call: string, note: string, ok: boolean) =>
-    setLog((l) => [{ call, note, ok }, ...l].slice(0, 12));
+  const say = (call: string, note: string, ok: boolean) => setLog((l) => [{ call, note, ok }, ...l].slice(0, 12));
 
   const run = async (id: string, call: string, fn: () => Promise<string>) => {
     setRunning(id);
@@ -253,7 +252,11 @@ export default function JudgeTab() {
             />
             <Row label="CYCLE PROGRESS" value={`${done.size} / ${steps.length}`} accent={done.size > 0} />
             <Row label="RESERVE" value={`${formatUnits(state.prizeReserve)} cUSDT`} />
-            <Row label={`SWEPT · DRAW #${drawId}`} value={cursor === undefined ? "—" : `${cursor} / ${state.depositors}`} accent={sweptAll} />
+            <Row
+              label={`SWEPT · DRAW #${drawId}`}
+              value={cursor === undefined ? "—" : `${cursor} / ${state.depositors}`}
+              accent={sweptAll}
+            />
 
             <button
               className={styles.reset}
@@ -322,8 +325,8 @@ export default function JudgeTab() {
             <div className={styles.bHead}>WHAT NEEDS OWNER RIGHTS</div>
             <p>
               Topping up the reserve directly, and the shortcuts that skip waiting — opening a draw before the period
-              ends, rolling before the thirty-day claim window closes. Both exist so a week-long cycle can be shown in
-              a minute.
+              ends, rolling before the thirty-day claim window closes. Both exist so a week-long cycle can be shown in a
+              minute.
             </p>
           </div>
           <div className={styles.bCol}>
@@ -336,8 +339,8 @@ export default function JudgeTab() {
           <div className={styles.bCol}>
             <div className={styles.bHead}>WHAT NEVER HAPPENS</div>
             <p>
-              No call on this page reveals a balance, and none of them writes a winner. Settlement moves the pot
-              without resolving a name — there is no winner field in storage to read.
+              No call on this page reveals a balance, and none of them writes a winner. Settlement moves the pot without
+              resolving a name — there is no winner field in storage to read.
             </p>
           </div>
         </section>

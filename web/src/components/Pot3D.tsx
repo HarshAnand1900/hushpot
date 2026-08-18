@@ -657,7 +657,9 @@ export function Pot3D({
       for (let i = 0; i <= n; i++) {
         const u = i / n;
         const p = pathAt(w, u);
-        const tan = pathAt(w, Math.min(1, u + 0.004)).sub(p).normalize();
+        const tan = pathAt(w, Math.min(1, u + 0.004))
+          .sub(p)
+          .normalize();
         const rad = new THREE.Vector3(p.x, 0, p.z).normalize();
         const axis = i % 2 === 0 ? rad : new THREE.Vector3().crossVectors(tan, rad).normalize();
         d2.position.copy(p);
@@ -1166,7 +1168,9 @@ export function Pot3D({
         for (let j = 0; j <= N; j++) {
           const t = j / N;
           const p = at(t);
-          const tan = at(Math.min(1, t + 0.02)).sub(p).normalize();
+          const tan = at(Math.min(1, t + 0.02))
+            .sub(p)
+            .normalize();
           const rad = new THREE.Vector3(p.x, 0, p.z).normalize();
           const axis = j % 2 === 0 ? rad : new THREE.Vector3().crossVectors(tan, rad).normalize();
           d3.position.copy(p);

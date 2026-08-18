@@ -146,7 +146,9 @@
 .bar {
   flex: 1;
   min-height: 8px;
-  transition: height 0.35s ease, background 0.35s ease;
+  transition:
+    height 0.35s ease,
+    background 0.35s ease;
 }
 
 .sparkFoot {

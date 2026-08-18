@@ -1,0 +1,32 @@
+.solvency {
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.copy {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-1);
+  max-width: 70ch;
+}
+
+.backed,
+.short {
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 14px 16px;
+  border: 1px solid var(--yellow);
+  background: rgba(255, 210, 8, 0.07);
+  color: var(--white);
+  max-width: 70ch;
+  animation: hp-in 0.3s ease both;
+}
+
+.solvencyNote {
+  font-size: 12px;
+  color: var(--text-3);
+}

@@ -30,90 +30,98 @@ export default function Landing() {
       {/* The hero owns one viewport; its furniture is positioned against this, not the
           whole scrolling page. */}
       <div className={styles.hero}>
-      <div className={`${styles.frame} brackets bracketsLower`}>
-        <div className={styles.serial}>SER. {POOL_ADDRESS.slice(0, 6)}—{POOL_ADDRESS.slice(-4)} · FHEVM SEPOLIA · NON—TRANSFERABLE RECORD</div>
-      </div>
-
-      {/* top-left --------------------------------------------------------- */}
-      <header className={styles.topLeft}>
-        <div className={styles.lockup}>
-          <span className={styles.ring}>
-            <span className={styles.ringDot} />
-          </span>
-          <span className={styles.wordmark}>HUSHPOT</span>
+        <div className={`${styles.frame} brackets bracketsLower`}>
+          <div className={styles.serial}>
+            SER. {POOL_ADDRESS.slice(0, 6)}—{POOL_ADDRESS.slice(-4)} · FHEVM SEPOLIA · NON—TRANSFERABLE RECORD
+          </div>
         </div>
-        <div className={styles.subLockup}>
-          CONFIDENTIAL PRIZE POOL
-          <br />
-          SEPOLIA · FHEVM
+
+        {/* top-left --------------------------------------------------------- */}
+        <header className={styles.topLeft}>
+          <div className={styles.lockup}>
+            <span className={styles.ring}>
+              <span className={styles.ringDot} />
+            </span>
+            <span className={styles.wordmark}>HUSHPOT</span>
+          </div>
+          <div className={styles.subLockup}>
+            CONFIDENTIAL PRIZE POOL
+            <br />
+            SEPOLIA · FHEVM
+          </div>
+        </header>
+
+        {/* top-right -------------------------------------------------------- */}
+        <div className={styles.topRight}>
+          <div className={styles.closesLabel}>DRAW #{drawNumber} CLOSES IN</div>
+          <div className={styles.countdown} suppressHydrationWarning>
+            {mounted ? formatCountdown(closesIn) : "—"}
+          </div>
+          <ConnectButton variant="hero" />
         </div>
-      </header>
 
-      {/* top-right -------------------------------------------------------- */}
-      <div className={styles.topRight}>
-        <div className={styles.closesLabel}>DRAW #{drawNumber} CLOSES IN</div>
-        <div className={styles.countdown} suppressHydrationWarning>
-          {mounted ? formatCountdown(closesIn) : "—"}
+        {/* left edge -------------------------------------------------------- */}
+        <div className={styles.edgeLeft}>EVERY DEPOSIT EARNS FROM THE MINUTE IT LANDS</div>
+
+        {/* right edge stats -------------------------------------------------- */}
+        <aside className={styles.stats}>
+          <Stat
+            label={`POOLED AT DRAW #${Math.max(0, drawNumber - 1)}`}
+            value={lastDraw ? formatUnits(lastDraw.total / 10080n) : "—"}
+          />
+          <Stat label="PRIZE LAST DRAW" value={lastDraw ? `${formatUnits(lastDraw.prize)} cUSDT` : "—"} />
+          <Stat label="DRAWS SETTLED" value={String(drawNumber)} />
+          <Stat label="DEPOSITORS" value={String(state.depositors)} />
+          <Stat label="PRINCIPAL AT RISK" value="NONE" />
+        </aside>
+
+        {/* the figure, hung near the top ------------------------------------ */}
+        <section className={styles.potBlock}>
+          <span className={`${styles.scrim} ${styles.scrimTop}`} />
+          <div className={styles.potRow}>
+            <span className={styles.potTick}>POT</span>
+            <span className={`num ${styles.potNumber}`}>
+              {pot.whole}
+              <span className={styles.potFrac}>.{pot.frac}</span>
+            </span>
+          </div>
+          <div className={styles.potStrap}>
+            <span className="liveDot" />
+            LIVE · THIS WEEK&apos;S POT · THE ONLY PUBLIC NUMBER
+          </div>
+        </section>
+
+        {/* the pitch, sat at the foot ---------------------------------------- */}
+        <section className={styles.bottomBlock}>
+          <span className={`${styles.scrim} ${styles.scrimBottom}`} />
+          <h1 className={`editorial ${styles.headline}`}>
+            One depositor takes all of it. Nobody finds out who — <em>unless they say so.</em>
+          </h1>
+
+          <div className={styles.ctas}>
+            <a className={styles.ctaPrimary} href="/pool">
+              Enter the pool
+            </a>
+          </div>
+        </section>
+
+        {/* ticker ------------------------------------------------------------ */}
+        <div className={styles.ticker}>
+          <div className={styles.tickerTrack}>
+            {[0, 1].map((copy) => (
+              <div className={styles.tickerRun} key={copy}>
+                <TickerItem text="ENCRYPTED ON-CHAIN" />
+                <TickerItem text="0x7a4f…19cD DEPOSITED ●●●●●● cUSDT" />
+                <TickerItem
+                  text={`POT +${lastDraw ? formatUnits(lastDraw.prize / 168n) : "0.00"} cUSDT FROM YIELD`}
+                  accent
+                />
+                <TickerItem text={`DRAW #${Math.max(0, drawNumber - 1)} SETTLED · NO WINNER RESOLVED`} accent />
+                <TickerItem text={`${state.depositors} DEPOSITORS · AMOUNTS UNREADABLE`} />
+              </div>
+            ))}
+          </div>
         </div>
-        <ConnectButton variant="hero" />
-      </div>
-
-      {/* left edge -------------------------------------------------------- */}
-      <div className={styles.edgeLeft}>EVERY DEPOSIT EARNS FROM THE MINUTE IT LANDS</div>
-
-      {/* right edge stats -------------------------------------------------- */}
-      <aside className={styles.stats}>
-        <Stat label={`POOLED AT DRAW #${Math.max(0, drawNumber - 1)}`} value={lastDraw ? formatUnits(lastDraw.total / 10080n) : "—"} />
-        <Stat label="PRIZE LAST DRAW" value={lastDraw ? `${formatUnits(lastDraw.prize)} cUSDT` : "—"} />
-        <Stat label="DRAWS SETTLED" value={String(drawNumber)} />
-        <Stat label="DEPOSITORS" value={String(state.depositors)} />
-        <Stat label="PRINCIPAL AT RISK" value="NONE" />
-      </aside>
-
-      {/* the figure, hung near the top ------------------------------------ */}
-      <section className={styles.potBlock}>
-        <span className={`${styles.scrim} ${styles.scrimTop}`} />
-        <div className={styles.potRow}>
-          <span className={styles.potTick}>POT</span>
-          <span className={`num ${styles.potNumber}`}>
-            {pot.whole}
-            <span className={styles.potFrac}>.{pot.frac}</span>
-          </span>
-        </div>
-        <div className={styles.potStrap}>
-          <span className="liveDot" />
-          LIVE · THIS WEEK&apos;S POT · THE ONLY PUBLIC NUMBER
-        </div>
-      </section>
-
-      {/* the pitch, sat at the foot ---------------------------------------- */}
-      <section className={styles.bottomBlock}>
-        <span className={`${styles.scrim} ${styles.scrimBottom}`} />
-        <h1 className={`editorial ${styles.headline}`}>
-          One depositor takes all of it. Nobody finds out who — <em>unless they say so.</em>
-        </h1>
-
-        <div className={styles.ctas}>
-          <a className={styles.ctaPrimary} href="/pool">
-            Enter the pool
-          </a>
-        </div>
-      </section>
-
-      {/* ticker ------------------------------------------------------------ */}
-      <div className={styles.ticker}>
-        <div className={styles.tickerTrack}>
-          {[0, 1].map((copy) => (
-            <div className={styles.tickerRun} key={copy}>
-              <TickerItem text="ENCRYPTED ON-CHAIN" />
-              <TickerItem text="0x7a4f…19cD DEPOSITED ●●●●●● cUSDT" />
-              <TickerItem text={`POT +${lastDraw ? formatUnits(lastDraw.prize / 168n) : "0.00"} cUSDT FROM YIELD`} accent />
-              <TickerItem text={`DRAW #${Math.max(0, drawNumber - 1)} SETTLED · NO WINNER RESOLVED`} accent />
-              <TickerItem text={`${state.depositors} DEPOSITORS · AMOUNTS UNREADABLE`} />
-            </div>
-          ))}
-        </div>
-      </div>
       </div>
 
       <LandingSections />

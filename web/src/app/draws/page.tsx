@@ -104,7 +104,7 @@ export default function DrawsTab() {
                     ? error
                     : done
                       ? allPassed
-                        ? "Four of four recomputed against the chain. The stored record, the committed die, the prize formula and the deployed code all agree."
+                        ? "Five of five recomputed against the chain. The stored record, the committed die, the prize formula and the deployed code all agree — and the code holds no winner to ask for."
                         : "One or more checks disagreed with the chain. Details below."
                       : verifying
                         ? `Reading the chain… ${step + 1} of 4`
@@ -115,10 +115,10 @@ export default function DrawsTab() {
                   onClick={() => verify(draw.id, { total: draw.total, prize: draw.prize, drawPoint: draw.drawPoint })}
                   disabled={verifying}
                 >
-                  {verifying ? `Checking ${step + 1} of 4…` : done ? "Verify again" : "Verify this draw locally"}
+                  {verifying ? `Checking ${step + 1} of 5…` : done ? "Verify again" : "Verify this draw locally"}
                 </button>
                 <div className={styles.verifyRail}>
-                  <span className={styles.verifyFill} style={{ width: `${Math.max(0, step) * 25}%` }} />
+                  <span className={styles.verifyFill} style={{ width: `${Math.max(0, step) * 20}%` }} />
                 </div>
               </div>
 
@@ -126,8 +126,8 @@ export default function DrawsTab() {
               <div className={styles.rows}>
                 {results.length === 0 ? (
                   <div className={styles.pending}>
-                    Four checks are available: the stored record, the committed die, the prize formula, and the
-                    deployed bytecode. None has been run yet.
+                    Five checks are available: the stored record, the committed die, the prize formula, the deployed
+                    bytecode, and whether the code exposes any way at all to ask who won. None has been run yet.
                   </div>
                 ) : (
                   results.map((r) => (
@@ -158,9 +158,9 @@ export default function DrawsTab() {
 
               {/* the honest boundary */}
               <div className={styles.limits}>
-                <strong>What these checks cannot tell you:</strong> who won, and whether the die was unbiased. The
-                first is not hidden — it is never computed by anything, so there is nothing to recompute. The second
-                rests on the network&apos;s own generator and the published source, not on any figure in this receipt.
+                <strong>What these checks cannot tell you:</strong> who won, and whether the die was unbiased. The first
+                is not hidden — it is never computed by anything, so there is nothing to recompute. The second rests on
+                the network&apos;s own generator and the published source, not on any figure in this receipt.
               </div>
 
               {/* anonymity set */}

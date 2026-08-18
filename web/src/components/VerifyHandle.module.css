@@ -1,0 +1,76 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px 24px;
+}
+
+.copy {
+  margin: 0;
+  max-width: 70ch;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-1);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.input {
+  flex: 1;
+  min-width: 240px;
+  padding: 13px 15px;
+  background: var(--near-black);
+  border: 1px solid var(--rule);
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  color: var(--white);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--yellow);
+}
+
+.out {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 210, 8, 0.4);
+}
+
+.outBad {
+  border-color: rgba(255, 138, 122, 0.5);
+}
+
+.outRow {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 14px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+}
+.out > div:first-child {
+  border-top: none;
+}
+
+.outKey {
+  color: var(--text-4);
+  letter-spacing: 0.14em;
+}
+
+.outVal {
+  color: var(--white);
+  overflow-wrap: anywhere;
+}
+
+.note {
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  line-height: 1.8;
+  color: var(--text-4);
+}

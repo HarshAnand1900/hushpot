@@ -140,8 +140,8 @@ export function PositionPanel({
                 ))}
               </div>
               <p className={styles.sealedNote}>
-                Your whole record — deposits, withdrawals, anything you ever won — is ciphertext until you decrypt it
-                in this browser. None of it is fetched from a server, and none of it is readable by us.
+                Your whole record — deposits, withdrawals, anything you ever won — is ciphertext until you decrypt it in
+                this browser. None of it is fetched from a server, and none of it is readable by us.
               </p>
               <div className={styles.sealedCue}>REVEAL BELOW TO OPEN THE RECORD ↓</div>
             </div>
@@ -181,7 +181,11 @@ export function PositionPanel({
           </dl>
 
           <div className={styles.foot}>
-            {handle && <>HANDLE {handle.slice(0, 6)}…{handle.slice(-4)} · </>}
+            {handle && (
+              <>
+                HANDLE {handle.slice(0, 6)}…{handle.slice(-4)} ·{" "}
+              </>
+            )}
             PRINCIPAL AT RISK <span style={{ color: "var(--yellow)" }}>NONE</span>
           </div>
         </div>
@@ -202,11 +206,7 @@ export function PositionPanel({
                 className={styles.bar}
                 style={{
                   height: p ? `${Math.max(6, (p.odds / curvePeak) * 100)}%` : "22%",
-                  background: !p
-                    ? "rgba(255,255,255,.05)"
-                    : p.future
-                      ? "rgba(255,210,8,.28)"
-                      : "var(--yellow)",
+                  background: !p ? "rgba(255,255,255,.05)" : p.future ? "rgba(255,210,8,.28)" : "var(--yellow)",
                 }}
                 title={p ? `minute ${p.minute} · ${p.odds.toFixed(3)}%` : undefined}
               />
@@ -264,16 +264,12 @@ export function PositionPanel({
               </span>
             </div>
             <div className={styles.projTrack}>
-              <span
-                className={styles.projFill}
-                style={{ width: `${Math.min(100, ((projected ?? 0) / 10) * 100)}%` }}
-              />
+              <span className={styles.projFill} style={{ width: `${Math.min(100, ((projected ?? 0) / 10) * 100)}%` }} />
             </div>
             <div className={styles.projFoot}>
               <span>NOW {odds !== undefined ? `${odds.toFixed(2)}%` : "—"}</span>
               <span>SCALE 0–10%</span>
             </div>
-
 
             <div className={styles.buttons}>
               <button className="btnPrimary" style={{ flex: 1.2 }} onClick={onDeposit}>

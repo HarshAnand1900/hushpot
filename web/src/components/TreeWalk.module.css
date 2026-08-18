@@ -81,7 +81,9 @@
   font-family: var(--font-mono), monospace;
   font-size: 9px;
   color: var(--black);
-  transition: background 0.2s ease, transform 0.12s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.12s ease;
 }
 
 .node:not(:disabled) {

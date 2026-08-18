@@ -229,6 +229,23 @@ export const poolAbi = [
   },
   {
     type: "event",
+    name: "Withdrawn",
+    inputs: [
+      { name: "account", type: "address", indexed: true },
+      { name: "slot", type: "uint16", indexed: true },
+    ],
+  },
+  {
+    type: "event",
+    name: "ClaimChecked",
+    inputs: [
+      { name: "drawId", type: "uint256", indexed: true },
+      { name: "slot", type: "uint16", indexed: true },
+      { name: "checkedBy", type: "address", indexed: true },
+    ],
+  },
+  {
+    type: "event",
     name: "DrawSettled",
     inputs: [
       { name: "drawId", type: "uint256", indexed: true },

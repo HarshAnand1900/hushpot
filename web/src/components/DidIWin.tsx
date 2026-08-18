@@ -46,6 +46,10 @@ export function DidIWin({
   const [delta, setDelta] = useState<bigint>(0n);
   const [error, setError] = useState<string>();
   const [picked, setPicked] = useState(0);
+  // A rehearsal of the winning screen, with no transaction behind it. Most visitors will
+  // lose — that is what a lottery is — and the screen that matters would otherwise never
+  // be seen. It is labelled on every line so it can never be mistaken for a result.
+  const [preview, setPreview] = useState(false);
 
   const draw = draws[picked];
 
@@ -152,6 +156,7 @@ export function DidIWin({
                 onClick={() => {
                   setPicked(i);
                   setPhase("idle");
+                  setPreview(false);
                   setError(undefined);
                 }}
                 title={d.period === currentPeriod ? "Still claimable" : "Claim window closed"}
@@ -182,10 +187,30 @@ export function DidIWin({
             )}
 
             {error && <div className={styles.error}>{error}</div>}
-            <button className="btnPrimary" onClick={check} disabled={!unlocked || busy || !claimable}>
-              {!claimable ? "Window closed" : unlocked ? "Did I win?" : "Reveal your position first"}
-            </button>
+            <div className={styles.actions}>
+              <button className="btnPrimary" onClick={check} disabled={!unlocked || busy || !claimable}>
+                {!claimable ? "Window closed" : unlocked ? "Did I win?" : "Reveal your position first"}
+              </button>
+              <button className="btnQuiet" onClick={() => setPreview(true)}>
+                Preview a win
+              </button>
+            </div>
           </>
+        )}
+
+        {preview && phase !== "won" && (
+          <div className={`${styles.result} ${styles.preview}`}>
+            <div className={styles.previewTag}>PREVIEW · NOT A RESULT · NOTHING WAS CHECKED</div>
+            <div className={styles.wonKicker}>THIS IS WHAT WINNING WOULD LOOK LIKE</div>
+            <div className={`num ${styles.wonAmount}`}>+{draw ? formatUnits(draw.prize) : "—"}</div>
+            <p className={styles.copy}>
+              Only the winner ever sees this screen, because only their key opens the balance it reads. No transaction
+              was sent and your position is untouched.
+            </p>
+            <button className="btnQuiet" onClick={() => setPreview(false)}>
+              Close preview
+            </button>
+          </div>
         )}
 
         {busy && (
@@ -208,9 +233,12 @@ export function DidIWin({
           <div className={styles.result}>
             <div className={`num ${styles.lostHead}`}>Not this time.</div>
             <p className={styles.copy}>
-              Your balance is unchanged — exactly what you put in. Nothing was ever at risk, and you are already
-              entered in the next draw.
+              Your balance is unchanged — exactly what you put in. Nothing was ever at risk, and you are already entered
+              in the next draw.
             </p>
+            <button className="btnQuiet" onClick={() => setPhase("idle")}>
+              Reset
+            </button>
           </div>
         )}
 
@@ -222,6 +250,9 @@ export function DidIWin({
               It landed in your balance, and it is already earning odds for the next draw. If you want anyone to know,
               that is your call to make.
             </p>
+            <button className="btnQuiet" onClick={() => setPhase("idle")}>
+              Reset
+            </button>
           </div>
         )}
       </div>

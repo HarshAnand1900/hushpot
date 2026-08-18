@@ -121,7 +121,9 @@
   padding: 13px 26px;
   font-size: 14px;
   font-weight: 800;
-  transition: background 0.18s, color 0.18s;
+  transition:
+    background 0.18s,
+    color 0.18s;
 }
 .connect:hover:not(:disabled) {
   background: var(--white);
@@ -213,12 +215,7 @@
    stops being readable. */
 .scrim {
   position: absolute;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(10, 10, 10, 0.8) 0%,
-    rgba(10, 10, 10, 0.36) 54%,
-    transparent 78%
-  );
+  background: radial-gradient(ellipse at center, rgba(10, 10, 10, 0.8) 0%, rgba(10, 10, 10, 0.36) 54%, transparent 78%);
   filter: blur(12px);
   pointer-events: none;
 }
@@ -289,7 +286,9 @@
   max-width: 22ch;
   margin: 10px 0 0;
   color: var(--white);
-  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.9), 0 1px 4px rgba(0, 0, 0, 0.8);
+  text-shadow:
+    0 2px 30px rgba(0, 0, 0, 0.9),
+    0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
 .headline em {

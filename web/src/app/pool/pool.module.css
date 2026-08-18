@@ -162,12 +162,7 @@
   width: 220%;
   height: 220%;
   pointer-events: none;
-  background: linear-gradient(
-    115deg,
-    transparent 42%,
-    rgba(255, 210, 8, 0.09) 50%,
-    transparent 58%
-  );
+  background: linear-gradient(115deg, transparent 42%, rgba(255, 210, 8, 0.09) 50%, transparent 58%);
   animation: niche-glint 6.5s ease-in-out infinite;
 }
 
@@ -218,7 +213,9 @@
   color: var(--black);
   font-size: 13.5px;
   font-weight: 800;
-  transition: background 0.16s, transform 0.16s;
+  transition:
+    background 0.16s,
+    transform 0.16s;
 }
 
 .nicheCta:hover {
@@ -467,7 +464,16 @@
   line-height: 1.5;
 }
 
+.engineFoot > span:first-child {
+  flex: 1 1 320px;
+}
+
 .engineFoot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
   border-top: 1px solid var(--rule);
   padding: 20px 26px;
   font-size: 12.5px;

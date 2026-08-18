@@ -1,17 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { useAccount } from "wagmi";
+import { useEffect, useState } from "react";
+import { useAccount, useWriteContract } from "wagmi";
+import Link from "next/link";
 
 import { AppHeader } from "@/components/AppHeader";
 import { DepositSheet } from "@/components/DepositSheet";
 import { DidIWin } from "@/components/DidIWin";
+import { ContractLog } from "@/components/ContractLog";
+import { PositionHistory } from "@/components/PositionHistory";
+import { Solvency } from "@/components/Solvency";
 import { PositionPanel } from "@/components/PositionPanel";
 import { Pot3D } from "@/components/Pot3D";
 import { useMyPosition } from "@/hooks/useMyPosition";
 import { useDraws } from "@/hooks/useDraws";
 import { useLastDraw, useNow, usePoolState } from "@/hooks/usePoolState";
-import { POOL_ADDRESS } from "@/lib/contract";
+import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { formatCountdown, formatUnits, shortenAddress, splitUnits } from "@/lib/format";
 import styles from "./pool.module.css";
 
@@ -25,6 +29,15 @@ export default function PoolTab() {
   // "join" is deposit with the withdraw tab hidden: it is the way in for someone who
   // has nothing in yet, and withdrawing would need a decrypted balance to mean anything.
   const [sheet, setSheet] = useState<"deposit" | "withdraw" | "join" | null>(null);
+
+  // The header's Faucet button lands here. Read from location rather than useSearchParams,
+  // which would opt this page out of static prerendering for one query flag.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("faucet") === "1") {
+      setSheet("join");
+      window.history.replaceState(null, "", "/pool");
+    }
+  }, []);
 
   const drawNumber = Number(state.drawCount);
   const mounted = now > 0;
@@ -105,9 +118,7 @@ export default function PoolTab() {
             <span className={styles.seam} />
             <span className={styles.shimmer} aria-hidden="true" />
 
-            <div className={styles.nicheKicker}>
-              ALL OF IT · TO ONE OF {state.depositors || "—"}
-            </div>
+            <div className={styles.nicheKicker}>ALL OF IT · TO ONE OF {state.depositors || "—"}</div>
 
             <Pot3D size={158} quiet />
 
@@ -178,14 +189,14 @@ export default function PoolTab() {
         {/* stat rail ------------------------------------------------------ */}
         <section className={styles.rail}>
           <Rail label="POOLED PRINCIPAL" value={lastDraw ? formatUnits(lastDraw.total / 10080n) : "—"} />
-          <Rail
-            label="PRIZES PAID"
-            value={formatUnits(draws.reduce((sum, d) => sum + d.prize, 0n))}
-            accent
-          />
+          <Rail label="PRIZES PAID" value={formatUnits(draws.reduce((sum, d) => sum + d.prize, 0n))} accent />
           <Rail label="DRAWS SETTLED" value={String(draws.length)} />
           <Rail label="DEPOSITORS" value={String(state.depositors)} />
         </section>
+
+        <Solvency compact />
+
+        <PositionHistory />
 
         {/* your position -------------------------------------------------- */}
         <PositionPanel
@@ -263,11 +274,9 @@ export default function PoolTab() {
               active={false}
             />
           </div>
-          <div className={styles.engineFoot}>
-            One round closes the week: the pool is sealed, the network rolls an encrypted die, and the pot moves
-            without ever resolving a name.
-          </div>
+          <CloseDraw periodEnded={state.periodEnded} drawPending={state.drawPending} onDone={() => state.refetch()} />
         </section>
+        <ContractLog limit={6} />
       </main>
 
       {sheet && (
@@ -311,6 +320,72 @@ function EngineCell({ label, note, done, active }: { label: string; note: string
         <span className={styles.engineFill} style={{ width: done ? "100%" : active ? "58%" : "0%" }} />
       </div>
       <div className={styles.engineNote}>{note}</div>
+    </div>
+  );
+}
+
+/**
+ * Closing the week, from the app rather than from a console.
+ *
+ * `openDraw` is permissionless by design — a pool whose draw only its operator can start
+ * is a pool whose operator can stall it — so the button belongs here, where depositors
+ * are, and not only on the Judge tab.
+ *
+ * Settlement is the second half and needs a decryption proof fetched from the relayer,
+ * which is a flow rather than a button; it lives on Judge, and this points there once the
+ * total is sealed.
+ */
+function CloseDraw({
+  periodEnded,
+  drawPending,
+  onDone,
+}: {
+  periodEnded: boolean;
+  drawPending: boolean;
+  onDone: () => void;
+}) {
+  const { isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+
+  const close = async () => {
+    setError(undefined);
+    setBusy(true);
+    try {
+      await writeContractAsync({ address: POOL_ADDRESS, abi: poolAbi, functionName: "openDraw" });
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message.slice(0, 140) : "Could not close the draw.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={styles.engineFoot}>
+      <span>
+        One round closes the week: the pool is sealed, the network rolls an encrypted die, and the pot moves without
+        ever resolving a name.
+      </span>
+
+      {drawPending ? (
+        <Link className="btnOutlineYellow" href="/judge">
+          Sealed · settle it on Judge
+        </Link>
+      ) : (
+        <button className="btnOutlineYellow" onClick={close} disabled={!isConnected || !periodEnded || busy}>
+          {busy
+            ? "Sealing the total…"
+            : !isConnected
+              ? "Connect a wallet to close"
+              : periodEnded
+                ? "Close this draw"
+                : "Opens when the week ends"}
+        </button>
+      )}
+
+      {error && <span className={styles.error}>{error}</span>}
     </div>
   );
 }
