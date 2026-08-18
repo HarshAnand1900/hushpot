@@ -118,7 +118,7 @@ export default function PoolTab() {
             <span className={styles.seam} />
             <span className={styles.shimmer} aria-hidden="true" />
 
-            <div className={styles.nicheKicker}>ALL OF IT · TO ONE OF {state.depositors || "—"}</div>
+            <div className={styles.nicheKicker}>CLICK IT · DRAG TO TURN</div>
 
             <Pot3D size={158} quiet />
 
@@ -127,7 +127,9 @@ export default function PoolTab() {
               <br />
               can be yours.
             </div>
-            <div className={styles.nicheSub}>and nobody need ever know it was</div>
+            <div className={styles.nicheSub}>
+              all of it, to one of {state.depositors || "—"} — and nobody need ever know which
+            </div>
 
             <button className={styles.nicheCta} onClick={() => setSheet("join")}>
               Take your shot
@@ -139,14 +141,26 @@ export default function PoolTab() {
           <div className={styles.yieldCell}>
             <div className={styles.yieldTop}>
               <div className={styles.yieldLabel}>
-                <span className="liveDot" /> ACCRUED SO FAR · THIS PERIOD
+                <span className="liveDot" /> YIELD LANDING · THIS PERIOD
               </div>
               <div className={`num ${styles.yieldValue}`}>+{formatUnits(accrued, 2)}</div>
               {/* Named for what it is. There is no ERC-4626 strategy behind this on Sepolia —
                   the reserve is funded directly — and the rate is read from the contract
                   rather than written into the page. */}
-              <div className={styles.yieldNote}>
-                {state.annualRateBps ? `${Number(state.annualRateBps) / 100}% APY` : "—"} · FUNDED RESERVE
+              {/* v6 shows STRATEGY / NET APY here. There is no ERC-4626 vault on Sepolia —
+                  the reserve is funded directly — so the strategy is named for what it
+                  actually is rather than borrowing a label it has not earned. */}
+              <div className={styles.yieldStrat}>
+                <span>
+                  <span className={styles.stratK}>STRATEGY</span>
+                  <span className={styles.stratV}>FUNDED RESERVE</span>
+                </span>
+                <span>
+                  <span className={styles.stratK}>NET APY</span>
+                  <span className={styles.stratV}>
+                    {state.annualRateBps ? `${(Number(state.annualRateBps) / 100).toFixed(2)}%` : "—"}
+                  </span>
+                </span>
               </div>
             </div>
 
@@ -196,7 +210,7 @@ export default function PoolTab() {
 
         <Solvency compact />
 
-        <PositionHistory />
+        <PositionHistory drawCount={state.drawCount} unlocked={isUnlocked} slot={position.slot} />
 
         {/* your position -------------------------------------------------- */}
         <PositionPanel

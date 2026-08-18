@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAccount, useConfig, usePublicClient, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { decryptHandle } from "@/lib/fhe";
-import { formatUnits } from "@/lib/format";
+import { formatCountdown, formatUnits } from "@/lib/format";
 import styles from "./DidIWin.module.css";
 
 type Phase = "idle" | "checking" | "reading" | "won" | "lost" | "error";
@@ -50,6 +50,37 @@ export function DidIWin({
   // lose — that is what a lottery is — and the screen that matters would otherwise never
   // be seen. It is labelled on every line so it can never be mistaken for a result.
   const [preview, setPreview] = useState(false);
+
+  // How long the 30-day window still has to run. The grace period is the contract's, read
+  // from it rather than hard-coded here — a countdown that disagrees with the chain is
+  // worse than no countdown.
+  const [claimLeft, setClaimLeft] = useState<number>();
+  useEffect(() => {
+    if (!publicClient) return;
+    let live = true;
+
+    const tick = async () => {
+      try {
+        const [settledAt, grace] = (await Promise.all([
+          publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "lastDrawSettledAt" }),
+          publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "CLAIM_GRACE" }),
+        ])) as [bigint, bigint];
+
+        if (settledAt === 0n) return;
+        const closesAt = Number(settledAt + grace);
+        if (live) setClaimLeft(closesAt - Math.floor(Date.now() / 1000));
+      } catch {
+        /* no countdown is better than a wrong one */
+      }
+    };
+
+    void tick();
+    const id = setInterval(tick, 30_000);
+    return () => {
+      live = false;
+      clearInterval(id);
+    };
+  }, [publicClient]);
 
   const draw = draws[picked];
 
@@ -145,6 +176,18 @@ export function DidIWin({
           {phase === "won" ? "YOURS ONLY" : phase === "lost" ? "CHECKED" : claimable ? "OPEN" : "WINDOW CLOSED"}
         </span>
       </div>
+
+      {claimLeft !== undefined && claimLeft > 0 && (
+        <div className={styles.claimBar}>
+          <span className={styles.claimK}>CLAIM CLOSES</span>
+          <span className={`num ${styles.claimV}`} suppressHydrationWarning>
+            {formatCountdown(claimLeft)}
+          </span>
+          <span className={styles.claimNote}>
+            The next period cannot open until this runs out, so a claim is never a race against anyone.
+          </span>
+        </div>
+      )}
 
       <div className={styles.body}>
         {draws.length > 1 && (

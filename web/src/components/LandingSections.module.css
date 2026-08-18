@@ -401,3 +401,163 @@
     padding: 72px 22px 76px;
   }
 }
+
+/* --------------------------------------------------- 03 · FHE operations ---- */
+
+.ops {
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+.opRow {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  gap: 22px;
+  align-items: baseline;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--rule);
+}
+.opRow:last-child {
+  border-bottom: 0;
+}
+
+.opName {
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  color: var(--yellow);
+}
+
+.opLabel {
+  font-size: 14px;
+  color: var(--text-1);
+}
+
+.opState {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------ 04 · explorer ------- */
+
+.explorer {
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+.expHead,
+.expRow {
+  display: grid;
+  grid-template-columns: 120px 1fr 200px 54px;
+  gap: 18px;
+  padding: 13px 22px;
+  align-items: baseline;
+}
+
+.expHead {
+  border-bottom: 1px solid var(--rule);
+  background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 7px);
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  color: var(--text-2);
+}
+
+.expRow {
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: 13px;
+}
+
+.expBlock,
+.expValue {
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  color: var(--text-1);
+}
+
+.expEvent {
+  color: var(--white);
+  font-size: 13.5px;
+}
+
+/* A confidential row has nothing to show, and is drawn as nothing rather than as a
+   redaction — there is no hidden value behind it to redact. */
+.expMasked {
+  color: var(--masked);
+  letter-spacing: 0.18em;
+}
+
+.expOk {
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--yellow);
+}
+
+.expEmpty,
+.expFoot {
+  padding: 16px 22px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+.expFoot {
+  border-top: 1px solid var(--rule);
+}
+
+/* --------------------------------------------------- 05 · who sees what ----- */
+
+.seeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+
+.seeCell {
+  background: var(--near-black);
+  padding: 30px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.seeGold {
+  background-color: var(--yellow);
+  background-image: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 9px);
+  color: var(--black);
+}
+
+.seeWho {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--yellow);
+}
+.seeGold .seeWho {
+  color: var(--on-yellow-strong);
+}
+
+.seeWhat {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-1);
+}
+.seeGold .seeWhat {
+  color: var(--on-yellow);
+}
+
+@media (max-width: 900px) {
+  .seeGrid {
+    grid-template-columns: 1fr;
+  }
+  .opRow,
+  .expHead,
+  .expRow {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}

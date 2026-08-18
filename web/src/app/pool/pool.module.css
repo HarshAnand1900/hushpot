@@ -291,6 +291,31 @@
   min-width: 3px;
 }
 
+.yieldStrat {
+  display: flex;
+  gap: 26px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.yieldStrat > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stratK {
+  font-family: var(--font-mono), monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.22em;
+  color: var(--text-4);
+}
+
+.stratV {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  color: var(--yellow);
+}
+
 .yieldFoot {
   display: flex;
   justify-content: space-between;

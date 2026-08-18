@@ -1,0 +1,49 @@
+.row {
+  display: grid;
+  grid-template-columns: 1fr 260px 110px;
+  gap: 18px;
+  align-items: baseline;
+  padding: 15px 22px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.call {
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  color: var(--text-1);
+}
+
+.value {
+  font-family: var(--font-mono), monospace;
+  font-size: 13px;
+  color: var(--white);
+}
+
+.cipher {
+  color: var(--masked);
+}
+
+.tag {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+}
+.tagPublic {
+  color: var(--yellow);
+}
+
+.foot {
+  padding: 16px 22px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+  max-width: 78ch;
+}
+
+@media (max-width: 820px) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+}

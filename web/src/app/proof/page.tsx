@@ -3,6 +3,7 @@
 import { AppHeader } from "@/components/AppHeader";
 import { Pot3D } from "@/components/Pot3D";
 import { PrivacyDemo } from "@/components/PrivacyDemo";
+import { ChainSees } from "@/components/ChainSees";
 import { HardParts } from "@/components/HardParts";
 import { Solvency } from "@/components/Solvency";
 import { ContractLog } from "@/components/ContractLog";
@@ -68,6 +69,8 @@ export default function ProofTab() {
         <PrivacyDemo />
 
         <Solvency />
+
+        <ChainSees />
 
         <HardParts />
 
