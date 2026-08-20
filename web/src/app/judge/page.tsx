@@ -110,7 +110,7 @@ export default function JudgeTab() {
       functionName: "mint",
       args: [address, amount],
     });
-    await waitForTransactionReceipt(config, { hash: mint, confirmations: 2 });
+    await waitForTransactionReceipt(config, { hash: mint });
 
     const allowance = (await publicClient!.readContract({
       address: UNDERLYING_ADDRESS,
@@ -127,16 +127,19 @@ export default function JudgeTab() {
         functionName: "approve",
         args: [POOL_ADDRESS, 0n],
       });
-      await waitForTransactionReceipt(config, { hash: clear, confirmations: 2 });
+      await waitForTransactionReceipt(config, { hash: clear });
     }
+    // Approved to the maximum once. A judge running the cycle twice should not pay for
+    // an approval twice, and `sponsorPrize` below states its gas rather than estimating,
+    // so one confirmation is enough.
     if (allowance < amount) {
       const ok = await writeContractAsync({
         address: UNDERLYING_ADDRESS,
         abi: erc20Abi,
         functionName: "approve",
-        args: [POOL_ADDRESS, amount],
+        args: [POOL_ADDRESS, (1n << 256n) - 1n],
       });
-      await waitForTransactionReceipt(config, { hash: ok, confirmations: 2 });
+      await waitForTransactionReceipt(config, { hash: ok });
     }
 
     return send("sponsorPrize", [amount], 1_200_000n);

@@ -126,29 +126,25 @@ export function DidIWin({
         args: [draw.id, slot],
       });
 
-      // Anyone can run this for anyone — a keeper may already have swept you.
-      if (!alreadyChecked) {
-        setPhase("checking");
-        const tx = await writeContractAsync({
-          address: POOL_ADDRESS,
-          abi: poolAbi,
-          functionName: "checkClaim",
-          args: [draw.id, address],
-        });
-        // Two confirmations, not one. The relayer has to see the grant this transaction
-        // made before it will decrypt, and one block leaves too little room for that to
-        // reach whichever node it happens to read — the same reason every other decrypt
-        // path here waits for two.
-        await waitForTransactionReceipt(config, { hash: tx, confirmations: 2 });
-      }
-
-      setPhase("reading");
-      const refreshTx = await writeContractAsync({
+      // One transaction, not two. `checkMyClaim` runs the check and opens the answer in
+      // the same call; asking it separately meant two wallet prompts and a block of dead
+      // time between them to answer a single question.
+      //
+      // A keeper may already have swept this slot, in which case the check is done and
+      // only the reveal is outstanding — that path still needs `refreshMyBalance`, but it
+      // is one transaction too.
+      setPhase("checking");
+      const tx = await writeContractAsync({
         address: POOL_ADDRESS,
         abi: poolAbi,
-        functionName: "refreshMyBalance",
+        functionName: alreadyChecked ? "refreshMyBalance" : "checkMyClaim",
+        args: alreadyChecked ? [] : [draw.id],
       });
-      await waitForTransactionReceipt(config, { hash: refreshTx, confirmations: 2 });
+      // Two confirmations: the relayer has to see the grant this transaction made before
+      // it will decrypt, and one block leaves too little room for that to reach whichever
+      // node it happens to read.
+      setPhase("reading");
+      await waitForTransactionReceipt(config, { hash: tx, confirmations: 2 });
 
       const handle = await publicClient.readContract({
         address: POOL_ADDRESS,

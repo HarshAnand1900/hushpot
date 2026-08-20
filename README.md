@@ -10,8 +10,8 @@ Built for the Zama Developer Program, Mainnet Season 4.
 
 - **Live app:** <https://hushpot-fhevm.vercel.app>
 - **Contract:**
-  [`0x9E28D96495D1777CbeC3E689FD95822e59385147`](https://sepolia.etherscan.io/address/0x9E28D96495D1777CbeC3E689FD95822e59385147)
-  (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0x9E28D96495D1777CbeC3E689FD95822e59385147#code).
+  [`0x2fb1feeaE2Af30E7a642FbAA6A5735c6276E1f59`](https://sepolia.etherscan.io/address/0x2fb1feeaE2Af30E7a642FbAA6A5735c6276E1f59)
+  (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0x2fb1feeaE2Af30E7a642FbAA6A5735c6276E1f59#code).
   The address in [`web/src/lib/contract.ts`](web/src/lib/contract.ts) is always the live one
 - **Judge panel:** [`/judge`](https://hushpot-fhevm.vercel.app/judge) — run a whole draw cycle from the browser, no
   terminal
@@ -247,7 +247,7 @@ On Sepolia, against the live coprocessor:
 
 | Operation            | Gas                         | Note                              |
 | -------------------- | --------------------------- | --------------------------------- |
-| Deploy               | 3,467,944                   |                                   |
+| Deploy               | 3,490,721                   |                                   |
 | Deposit              | 648k–1.56M                  | grows with pool size, see below   |
 | Claim, per depositor | **450,989**                 | was 2.4M                          |
 | Sweep, per depositor | **287,786**                 | paged, 1.57× cheaper than a claim |

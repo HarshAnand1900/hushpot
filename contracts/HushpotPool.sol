@@ -592,6 +592,27 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// This exists for the small-batch case and to keep the loop skip-safe.
     ///
     /// Skips anyone already checked, so it is safe to re-run.
+    /// @notice Check a draw for yourself and open the answer, in one transaction.
+    ///
+    /// @dev {checkClaim} parks the award but leaves the balance cache untouched, so a
+    /// depositor asking "did I win?" needed a second transaction — {refreshMyBalance} —
+    /// before there was anything they were allowed to decrypt. Two wallet prompts to
+    /// answer one question, with a block of waiting between them.
+    ///
+    /// Folding here would be the wrong saving: it repairs every ancestor sum to deposit
+    /// what is, for all but one checker, an encrypted zero. {_heldBy} instead reads leaf
+    /// plus parked — one addition — which is the same number a fold would eventually
+    /// produce, without touching the tree.
+    function checkMyClaim(uint256 drawId) external {
+        checkClaim(drawId, msg.sender);
+
+        uint16 slot = slotOf(msg.sender);
+        euint64 b = _heldBy(slot);
+        _balanceCache[slot] = b;
+        FHE.allowThis(b);
+        FHE.allow(b, msg.sender);
+    }
+
     function checkClaimBatch(uint256 drawId, address[] calldata accounts) external {
         for (uint256 i = 0; i < accounts.length; i++) {
             address account = accounts[i];

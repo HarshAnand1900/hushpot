@@ -296,6 +296,31 @@ describe("HushpotPool — draws and claims", function () {
       expect(aliceWon + bobWon).to.eq(draw.prize);
     });
 
+    // Asking "did I win?" used to cost two transactions: check, then refresh. One prompt
+    // is the difference between a product and a demo.
+    it("checks and opens the answer in a single transaction", async function () {
+      const before = await poolBalance(alice);
+
+      await (await pool.connect(alice).checkMyClaim(0)).wait();
+
+      // No refreshMyBalance call here — the handle must already be readable by alice.
+      const slot = await pool.slotOf(alice.address);
+      const after = await fhevm.userDecryptEuint(
+        FhevmType.euint64,
+        await pool.balanceHandle(slot),
+        poolAddress,
+        alice,
+      );
+
+      const prize = (await pool.draws(0)).prize;
+      expect([before, before + prize]).to.include(after);
+    });
+
+    it("refuses a second self-check of the same draw", async function () {
+      await (await pool.connect(alice).checkMyClaim(0)).wait();
+      await expect(pool.connect(alice).checkMyClaim(0)).to.be.revertedWithCustomError(pool, "AlreadyChecked");
+    });
+
     it("lets anyone check on anyone else's behalf", async function () {
       // Bob checks Alice. He pays the gas and learns nothing — the result is encrypted.
       await expect(pool.connect(bob).checkClaim(0, alice.address)).to.not.be.reverted;

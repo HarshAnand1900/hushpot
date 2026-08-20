@@ -5,6 +5,9 @@ import { createPortal } from "react-dom";
 import { useAccount, useConfig, usePublicClient, useReadContract, useSignTypedData, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
+/** Approve once. See the note in `useDeposit` — the allowance is public either way. */
+const MAX_ALLOWANCE = (1n << 256n) - 1n;
+
 import { useDeposit } from "@/hooks/useDeposit";
 import { TOKEN_ADDRESS, TOKEN_DECIMALS, UNDERLYING_ADDRESS, confidentialTokenAbi, erc20Abi } from "@/lib/contract";
 import { formatUnits } from "@/lib/format";
@@ -125,7 +128,7 @@ export function DepositSheet({
         functionName: "mint",
         args: [address, amount],
       });
-      await waitForTransactionReceipt(config, { hash: mint, confirmations: 2 });
+      await waitForTransactionReceipt(config, { hash: mint });
 
       // Wrap it, so the confidential route is usable from an empty wallet. Without this
       // the private path is unreachable for a newcomer — the faucet only hands out plain
@@ -149,17 +152,20 @@ export function DepositSheet({
             functionName: "approve",
             args: [TOKEN_ADDRESS, 0n],
           });
-          await waitForTransactionReceipt(config, { hash: clear, confirmations: 2 });
+          await waitForTransactionReceipt(config, { hash: clear });
         }
 
+        // Approved to the maximum once, so a second visit to the faucet is one
+        // transaction rather than three. This flow used to wait two confirmations at each
+        // of four steps — about a minute and a half of staring at a spinner.
         if (existing < amount) {
           const approve = await writeContractAsync({
             address: UNDERLYING_ADDRESS,
             abi: erc20Abi,
             functionName: "approve",
-            args: [TOKEN_ADDRESS, amount],
+            args: [TOKEN_ADDRESS, MAX_ALLOWANCE],
           });
-          await waitForTransactionReceipt(config, { hash: approve, confirmations: 2 });
+          await waitForTransactionReceipt(config, { hash: approve });
         }
 
         const wrap = await writeContractAsync({
@@ -169,7 +175,7 @@ export function DepositSheet({
           args: [address, amount],
           gas: 1_500_000n,
         });
-        await waitForTransactionReceipt(config, { hash: wrap, confirmations: 2 });
+        await waitForTransactionReceipt(config, { hash: wrap });
         setShielded(undefined);
       }
 
@@ -217,12 +223,12 @@ export function DepositSheet({
     mode === "deposit"
       ? route === "confidential"
         ? [
-            { key: "approving", label: "Authorise the pool", note: "one-time operator grant on your cUSDT" },
+            { key: "approving", label: "Authorise the pool", note: "once ever — skipped if already granted" },
             { key: "encrypting", label: "Encrypt the amount", note: "client-side, before broadcast" },
             { key: "depositing", label: "Submit ciphertext", note: "the size never appears in the clear" },
           ]
         : [
-            { key: "approving", label: "Approve tUSDT", note: "one-time, lets the pool pull tokens" },
+            { key: "approving", label: "Approve tUSDT", note: "once ever — skipped if already approved" },
             { key: "encrypting", label: "Shield into cUSDT", note: "wrapped by the pool on arrival" },
             { key: "depositing", label: "Credit your slot", note: "the position is encrypted from here on" },
           ]

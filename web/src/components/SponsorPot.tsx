@@ -67,7 +67,7 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
         functionName: "mint",
         args: [address, 10_000n * SCALE],
       });
-      await waitForTransactionReceipt(config, { hash: tx, confirmations: 2 });
+      await waitForTransactionReceipt(config, { hash: tx });
       await refetchWallet();
       setState("idle");
     } catch (e) {
@@ -102,15 +102,17 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
           });
           await waitForTransactionReceipt(config, { hash: clear });
         }
+        // Approved once rather than once per sponsorship, so a repeat sponsor pays a
+        // single transaction and waits for a single block.
         const ok = await writeContractAsync({
           address: UNDERLYING_ADDRESS,
           abi: erc20Abi,
           functionName: "approve",
-          args: [POOL_ADDRESS, amount],
+          args: [POOL_ADDRESS, (1n << 256n) - 1n],
         });
-        // Two confirmations, so the allowance is visible to whichever node estimates the
-        // sponsorship next. One is not enough — see the gas note below.
-        await waitForTransactionReceipt(config, { hash: ok, confirmations: 2 });
+        // One confirmation is enough: the sponsorship below states its gas rather than
+        // estimating, so a lagging node cannot break it.
+        await waitForTransactionReceipt(config, { hash: ok });
       }
 
       setState("sponsoring");

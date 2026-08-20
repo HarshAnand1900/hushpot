@@ -4,6 +4,15 @@ import { useCallback, useState } from "react";
 import { useAccount, useConfig, usePublicClient, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
+/**
+ * Approve once, deposit many times.
+ *
+ * A per-deposit allowance costs an extra transaction and an extra block of waiting on
+ * every single deposit. The allowance is a public number either way; a fixed maximum
+ * actually leaks less than one that tracks the size of each deposit.
+ */
+const MAX_ALLOWANCE = (1n << 256n) - 1n;
+
 import {
   POOL_ADDRESS,
   TOKEN_ADDRESS,
@@ -82,15 +91,19 @@ export function useDeposit() {
             await waitForTransactionReceipt(config, { hash: zeroTx });
           }
 
+          // Approved once, not once per deposit. Sizing the allowance to the amount meant
+          // every single deposit cost an extra transaction and an extra block of waiting,
+          // which is most of what made this flow feel slow. The allowance is public either
+          // way, and a fixed maximum leaks less than a figure that tracks each deposit.
           const approveTx = await writeContractAsync({
             address: UNDERLYING_ADDRESS,
             abi: erc20Abi,
             functionName: "approve",
-            args: [POOL_ADDRESS, amount],
+            args: [POOL_ADDRESS, MAX_ALLOWANCE],
           });
-          // Two confirmations: the deposit below is estimated against whatever node the
-          // wallet talks to, and that node has to be able to see this allowance.
-          await waitForTransactionReceipt(config, { hash: approveTx, confirmations: 2 });
+          // One confirmation is enough: the deposit below states its gas rather than
+          // estimating, so it does not matter whether the estimating node has caught up.
+          await waitForTransactionReceipt(config, { hash: approveTx });
         }
 
         // One transaction shields the tokens and credits an encrypted position.
@@ -145,6 +158,16 @@ export function useDeposit() {
           args: [address, POOL_ADDRESS],
         })) as boolean;
 
+        // Kicked off before the branch so the two paths share it, and so a returning
+        // depositor — who needs no grant at all — starts encrypting immediately.
+        const encrypt = async () => {
+          const { getFhevm, toHex } = await import("@/lib/fhe");
+          const fhevm = await getFhevm();
+          const enc = await fhevm.createEncryptedInput(POOL_ADDRESS, address).add64(amount).encrypt();
+          return { handle: toHex(enc.handles[0]), proof: toHex(enc.inputProof) };
+        };
+        let encryption: ReturnType<typeof encrypt> | undefined;
+
         if (!isOperator) {
           setStep("approving");
           // Granted for a year. An operator permission is time-bounded rather than
@@ -156,19 +179,20 @@ export function useDeposit() {
             functionName: "setOperator",
             args: [POOL_ADDRESS, until],
           });
-          await waitForTransactionReceipt(config, { hash: opTx, confirmations: 2 });
+          // Encrypting takes seconds of WASM work and needs nothing from this receipt, so
+          // it runs while the grant confirms rather than after it.
+          encryption = encrypt();
+          await waitForTransactionReceipt(config, { hash: opTx });
         }
 
         setStep("depositing");
-        const { getFhevm, toHex } = await import("@/lib/fhe");
-        const fhevm = await getFhevm();
-        const encrypted = await fhevm.createEncryptedInput(POOL_ADDRESS, address).add64(amount).encrypt();
+        const encrypted = await (encryption ?? encrypt());
 
         const tx = await writeContractAsync({
           address: POOL_ADDRESS,
           abi: poolAbi,
           functionName: "deposit",
-          args: [toHex(encrypted.handles[0]), toHex(encrypted.inputProof)],
+          args: [encrypted.handle, encrypted.proof],
           gas: 3_600_000n,
         });
         await waitForTransactionReceipt(config, { hash: tx });
