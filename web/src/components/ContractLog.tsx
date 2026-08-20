@@ -18,6 +18,7 @@ const EV_CLAIM = parseAbiItem(
   "event ClaimChecked(uint256 indexed drawId, uint16 indexed slot, address indexed checkedBy)",
 );
 const EV_RESERVE = parseAbiItem("event ReserveFunded(uint64 amount, uint64 newReserve)");
+const EV_SPONSOR = parseAbiItem("event PrizeSponsored(address indexed sponsor, uint64 amount)");
 
 type Entry = {
   block: bigint;
@@ -43,7 +44,13 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
   const publicClient = usePublicClient();
   const [rows, setRows] = useState<Entry[]>();
   const [head, setHead] = useState<bigint>();
-  const [stats, setStats] = useState<{ depositors: number; deposits: number; paid: bigint; sweeps: number }>();
+  const [stats, setStats] = useState<{
+    depositors: number;
+    deposits: number;
+    paid: bigint;
+    sweeps: number;
+    sponsored: bigint;
+  }>();
 
   // Ages are stamped once per poll but tick every second, so the feed reads as something
   // happening rather than something that happened. A log that only moves every 20s looks
@@ -61,13 +68,14 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
       publicClient.getLogs({ address: POOL_ADDRESS, event: event as never, fromBlock: DEPLOY_BLOCK });
 
     try {
-      const [plain, shielded, out, settled, claims, funded, block] = await Promise.all([
+      const [plain, shielded, out, settled, claims, funded, sponsored, block] = await Promise.all([
         get(EV_PLAIN),
         get(EV_DEPOSITED),
         get(EV_WITHDRAWN),
         get(EV_SETTLED),
         get(EV_CLAIM),
         get(EV_RESERVE),
+        get(EV_SPONSOR),
         publicClient.getBlockNumber(),
       ]);
       setHead(block);
@@ -77,6 +85,7 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
       // counting must not assume an overlap that is usually empty.
       const plainTxs = new Set((plain as unknown as Raw[]).map((l) => l.transactionHash));
       const shieldedOnly = (shielded as unknown as Raw[]).filter((l) => !plainTxs.has(l.transactionHash));
+      const sponsorTxs = new Set((sponsored as unknown as Raw[]).map((l) => l.transactionHash));
       const row = (l: Raw, kind: string, headline: string, accent?: boolean): Entry => ({
         block: l.blockNumber ?? 0n,
         hash: l.transactionHash,
@@ -105,9 +114,20 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
         ...(claims as unknown as Raw[]).map((l) =>
           row(l, "CLAIM", `SLOT ${l.args.slot} CHECKED · OUTCOME UNKNOWN TO EVERYONE`),
         ),
-        ...(funded as unknown as Raw[]).map((l) =>
-          row(l, "YIELD", `POT +${formatUnits(l.args.amount as bigint)} cUSDT FROM YIELD`, true),
+        // A sponsorship emits ReserveFunded too, because it goes through the same funding
+        // path. Labelling both rows "FROM YIELD" credited a stranger's gift to the house,
+        // so the sponsored transactions are pulled out and named for what they are.
+        ...(sponsored as unknown as Raw[]).map((l) =>
+          row(
+            l,
+            "SPONSOR",
+            `${shortenAddress(l.args.sponsor as string)} SPONSORED +${formatUnits(l.args.amount as bigint)} cUSDT INTO THE POT`,
+            true,
+          ),
         ),
+        ...(funded as unknown as Raw[])
+          .filter((l) => !sponsorTxs.has(l.transactionHash))
+          .map((l) => row(l, "RESERVE", `RESERVE TOPPED UP +${formatUnits(l.args.amount as bigint)} cUSDT`, true)),
       ].sort((a, b) => Number(b.block - a.block));
 
       // A standing summary above the feed. Everything in it is already public — how many
@@ -122,6 +142,7 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
         deposits: plain.length + shieldedOnly.length,
         paid: (settled as unknown as Raw[]).reduce((sum, l) => sum + (l.args.prize as bigint), 0n),
         sweeps: claims.length,
+        sponsored: (sponsored as unknown as Raw[]).reduce((sum, l) => sum + (l.args.amount as bigint), 0n),
       });
 
       const shown = all.slice(0, limit);
@@ -166,6 +187,7 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
           <Stat k="DEPOSITS MADE" v={String(stats.deposits)} />
           <Stat k="PAID OUT" v={formatUnits(stats.paid)} gold />
           <Stat k="CLAIMS CHECKED" v={String(stats.sweeps)} />
+          <Stat k="SPONSORED IN" v={formatUnits(stats.sponsored)} />
         </div>
       )}
 

@@ -211,8 +211,6 @@ Beyond the brief's requirements — roughly in order of how much they'd move the
 
 **Cheap, high signal**
 
-- **Sponsored prizes.** Let anyone add to the pot while taking zero odds themselves. Roughly twenty lines, and it
-  signals that we studied the real protocol.
 - **Winnings compound.** A prize lands in your balance and quietly improves your odds next time. Reinforces the core
   loop at almost no cost.
 

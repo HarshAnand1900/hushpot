@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { clearSession, currentSession } from "@/lib/fhe";
 import { formatUnits } from "@/lib/format";
 import { ConnectButton } from "./ConnectButton";
 import styles from "./AppHeader.module.css";
@@ -20,7 +18,6 @@ const TABS = [
 
 export function AppHeader({ pot }: { pot: bigint }) {
   const pathname = usePathname();
-  const session = useSessionState();
 
   return (
     <header className={styles.header}>
@@ -56,24 +53,6 @@ export function AppHeader({ pot }: { pot: bigint }) {
           <span className={styles.hair} />
         </div>
 
-        {/* Reads the real session rather than decorating the header with a lock.
-            While locked it says so and cannot be clicked into an error — the only way to
-            unlock is the reveal button on Pool, which is where it means something. Once
-            open it becomes the way to close it again, for a shared screen. */}
-        {session ? (
-          <button
-            className={`${styles.lock} ${styles.lockOpen}`}
-            onClick={clearSession}
-            title="End the decrypt session"
-          >
-            <span className="liveDot" /> OPEN · LOCK
-          </button>
-        ) : (
-          <span className={styles.lock} title="No decrypt session — everything on screen is ciphertext">
-            LOCKED
-          </span>
-        )}
-
         {/* A judge lands with an empty wallet, so the faucet has to be reachable from
             anywhere — not only from inside a sheet they have to find first. */}
         <Link className={styles.faucet} href="/pool?faucet=1">
@@ -84,25 +63,4 @@ export function AppHeader({ pot }: { pot: bigint }) {
       </div>
     </header>
   );
-}
-
-/**
- * Whether a decrypt session is open, polled rather than pushed.
- *
- * The session lives in a module-level variable in lib/fhe, opened from the Pool tab and
- * cleared from here — no shared store connects the two. A 1.5s poll of an in-memory
- * boolean is cheaper than the wiring that would avoid it, and the chip is never more
- * than a moment stale.
- */
-function useSessionState() {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const read = () => setOpen(currentSession() !== null);
-    read();
-    const id = setInterval(read, 1500);
-    return () => clearInterval(id);
-  }, []);
-
-  return open;
 }

@@ -1,6 +1,10 @@
 # Hushpot — Design Changes Since the First Mockup
 
-Everything here is a change to make in the UI. Grouped by how much rework each one implies.
+> **Historical.** This was the working list of UI changes between the first mockup and the shipped app. It is kept
+> because it records _why_ several screens look the way they do, not because anything here is outstanding. For what is
+> genuinely unbuilt, see [`ROADMAP.md`](ROADMAP.md).
+
+Grouped by how much rework each one implied.
 
 ---
 

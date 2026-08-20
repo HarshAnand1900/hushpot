@@ -9,7 +9,6 @@ import { DepositSheet } from "@/components/DepositSheet";
 import { DidIWin } from "@/components/DidIWin";
 import { ContractLog } from "@/components/ContractLog";
 import { PositionHistory } from "@/components/PositionHistory";
-import { Solvency } from "@/components/Solvency";
 import { PositionPanel } from "@/components/PositionPanel";
 import { Pot3D } from "@/components/Pot3D";
 import { useMyPosition } from "@/hooks/useMyPosition";
@@ -217,8 +216,6 @@ export default function PoolTab() {
             </div>
           </div>
         </section>
-
-        <Solvency />
 
         {/* stat rail ------------------------------------------------------ */}
         <section className={styles.rail}>

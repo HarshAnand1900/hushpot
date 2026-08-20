@@ -117,9 +117,7 @@ If you have spare capacity, in priority order:
    than show it.
 3. **Session-cached decryption.** The difference between "clunky crypto app" and "product." Cheap to build,
    disproportionately noticeable.
-4. **Sponsored prizes.** Anyone can top up the pot without taking odds. Roughly twenty lines, and it signals that we
-   studied the real protocol.
-5. **Error states.** The guidelines name four specific cases. Free marks, frequently skipped.
+4. **Error states.** The guidelines name four specific cases. Free marks, frequently skipped.
 
 Deliberately _not_ on this list: real yield integration, multiple prize tiers, multiple pools. All three add risk and
 dilute what's already working.
