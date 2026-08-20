@@ -151,8 +151,72 @@
   align-items: center;
   justify-content: center;
   gap: 0;
-  padding: 26px 12px 22px;
+  padding: 22px 14px 20px;
   text-align: center;
+}
+
+/* A slow diagonal glint across the niche. The pot is the object on display and this is
+   the light moving over it — enough to catch the eye, slow enough not to nag. */
+.shimmer {
+  position: absolute;
+  top: -60%;
+  left: -60%;
+  width: 220%;
+  height: 220%;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 42%, rgba(255, 210, 8, 0.09) 50%, transparent 58%);
+  animation: niche-glint 6.5s ease-in-out infinite;
+}
+
+@keyframes niche-glint {
+  0%,
+  100% {
+    transform: translate3d(-18%, -18%, 0);
+  }
+  50% {
+    transform: translate3d(18%, 18%, 0);
+  }
+}
+
+.nicheDrag {
+  position: relative;
+  font-family: var(--font-mono), monospace;
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--text-4);
+  margin-top: 14px;
+}
+
+.nicheLine {
+  position: relative;
+  margin-top: 12px;
+  font-size: 21px;
+  line-height: 1.12;
+  color: var(--white);
+}
+
+.nicheCta {
+  position: relative;
+  margin-top: 14px;
+  padding: 11px 22px;
+  background: var(--yellow);
+  border: 2px solid var(--black);
+  color: var(--black);
+  font-size: 13.5px;
+  font-weight: 800;
+  transition:
+    background 0.16s,
+    transform 0.16s;
+}
+.nicheCta:hover {
+  background: var(--white);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none;
+  }
 }
 
 .nicheGlow {
@@ -169,8 +233,8 @@
 
 .potWindow {
   position: relative;
-  width: 190px;
-  height: 190px;
+  width: 172px;
+  height: 172px;
 }
 
 /* The pot sits on something. Without this it floats. */
@@ -187,20 +251,21 @@
   position: relative;
   font-family: var(--font-mono), monospace;
   font-size: 8.5px;
-  letter-spacing: 0.2em;
-  color: var(--text-4);
-  margin-top: 18px;
-  line-height: 1.9;
+  letter-spacing: 0.22em;
+  color: var(--yellow);
+  opacity: 0.85;
+  margin-bottom: 14px;
 }
 
 .nicheQuip {
   position: relative;
   font-family: var(--font-newsreader), Georgia, serif;
-  font-size: 14px;
+  font-size: 13px;
   font-style: italic;
   color: var(--yellow);
-  margin-top: 10px;
-  min-height: 1.4em;
+  margin-top: 8px;
+  max-width: 26ch;
+  line-height: 1.35;
 }
 
 .seam {

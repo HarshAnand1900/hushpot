@@ -26,7 +26,10 @@ type Entry = {
   headline: string;
   /** A yellow marker means money moved into the pot rather than between accounts. */
   accent?: boolean;
-  age?: number;
+  /** Block timestamp, so the age can be recomputed every second without another fetch. */
+  at?: number;
+  /** Whether this row's amount was published, or is simply not there to publish. */
+  clear?: boolean;
 };
 
 /**
@@ -40,6 +43,16 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
   const publicClient = usePublicClient();
   const [rows, setRows] = useState<Entry[]>();
   const [head, setHead] = useState<bigint>();
+  const [stats, setStats] = useState<{ depositors: number; deposits: number; paid: bigint; sweeps: number }>();
+
+  // Ages are stamped once per poll but tick every second, so the feed reads as something
+  // happening rather than something that happened. A log that only moves every 20s looks
+  // dead even when it is current.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const load = useCallback(async () => {
     if (!publicClient) return;
@@ -59,7 +72,11 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
       ]);
       setHead(block);
 
+      // The two deposit events are emitted by different functions, not both by one — the
+      // filter below is belt-and-braces for a shared transaction, not the normal case, so
+      // counting must not assume an overlap that is usually empty.
       const plainTxs = new Set((plain as unknown as Raw[]).map((l) => l.transactionHash));
+      const shieldedOnly = (shielded as unknown as Raw[]).filter((l) => !plainTxs.has(l.transactionHash));
       const row = (l: Raw, kind: string, headline: string, accent?: boolean): Entry => ({
         block: l.blockNumber ?? 0n,
         hash: l.transactionHash,
@@ -76,9 +93,9 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
             `${shortenAddress(l.args.account as string)} DEPOSITED ${formatUnits(l.args.amount as bigint)} cUSDT`,
           ),
         ),
-        ...(shielded as unknown as Raw[])
-          .filter((l) => !plainTxs.has(l.transactionHash))
-          .map((l) => row(l, "DEPOSIT", `${shortenAddress(l.args.account as string)} DEPOSITED •••••• cUSDT`)),
+        ...shieldedOnly.map((l) =>
+          row(l, "DEPOSIT", `${shortenAddress(l.args.account as string)} DEPOSITED •••••• cUSDT`),
+        ),
         ...(out as unknown as Raw[]).map((l) =>
           row(l, "WITHDRAW", `${shortenAddress(l.args.account as string)} WITHDREW ••••• cUSDT`),
         ),
@@ -93,6 +110,20 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
         ),
       ].sort((a, b) => Number(b.block - a.block));
 
+      // A standing summary above the feed. Everything in it is already public — how many
+      // people are in, how many deposits they have made between them, what has been paid
+      // out. None of it is anybody's position.
+      const accounts = new Set<string>();
+      for (const l of [...(plain as unknown as Raw[]), ...shieldedOnly]) {
+        accounts.add(l.args.account as string);
+      }
+      setStats({
+        depositors: accounts.size,
+        deposits: plain.length + shieldedOnly.length,
+        paid: (settled as unknown as Raw[]).reduce((sum, l) => sum + (l.args.prize as bigint), 0n),
+        sweeps: claims.length,
+      });
+
       const shown = all.slice(0, limit);
 
       // Ages, for the visible rows only. A log that says "36s ago" reads as live; one
@@ -101,7 +132,7 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
         shown.map(async (r) => {
           try {
             const b = await publicClient.getBlock({ blockNumber: r.block });
-            r.age = Math.max(0, Math.floor(Date.now() / 1000) - Number(b.timestamp));
+            r.at = Number(b.timestamp);
           } catch {
             /* a missing age costs one line, not the panel */
           }
@@ -129,6 +160,15 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
         <span>{head ? `BLOCK ${head.toLocaleString()}` : "READING…"}</span>
       </div>
 
+      {stats && (
+        <div className={styles.stats}>
+          <Stat k="IN THE POOL" v={String(stats.depositors)} />
+          <Stat k="DEPOSITS MADE" v={String(stats.deposits)} />
+          <Stat k="PAID OUT" v={formatUnits(stats.paid)} gold />
+          <Stat k="CLAIMS CHECKED" v={String(stats.sweeps)} />
+        </div>
+      )}
+
       <div className={styles.feed}>
         {rows === undefined && <div className={styles.empty}>Reading the chain…</div>}
         {rows?.length === 0 && <div className={styles.empty}>No events yet.</div>}
@@ -146,7 +186,7 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
                 </span>
               </div>
             </div>
-            <span className={styles.age}>{r.age === undefined ? "—" : formatAge(r.age)}</span>
+            <span className={styles.age}>{r.at === undefined ? "—" : formatAge(now() - r.at)}</span>
           </div>
         ))}
       </div>
@@ -159,7 +199,21 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
   );
 }
 
+function Stat({ k, v, gold }: { k: string; v: string; gold?: boolean }) {
+  return (
+    <div className={styles.stat}>
+      <div className={styles.statK}>{k}</div>
+      <div className={`num ${styles.statV}`} style={{ color: gold ? "var(--yellow)" : undefined }}>
+        {v}
+      </div>
+    </div>
+  );
+}
+
+const now = () => Math.floor(Date.now() / 1000);
+
 function formatAge(s: number) {
+  if (s < 5) return "just now";
   if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;

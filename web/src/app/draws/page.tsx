@@ -151,19 +151,33 @@ export default function DrawsTab() {
                   ))
                 )}
               </div>
+            </div>
 
-              {/* how a band is actually located */}
-              <div className={styles.walkHead}>HOW A BAND IS LOCATED · THE PREFIX WALK</div>
-              <TreeWalk slotsUsed={state.depositors} />
+            {/* The prefix walk is how bands work in general, not a fact about this draw —
+                it was making one panel carry two jobs. */}
+            <div className={`panel ${styles.wide}`}>
+              <div className="panelHead">
+                <span>HOW A BAND IS LOCATED · THE PREFIX WALK</span>
+                <span>{state.depositors} SLOTS</span>
+              </div>
+              <div className={styles.walkBody}>
+                <TreeWalk slotsUsed={state.depositors} />
+              </div>
+            </div>
 
-              {/* the honest boundary */}
+            {/* What the receipt cannot answer, kept apart from what it can. */}
+            <div className={`panel ${styles.wide}`}>
+              <div className="panelHead">
+                <span>WHAT THESE CHECKS CANNOT TELL YOU</span>
+                <span>2</span>
+              </div>
               <div className={styles.limits}>
-                <strong>What these checks cannot tell you:</strong> who won, and whether the die was unbiased. The first
-                is not hidden — it is never computed by anything, so there is nothing to recompute. The second rests on
-                the network&apos;s own generator and the published source, not on any figure in this receipt.
+                <strong>Who won</strong> — not hidden, but never computed by anything, so there is nothing to recompute.
+                <br />
+                <strong>Whether the die was unbiased</strong> — that rests on the network&apos;s own generator and the
+                published source, not on any figure in this receipt.
               </div>
 
-              {/* anonymity set */}
               <div className={`${styles.anon} yellowBand`}>
                 <div className={styles.anonKicker}>THE ANONYMITY SET</div>
                 <div className={`editorial ${styles.anonBody}`}>

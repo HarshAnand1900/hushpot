@@ -81,6 +81,21 @@
   align-items: start;
 }
 
+/* Panels that follow the receipt in the same column. */
+.wide {
+  grid-column: 2;
+}
+
+.walkBody {
+  padding: 24px 26px;
+}
+
+@media (max-width: 900px) {
+  .wide {
+    grid-column: 1;
+  }
+}
+
 .sidebar {
   position: sticky;
   top: 92px;

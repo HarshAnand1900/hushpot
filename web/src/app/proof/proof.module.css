@@ -176,3 +176,37 @@
     gap: 8px;
   }
 }
+
+/* --------------------------------------------------------------- acts ---- */
+
+.act {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+.act:first-child {
+  margin-top: 0;
+}
+
+.actNum {
+  font-family: var(--font-shoulders), var(--font-grotesk), sans-serif;
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--yellow);
+}
+
+.actLine {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--rule), transparent);
+}
+
+.actLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  color: var(--text-2);
+  white-space: nowrap;
+}

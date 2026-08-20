@@ -122,20 +122,33 @@ export default function PoolTab() {
             </div>
           </div>
 
-          {/* v6: the pot cell carries the object and nothing else — no headline, no CTA.
-              Entering happens from YOUR POSITION below, which is where the amount and the
-              odds already are. */}
+          {/* The pot on its plinth: v6's glow and contact shadow, with the glint, the
+              line and the way in that the cell had before. It is the only object on the
+              page anyone wants to touch, so it carries the invitation too. */}
           <div className={styles.niche}>
             <span className={styles.seam} />
             <span className={styles.nicheGlow} aria-hidden="true" />
+            <span className={styles.shimmer} aria-hidden="true" />
+
+            <div className={styles.nicheKicker}>ALL OF IT · TO ONE OF {state.depositors || "—"}</div>
 
             <div className={styles.potWindow}>
-              <Pot3D size={190} quiet />
+              <Pot3D size={172} quiet />
             </div>
             <span className={styles.potShadow} aria-hidden="true" />
 
-            <div className={styles.nicheKicker}>CLICK IT · DRAG TO TURN</div>
+            <div className={styles.nicheDrag}>CLICK IT · DRAG TO TURN</div>
+
+            <div className={`editorial ${styles.nicheLine}`}>
+              All this
+              <br />
+              can be yours.
+            </div>
             <div className={styles.nicheQuip}>{QUIPS[drawNumber % QUIPS.length]}</div>
+
+            <button className={styles.nicheCta} onClick={() => setSheet("join")}>
+              Take your shot
+            </button>
 
             <span className={`${styles.seam} ${styles.seamRight}`} />
           </div>
@@ -213,8 +226,6 @@ export default function PoolTab() {
           <Rail label="PRIZES PAID" value={formatUnits(draws.reduce((sum, d) => sum + d.prize, 0n))} accent />
           <Rail label="DRAWS SETTLED" value={String(draws.length)} />
         </section>
-
-        <PositionHistory drawCount={state.drawCount} unlocked={isUnlocked} slot={position.slot} />
 
         {/* your position -------------------------------------------------- */}
         <PositionPanel
@@ -299,6 +310,7 @@ export default function PoolTab() {
           </div>
           <ContractLog limit={12} />
         </section>
+        <PositionHistory drawCount={state.drawCount} unlocked={isUnlocked} slot={position.slot} />
       </main>
 
       {sheet && (

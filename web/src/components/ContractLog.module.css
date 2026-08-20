@@ -1,3 +1,51 @@
+/* A standing summary of what the feed adds up to. All public, none of it a position. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.stat {
+  background: var(--near-black);
+  padding: 13px 16px;
+}
+
+.statK {
+  font-family: var(--font-mono), monospace;
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--text-4);
+}
+
+.statV {
+  font-size: 19px;
+  color: var(--white);
+  margin-top: 7px;
+}
+
+/* The newest row gets a moment of yellow when it arrives, so a live feed announces
+   itself rather than silently reordering. */
+.row:first-child {
+  animation: log-arrive 1.4s ease-out;
+}
+
+@keyframes log-arrive {
+  from {
+    background: rgba(255, 210, 8, 0.12);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+@media (max-width: 620px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* A scrolling feed, capped so it never pushes the rest of the page down. */
 .feed {
   max-height: 420px;

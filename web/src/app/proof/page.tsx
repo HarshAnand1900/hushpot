@@ -6,7 +6,6 @@ import { PrivacyDemo } from "@/components/PrivacyDemo";
 import { ChainSees } from "@/components/ChainSees";
 import { HardParts } from "@/components/HardParts";
 import { Solvency } from "@/components/Solvency";
-import { ContractLog } from "@/components/ContractLog";
 import { VerifyHandle } from "@/components/VerifyHandle";
 import { SponsorPot } from "@/components/SponsorPot";
 import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
@@ -54,6 +53,17 @@ const LIMITS = [
   },
 ];
 
+/** A numbered rule between acts, so ten panels read as five moves. */
+function Act({ n, label }: { n: string; label: string }) {
+  return (
+    <div className={styles.act}>
+      <span className={styles.actNum}>{n}</span>
+      <span className={styles.actLabel}>{label}</span>
+      <span className={styles.actLine} />
+    </div>
+  );
+}
+
 export default function ProofTab() {
   const state = usePoolState();
   const lastDraw = useLastDraw(state.drawCount);
@@ -65,16 +75,11 @@ export default function ProofTab() {
       <AppHeader pot={pot} />
 
       <main className={`${styles.page} rise`}>
-        {/* the demonstration comes first, before any prose */}
+        {/* ── 01 · the claim, tested live ───────────────────────────────── */}
+        <Act n="01" label="TRY TO BREAK IT" />
+
         <PrivacyDemo />
-
-        <Solvency />
-
         <ChainSees />
-
-        <HardParts />
-
-        <SponsorPot reserve={state.prizeReserve} onDone={() => state.refetch()} />
 
         {/* boundary ------------------------------------------------------- */}
         <section className={`${styles.boundary} yellowBand`}>
@@ -100,6 +105,21 @@ export default function ProofTab() {
           </div>
         </section>
 
+        {/* ── 02 · the money ────────────────────────────────────────────── */}
+        <Act n="02" label="IS THE MONEY STILL THERE" />
+
+        <Solvency />
+
+        {/* ── 03 · the engineering ──────────────────────────────────────── */}
+        <Act n="03" label="WHAT FHE MADE HARD" />
+
+        <HardParts />
+
+        {/* ── 04 · check it without us ──────────────────────────────────── */}
+        <Act n="04" label="CHECK IT WITHOUT TRUSTING US" />
+
+        <VerifyHandle />
+
         {/* deployed ------------------------------------------------------- */}
         <section className="panel">
           <div className="panelHead">
@@ -122,9 +142,8 @@ export default function ProofTab() {
           ))}
         </section>
 
-        <VerifyHandle />
-
-        <ContractLog limit={10} />
+        {/* ── 05 · what we do not claim ─────────────────────────────────── */}
+        <Act n="05" label="WHAT WE DO NOT CLAIM" />
 
         {/* limits --------------------------------------------------------- */}
         <section className="panel">
@@ -141,6 +160,11 @@ export default function ProofTab() {
             </div>
           ))}
         </section>
+
+        {/* ── 06 · take part ───────────────────────────────────────────── */}
+        <Act n="06" label="GROW THE POT WITHOUT TAKING ODDS" />
+
+        <SponsorPot reserve={state.prizeReserve} onDone={() => state.refetch()} />
       </main>
     </>
   );
