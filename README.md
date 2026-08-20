@@ -10,8 +10,8 @@ Built for the Zama Developer Program, Mainnet Season 4.
 
 - **Live app:** <https://hushpot-fhevm.vercel.app>
 - **Contract:**
-  [`0xCFe1Fb2F5f0f00e9f45b4E7316f333b7a7926330`](https://sepolia.etherscan.io/address/0xCFe1Fb2F5f0f00e9f45b4E7316f333b7a7926330)
-  (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0xCFe1Fb2F5f0f00e9f45b4E7316f333b7a7926330#code).
+  [`0x9E28D96495D1777CbeC3E689FD95822e59385147`](https://sepolia.etherscan.io/address/0x9E28D96495D1777CbeC3E689FD95822e59385147)
+  (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0x9E28D96495D1777CbeC3E689FD95822e59385147#code).
   The address in [`web/src/lib/contract.ts`](web/src/lib/contract.ts) is always the live one
 - **Judge panel:** [`/judge`](https://hushpot-fhevm.vercel.app/judge) — run a whole draw cycle from the browser, no
   terminal
@@ -128,11 +128,14 @@ The **Proof** tab points the same relayer and the same session key at two cipher
 chain: yours, and another depositor's. One opens. One does not.
 
 It also runs an on-chain **solvency proof** — the contract compares what it holds against what it owes on ciphertext and
-publishes the single bit that falls out, revealing neither figure. Anyone can trigger it, and anyone can read the result
-without a wallet.
+publishes the single bit that falls out, revealing neither figure. What it owes is the tree root **plus any prize
+already swept but not yet folded into a leaf**: a winner's award is theirs from the moment it is parked, so leaving it
+out would answer a narrower question than the proof appears to answer. Anyone can trigger it, and anyone can read the
+result without a wallet.
 
-The **Draws** tab recomputes four things from public state with no wallet at all: the stored record, the committed die,
-the prize formula, and a hash of the deployed bytecode.
+The **Draws** tab recomputes five things from public state with no wallet at all: the stored record, the committed die,
+the prize formula, a hash of the deployed bytecode, and — the negative the whole design rests on — that the bytecode
+contains no winner-getter selector, so there is no function anyone could call to ask who won.
 
 ---
 
@@ -140,17 +143,29 @@ the prize formula, and a hash of the deployed bytecode.
 
 Yield is currently an **admin-funded prize reserve**, which the bounty explicitly permits. `fundPrizeReserve()` takes
 plain tokens — deliberately, so the pot's size is publicly verifiable — wraps them, and credits a public reserve
-balance.
+balance. `sponsorPrize()` is the same path open to anyone, and is covered below.
 
 Each draw's prize is derived, never chosen:
 
 ```
-prize = poolTicketMinutes × annualRateBps ÷ (10,000 × 525,600)
+prize = poolTicketMinutes × annualRateBps ÷ (10,000 × 525,600)  +  sponsoredSinceLastDraw
 ```
 
 capped by whatever the reserve holds. That it scales with the pool is not cosmetic: it is what stops a large late
 depositor extracting value. Because the pot grows in proportion to the odds they take, every existing depositor's
 expected return is left **exactly unchanged**. A fixed pot would let latecomers dilute everyone else.
+
+### Sponsorship
+
+`sponsorPrize()` is callable by anyone and adds the full amount to the **very next** prize, on top of the formula. The
+money never becomes a slot, never earns odds, and can never win itself back, so no depositor's chances move — there is
+simply more to hand out. It is not withdrawable: this is a gift, not a stake.
+
+PoolTogether has two shapes of this. `PrizeVault.sponsor` delegates a deposit's odds away, so the sponsor keeps
+withdrawable principal and donates only the yield stream; `PrizePool.contributePrizeTokens` donates prize tokens
+outright. Hushpot does the second. Adding the gift in full beats letting it earn for a week and donating that instead —
+at 5%, a week of yield on a sponsorship is about a thousandth of the sponsorship, which is not worth a second
+accumulator or a second thing to explain.
 
 **Plugging in real yield** replaces one function and nothing else. `fundPrizeReserve` becomes a harvest step: route idle
 deposits into a lending market or vault, and periodically credit realised yield to the same reserve. The draw, the
@@ -169,7 +184,7 @@ contracts/
   SegmentTree.sol                    plaintext oracle — proven, then encrypted
   TimeWeightedTree.sol               plaintext oracle for the time weighting
   mocks/                             local token pair + test-only tree harness
-test/                                106 tests
+test/                                118 tests
 tasks/hushpot.ts                     the operator + keeper flow
 deploy/01_hushpot.ts                 deployment
 web/                                 the app
@@ -188,7 +203,7 @@ oracle, and every property proven there is re-asserted against the encrypted ver
 
 ```bash
 npm install
-npx hardhat test                 # 106 tests, no network needed
+npx hardhat test                 # 118 tests, no network needed
 ```
 
 Deploying:
@@ -230,31 +245,37 @@ Point `POOL_ADDRESS` in `web/src/lib/contract.ts` at your deployment.
 
 On Sepolia, against the live coprocessor:
 
-| Operation            | Gas                         | Note                            |
-| -------------------- | --------------------------- | ------------------------------- |
-| Deploy               | 3,422,388                   |                                 |
-| Deposit              | 565k–2.7M                   | grows with pool size, see below |
-| Claim, per depositor | **454,492**                 | was 2.4M                        |
-| Sweep, per depositor | **283,697**                 | four slots per transaction      |
-| Reveal your position | 1 signature + 1 transaction | signature cached for the visit  |
+| Operation            | Gas                         | Note                              |
+| -------------------- | --------------------------- | --------------------------------- |
+| Deploy               | 3,467,944                   |                                   |
+| Deposit              | 648k–1.56M                  | grows with pool size, see below   |
+| Claim, per depositor | **450,989**                 | was 2.4M                          |
+| Sweep, per depositor | **287,786**                 | paged, 1.57× cheaper than a claim |
+| Reveal your position | 1 signature + 1 transaction | signature cached for the visit    |
+
+Deploy, deposit and claim figures are from the live Sepolia deployment above — twelve seeded depositors, one settled
+draw, one full sweep. The paged-sweep and depth figures come from `HushpotSweepGas.ts` and `HushpotDepthGas.ts`, which
+print them on every run so they cannot drift silently.
 
 Two measured optimisations, both of which changed the numbers above by more than they look.
 
-**Claims went from 2.4M to 454k — 5.3×.** Crediting a prize used to repair all ten ancestor sums in the tree, thirty
-encrypted additions, for everyone — and for all but one person the amount being added was an encrypted zero. Awards are
-now parked on the slot and folded into the tree on that slot's next deposit or withdrawal, which walks that path anyway.
+**Claims went from 2.4M to 454k — 5.3×.** Crediting a prize used to repair every ancestor sum between the slot and the
+root — three encrypted additions per level, for everyone — and for all but one person the amount being added was an
+encrypted zero. Awards are now parked on the slot and folded into the tree on that slot's next deposit or withdrawal,
+which walks that path anyway.
 
 **Deposits scale with the pool rather than the capacity.** The tree walks only as far as the highest node covering the
 slots in use, so depth arrives with the crowd:
 
 | Depositors | Deposit gas |
 | ---------- | ----------- |
-| 1st        | 565,154     |
-| 5th        | 1,140,748   |
-| 9th        | 1,335,821   |
+| 1st        | 565,176     |
+| 5th        | 1,140,869   |
+| 9th        | 1,335,975   |
 
-Against the old fixed full-depth walk those same deposits cost 2.72M, 2.21M and 2.25M — a 41–79% saving, largest when a
-pool is new.
+The ninth joiner pays 136% more than the first, and that is the whole point: the cost tracks the crowd, not the
+capacity. Raising the slot cap from 1,024 to 16,384 did not move any of these numbers, because the tree is still only as
+deep as the slots in use.
 
 FHE work is metered separately in HCU, capped at 20M global and 5M sequential per transaction. A page of four slots fits
 comfortably; the old one-claim-per-transaction limit came from the pre-optimisation claim cost and no longer applies.
@@ -263,7 +284,7 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 
 ## Invariants under test
 
-114 tests, run against the FHEVM mock. The ones worth naming:
+118 tests, run against the FHEVM mock. The ones worth naming:
 
 - exactly one depositor is paid, and exactly the prize — verified by decrypting every participant's balance before and
   after a sweep
@@ -273,6 +294,8 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 - a withdrawal is clamped to the balance held, because a ciphertext cannot be branched on
 - no second draw can settle in the same period
 - a prize never touches principal
+- solvency counts prizes that are parked but not yet folded in, and never counts one twice
+- a sponsorship lands in full in the very next prize, and the accumulator is spent, not carried
 - weights freeze when a period ends, so deposits during a claim window cannot move a settled draw
 - odds are proportional to amount _and_ time — a small deposit held all week beats a 5× larger one made at the deadline
 

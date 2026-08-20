@@ -5,7 +5,7 @@ What is encrypted, what is public, what leaks, and what you have to trust.
 This document is deliberately unflattering. A confidential system that only advertises its strengths is harder to
 evaluate than one that names its edges, and every claim below can be checked against the deployed contract.
 
-**Contract:** `HushpotPool` · Sepolia · `0xCFe1Fb2F5f0f00e9f45b4E7316f333b7a7926330`
+**Contract:** `HushpotPool` · Sepolia · `0x9E28D96495D1777CbeC3E689FD95822e59385147`
 
 > The live address always matches [`web/src/lib/contract.ts`](../web/src/lib/contract.ts). Earlier deployments
 > referenced in git history are superseded.
@@ -43,6 +43,7 @@ contract itself — can read them.
 | Whether a given depositor won      | Never computed as a plaintext anywhere             |
 | A prize, until its winner opens it | Added as `FHE.select(won, prize, 0)`               |
 | The pool's own token holdings      | Compared to liabilities without revealing either   |
+| Prizes swept but not yet folded in | Counted as owed, so solvency is not understated    |
 
 The winner is not _hidden_. There is nothing to hide, because no code path anywhere derives it. A claim adds either the
 prize or an encrypted zero, and on-chain those two transactions are indistinguishable — including in gas.
@@ -139,7 +140,8 @@ stalls a draw but corrupts nothing.
 
 ### 4.3 The owner
 
-**Can:** fund the prize reserve, set the yield rate, trigger a draw or a period roll early.
+**Can:** fund the prize reserve, set the yield rate, trigger a draw or a period roll early. Note that funding the
+reserve is not an owner power — `sponsorPrize` is open to anyone, and adds to the next prize in full.
 
 **Cannot:** read any balance, influence the die, prevent a withdrawal, or move depositor funds. There is no
 owner-withdraw path in the contract.
@@ -164,19 +166,23 @@ governance.
 ### 4.4 Funds locked by design
 
 Tokens added to the prize reserve can leave only by being won. There is no recovery function, deliberately, so nobody
-can pull the pot. The trade is that over-funding is irreversible.
+can pull the pot — and that applies to sponsors too: a sponsorship is a gift, not a stake, and cannot be withdrawn. The
+trade is that over-funding is irreversible.
 
 ---
 
 ## 5. What the in-app verifier proves, and what it cannot
 
-The Draws tab recomputes four things from public state, with no wallet and no trust in our frontend:
+The Draws tab recomputes five things from public state, with no wallet and no trust in our frontend:
 
 1. The receipt matches what the contract actually stores.
 2. The die is a real, non-zero ciphertext handle, committed on-chain.
-3. The prize equals `total × annualRateBps ÷ (10,000 × 525,600)` — the published formula applied to the published total,
-   not a number anyone chose.
+3. The prize equals `total × annualRateBps ÷ (10,000 × 525,600)` plus anything sponsored since the last draw — the
+   published formula applied to the published total, not a number anyone chose.
 4. The deployed bytecode hashes to what it claims.
+5. That bytecode contains none of five plausible winner-getter selectors. Solidity emits every external selector into
+   the dispatch table, so a selector that is absent cannot be called: there is no function anyone could use to ask who
+   won. This is the one negative claim the whole design rests on, so it is checked rather than asserted.
 
 **It cannot prove who won.** Not because that is concealed, but because nothing computes it.
 
