@@ -147,9 +147,10 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
 
       <div className={styles.body}>
         <p className={styles.copy}>
-          Anyone can grow the prize without taking any share of it. A sponsorship joins the reserve rather than the
-          pool, so it never becomes a position, never earns odds, and can never win itself back. Every depositor&apos;s
-          chances are untouched — there are simply more winnings to hand out.
+          Anyone can grow the prize without taking any share of it. Whatever you put in is added to the very next
+          prize on top of the yield — not lent, not staked, and not recoverable. It never becomes a position, never
+          earns odds, and can never win itself back, so every depositor&apos;s chances are untouched. There is simply
+          more to hand out, and one of them gets all of it.
         </p>
 
         <div className={styles.row}>

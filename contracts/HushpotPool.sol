@@ -88,6 +88,18 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @notice Tokens set aside to pay prizes. Public — prizes are not anybody's balance.
     uint64 public prizeReserve;
 
+    /// @notice Sponsorships received since the last settlement, added to the next prize.
+    ///
+    /// @dev PoolTogether has two shapes of this. `PrizeVault.sponsor` deposits capital and
+    /// delegates its odds away, so the sponsor keeps withdrawable principal and donates
+    /// only the yield stream; `PrizePool.contributePrizeTokens` donates prize tokens
+    /// outright. This is the second shape: the capital is given, not lent, and it lands in
+    /// the next draw rather than being spread across several.
+    ///
+    /// Reset to zero at settlement, so a sponsorship inflates exactly one prize and is
+    /// never counted twice.
+    uint64 public sponsoredThisDraw;
+
     /// @notice Annual yield rate in basis points. 500 = 5%.
     /// @dev The prize scales with the pool: a large late depositor grows the pot in
     /// proportion to the odds they take, so nobody can dilute anyone else's expected
@@ -315,11 +327,16 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
     /// @notice Grow everyone's prize without taking any odds on it.
     ///
-    /// @dev PoolTogether V5 calls this sponsoring: `PrizeVault.sponsor` delegates the
-    /// deposit to `SPONSORSHIP_ADDRESS` so it earns yield for the pool but no chance of
-    /// winning. Here it is simpler — a sponsorship goes straight to the shared reserve
-    /// and never becomes a slot, so there is no delegation to redirect and no position
-    /// to speak of.
+    /// @dev PoolTogether has two shapes of this. `PrizeVault.sponsor` delegates a deposit
+    /// to `SPONSORSHIP_ADDRESS`, so the sponsor keeps withdrawable principal and donates
+    /// only the yield stream. `PrizePool.contributePrizeTokens` donates prize tokens
+    /// outright. This is the second shape, and simpler still: the money never becomes a
+    /// slot, so there is no delegation to redirect and no position to speak of.
+    ///
+    /// It is added to the next prize in full rather than earning notional yield for the
+    /// week — at 5% a week of yield on a sponsorship is about a thousandth of it, which is
+    /// not worth a second accumulator or a second thing to explain. Handing over all of it
+    /// at once does far more for the pot than lending it would.
     ///
     /// That difference matters. A Code4rena audit of V5 found `sponsor()` could be used
     /// to force *another* account's delegation to the sponsorship address, stripping
@@ -329,11 +346,18 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// Deliberately public and in plain tokens: a sponsor is making a claim about the
     /// prize, and a claim about the prize has to be checkable by everyone.
     function sponsorPrize(uint256 amount) external {
-        _fundReserve(amount);
-        emit PrizeSponsored(msg.sender, uint64(amount / IConfidentialWrapper(address(token)).rate()));
+        uint64 credited = _fundReserve(amount);
+
+        // The money joins the very next prize instead of merely making the tank deeper.
+        // Topping up the reserve alone changed nothing visible — `prizeFor` is a function
+        // of the pool and the rate, so a sponsorship only ever mattered when the reserve
+        // was about to run dry. That is not what the word "sponsor" promises.
+        sponsoredThisDraw += credited;
+
+        emit PrizeSponsored(msg.sender, credited);
     }
 
-    function _fundReserve(uint256 amount) private {
+    function _fundReserve(uint256 amount) private returns (uint64 credited) {
         if (!supportsAutoShield()) revert NoUnderlyingToken();
         if (amount == 0) revert ZeroAmount();
 
@@ -341,7 +365,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         underlyingToken.forceApprove(address(token), amount);
         IConfidentialWrapper(address(token)).wrap(address(this), amount);
 
-        uint64 credited = uint64(amount / IConfidentialWrapper(address(token)).rate());
+        credited = uint64(amount / IConfidentialWrapper(address(token)).rate());
         prizeReserve += credited;
 
         emit ReserveFunded(credited, prizeReserve);
@@ -466,8 +490,13 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         uint64 total = abi.decode(abiEncodedCleartexts, (uint64));
         if (total == 0) revert EmptyPool();
 
-        uint64 prize = prizeFor(total);
-        if (prize > prizeReserve) prize = prizeReserve;
+        // The formula's output plus anything sponsored since the last draw, then capped by
+        // what the reserve can actually pay. Widened to uint256 first: a sponsorship large
+        // enough to overflow the sum would otherwise revert here and brick settlement.
+        uint256 sized = uint256(prizeFor(total)) + uint256(sponsoredThisDraw);
+        sponsoredThisDraw = 0;
+
+        uint64 prize = sized > prizeReserve ? prizeReserve : uint64(sized);
         prizeReserve -= prize;
 
         // Uniform over the whole 64-bit range, then folded into [0, total). The residual
