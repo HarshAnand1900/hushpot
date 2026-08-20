@@ -135,7 +135,11 @@ export function DidIWin({
           functionName: "checkClaim",
           args: [draw.id, address],
         });
-        await waitForTransactionReceipt(config, { hash: tx });
+        // Two confirmations, not one. The relayer has to see the grant this transaction
+        // made before it will decrypt, and one block leaves too little room for that to
+        // reach whichever node it happens to read — the same reason every other decrypt
+        // path here waits for two.
+        await waitForTransactionReceipt(config, { hash: tx, confirmations: 2 });
       }
 
       setPhase("reading");
@@ -144,7 +148,7 @@ export function DidIWin({
         abi: poolAbi,
         functionName: "refreshMyBalance",
       });
-      await waitForTransactionReceipt(config, { hash: refreshTx });
+      await waitForTransactionReceipt(config, { hash: refreshTx, confirmations: 2 });
 
       const handle = await publicClient.readContract({
         address: POOL_ADDRESS,

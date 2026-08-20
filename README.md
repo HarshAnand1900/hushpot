@@ -10,11 +10,11 @@ Built for the Zama Developer Program, Mainnet Season 4.
 
 - **Live app:** <https://hushpot-fhevm.vercel.app>
 - **Contract:**
-  [`0x38DcB3cf3f057A866c4BB5534C3ecCe742A441a2`](https://sepolia.etherscan.io/address/0x38DcB3cf3f057A866c4BB5534C3ecCe742A441a2)
-  (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0x38DcB3cf3f057A866c4BB5534C3ecCe742A441a2#code).
+  [`0xCFe1Fb2F5f0f00e9f45b4E7316f333b7a7926330`](https://sepolia.etherscan.io/address/0xCFe1Fb2F5f0f00e9f45b4E7316f333b7a7926330)
+  (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0xCFe1Fb2F5f0f00e9f45b4E7316f333b7a7926330#code).
   The address in [`web/src/lib/contract.ts`](web/src/lib/contract.ts) is always the live one
-- **Operator panel:** [`/operator`](https://hushpot-fhevm.vercel.app/operator) — run a whole draw cycle from the
-  browser, no terminal
+- **Judge panel:** [`/judge`](https://hushpot-fhevm.vercel.app/judge) — run a whole draw cycle from the browser, no
+  terminal
 - **Token:** Zama's official `cUSDTMock` —
   [`0x4E7B…4491`](https://sepolia.etherscan.io/address/0x4E7B06D78965594eB5EF5414c357ca21E1554491)
 - **Faucet:** the underlying
@@ -85,6 +85,12 @@ never came back from losing the prize.
 
 Claims stay open for **30 days** after settlement (`CLAIM_GRACE`). The window costs nothing to provide: weights freeze
 on their own when a period ends, so holding the roll back is the whole mechanism — no snapshots, no per-slot state.
+
+> ⚠️ **With one exception, and it is a real one.** `startNextPeriod()` enforces the grace against everybody _except_ the
+> owner, and rolling the period is what closes a claim. So the owner can end the window early and strand an unclaimed
+> prize. The exemption exists so a testnet demo does not have to wait a month to show a second cycle; the Judge panel
+> refuses to roll until every slot is swept, but that is frontend courtesy, not a contract rule. Treated as a trust
+> assumption and documented in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
 
 ### Weights freeze on their own
 

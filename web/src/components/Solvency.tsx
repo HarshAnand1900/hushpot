@@ -5,6 +5,7 @@ import { useConfig, usePublicClient, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
+import { formatUnits } from "@/lib/format";
 import styles from "./Solvency.module.css";
 
 /**
@@ -14,7 +15,7 @@ import styles from "./Solvency.module.css";
  * public is the single bit that falls out of it. Neither the pool's holdings nor what it
  * owes is ever revealed.
  */
-export function Solvency({ compact }: { compact?: boolean }) {
+export function Solvency() {
   const publicClient = usePublicClient();
   const config = useConfig();
   const { writeContractAsync } = useWriteContract();
@@ -22,6 +23,38 @@ export function Solvency({ compact }: { compact?: boolean }) {
   const [state, setState] = useState<"idle" | "proving" | "backed" | "short" | "error">("idle");
   const [error, setError] = useState<string>();
   const [provenAt, setProvenAt] = useState<number>(0);
+  const [rows, setRows] = useState<{ k: string; v: string; gold?: boolean }[]>([]);
+
+  /**
+   * The three lines the design puts under the badge: what the pool owes, what it holds,
+   * and the comparison between them. The first is a handle rather than a number — that is
+   * the whole point, and printing a total there would undo the proof it is describing.
+   */
+  const readRows = useCallback(
+    async (handle: string, passed: boolean) => {
+      if (!publicClient) return;
+      try {
+        const reserve = (await publicClient.readContract({
+          address: POOL_ADDRESS,
+          abi: poolAbi,
+          functionName: "prizeReserve",
+        })) as bigint;
+
+        setRows([
+          { k: "ENCRYPTED SUM OF ALL BALANCES", v: `handle ${handle.slice(0, 6)}…${handle.slice(-4)}` },
+          { k: "POOL HOLDINGS · cUSDT", v: `${formatUnits(reserve)} cUSDT` },
+          {
+            k: "FHE.ge(assets, liabilities)",
+            v: passed ? "TRUE · no amount revealed" : "FALSE",
+            gold: passed,
+          },
+        ]);
+      } catch {
+        setRows([]);
+      }
+    },
+    [publicClient],
+  );
 
   /**
    * Read whatever proof already exists. No wallet, no transaction — the result was made
@@ -50,10 +83,11 @@ export function Solvency({ compact }: { compact?: boolean }) {
       const result = await publicDecryptRetry([handle]);
       const value = Object.values(result.clearValues ?? {})[0];
       setState(value ? "backed" : "short");
+      await readRows(handle, !!value);
     } catch {
       /* leave it unproven rather than claiming anything */
     }
-  }, [publicClient]);
+  }, [publicClient, readRows]);
 
   useEffect(() => {
     void readExisting();
@@ -81,49 +115,70 @@ export function Solvency({ compact }: { compact?: boolean }) {
       const value = Object.values(result.clearValues ?? {})[0];
 
       setState(value ? "backed" : "short");
+      await readRows(handle, !!value);
     } catch (e) {
       setError(e instanceof Error ? e.message.slice(0, 150) : "Could not prove solvency.");
       setState("error");
     }
-  }, [config, publicClient, writeContractAsync]);
+  }, [config, publicClient, readRows, writeContractAsync]);
+
+  const tag =
+    state === "backed" ? "PASSED" : state === "short" ? "SHORTFALL" : state === "proving" ? "RUNNING" : "UNPROVEN";
 
   return (
-    <section className="panel">
-      <div className="panelHead">
-        <span>IS THE MONEY STILL THERE?</span>
-        <span style={{ color: state === "backed" ? "var(--yellow)" : undefined }}>
-          {state === "backed" ? "FULLY BACKED" : state === "short" ? "SHORTFALL" : "UNPROVEN"}
-        </span>
+    <section className={styles.band}>
+      {/* the badge */}
+      <div className={styles.badgeCell}>
+        <div className={styles.badge}>
+          <span className={styles.ring} />
+          <span className={styles.ringInner} />
+          <span className={`num ${styles.ratio}`}>1:1</span>
+        </div>
+        <div className={styles.badgeLabel}>{state === "backed" ? "FULLY BACKED" : "UNVERIFIED"}</div>
       </div>
 
-      <div className={styles.solvency}>
-        {!compact && (
-          <p className={styles.copy}>
-            The fair objection to a pool with encrypted balances is that nobody can check the money is still there. So
-            the contract compares what it holds against what it owes — on ciphertext, without revealing either figure —
-            and publishes the one bit that comes out.
-          </p>
-        )}
+      {/* the reading */}
+      <div className={styles.readCell}>
+        <div className={styles.readHead}>
+          <span className="liveDot" />
+          SOLVENCY PROOF
+          <span className={styles.headRule} />
+          <span style={{ color: state === "backed" ? "var(--yellow)" : undefined }}>{tag}</span>
+        </div>
 
-        {state === "backed" && (
-          <div className={styles.backed}>
-            Every deposit is fully backed. Neither the pool&apos;s holdings nor its liabilities were revealed to
-            establish that
-            {provenAt > 0 && <> — last proven {new Date(provenAt * 1000).toUTCString().replace("GMT", "UTC")}</>}.
+        {rows.length === 0 && (
+          <div className={styles.readRow}>
+            <span className={styles.rowK}>NOTHING PROVEN YET</span>
+            <span className={styles.rowV}>run the check →</span>
           </div>
         )}
-        {state === "short" && <div className={styles.short}>The pool reports a shortfall. That would be serious.</div>}
-        {error && <div className={styles.short}>{error}</div>}
 
-        <button className="btnOutlineYellow" onClick={prove} disabled={state === "proving"}>
-          {state === "proving" ? "Proving…" : state === "idle" ? "Prove solvency now" : "Prove it again"}
-        </button>
+        {rows.map((r) => (
+          <div key={r.k} className={styles.readRow}>
+            <span className={styles.rowK}>{r.k}</span>
+            <span className={styles.rowV} style={{ color: r.gold ? "var(--yellow)" : undefined }}>
+              {r.v}
+            </span>
+          </div>
+        ))}
 
-        <div className={styles.solvencyNote}>
-          {compact
-            ? "Every deposit is backed 1:1. Anyone can re-run the proof — it is on the Proof tab too."
-            : "Anyone can run this — a solvency proof only the operator can trigger is not worth much."}
+        {provenAt > 0 && (
+          <div className={styles.stamp}>
+            last proven {new Date(provenAt * 1000).toUTCString().replace("GMT", "UTC")}
+          </div>
+        )}
+      </div>
+
+      {/* the copy and the button */}
+      <div className={styles.ctaCell}>
+        <div className={styles.copy}>
+          Every principal is withdrawable at once, and the contract proves it without decrypting a single balance: the
+          encrypted sum is compared to what the pool holds, in&#8209;contract.
         </div>
+        {error && <div className={styles.err}>{error}</div>}
+        <button className="btnOutlineYellow" onClick={prove} disabled={state === "proving"}>
+          {state === "proving" ? "Proving…" : state === "idle" ? "Run solvency check" : "Re-run solvency check"}
+        </button>
       </div>
     </section>
   );

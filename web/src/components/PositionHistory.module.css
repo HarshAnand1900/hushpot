@@ -1,13 +1,36 @@
-.intro {
-  padding: 22px;
-  font-size: 14px;
-  line-height: 1.6;
+.sealed {
+  padding: 44px 22px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.dots {
+  display: flex;
+  gap: 9px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 210, 8, 0.22);
+}
+.dotOn {
+  background: var(--yellow);
+}
+
+.sealedCopy {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.62;
   color: var(--text-1);
-  max-width: 74ch;
+  max-width: 56ch;
 }
 
 .hint {
-  margin-top: 12px;
   font-family: var(--font-mono), monospace;
   font-size: 9.5px;
   letter-spacing: 0.2em;

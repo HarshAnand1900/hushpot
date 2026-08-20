@@ -19,13 +19,21 @@ import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { formatCountdown, formatUnits, shortenAddress, splitUnits } from "@/lib/format";
 import styles from "./pool.module.css";
 
+/** The line under the pot. It rotates by draw so the page is not identical every week. */
+const QUIPS = [
+  "one of you is about to have a very quiet week",
+  "the pot does not know your name either",
+  "somebody wins. the chain never finds out who",
+  "all of it, to one of you",
+];
+
 export default function PoolTab() {
   const now = useNow();
   const state = usePoolState();
   const lastDraw = useLastDraw(state.drawCount);
   const { draws } = useDraws(state.drawCount);
   const { isConnected } = useAccount();
-  const { stage, position, error, reveal, needsSignature, isUnlocked } = useMyPosition();
+  const { stage, position, error, reveal, isUnlocked } = useMyPosition();
   // "join" is deposit with the withdraw tab hidden: it is the way in for someone who
   // has nothing in yet, and withdrawing would need a decrypted balance to mean anything.
   const [sheet, setSheet] = useState<"deposit" | "withdraw" | "join" | null>(null);
@@ -78,7 +86,7 @@ export default function PoolTab() {
         {/* hero band ------------------------------------------------------ */}
         <section className={`${styles.hero} brackets bracketsLower`}>
           <div className={`${styles.potCell} yellowBand`}>
-            <div className={styles.potKicker}>THE POT · DRAW #{drawNumber} · PROJECTED AT CLOSE</div>
+            <div className={styles.potKicker}>THE POT · DRAW #{drawNumber} · PUBLIC BY DESIGN</div>
             <div className={`num ${styles.potNumber}`}>
               {potParts.whole}
               <span className={styles.potFrac}>.{potParts.frac}</span>
@@ -114,26 +122,20 @@ export default function PoolTab() {
             </div>
           </div>
 
+          {/* v6: the pot cell carries the object and nothing else — no headline, no CTA.
+              Entering happens from YOUR POSITION below, which is where the amount and the
+              odds already are. */}
           <div className={styles.niche}>
             <span className={styles.seam} />
-            <span className={styles.shimmer} aria-hidden="true" />
+            <span className={styles.nicheGlow} aria-hidden="true" />
+
+            <div className={styles.potWindow}>
+              <Pot3D size={190} quiet />
+            </div>
+            <span className={styles.potShadow} aria-hidden="true" />
 
             <div className={styles.nicheKicker}>CLICK IT · DRAG TO TURN</div>
-
-            <Pot3D size={158} quiet />
-
-            <div className={`editorial ${styles.nicheLine}`}>
-              All this
-              <br />
-              can be yours.
-            </div>
-            <div className={styles.nicheSub}>
-              all of it, to one of {state.depositors || "—"} — and nobody need ever know which
-            </div>
-
-            <button className={styles.nicheCta} onClick={() => setSheet("join")}>
-              Take your shot
-            </button>
+            <div className={styles.nicheQuip}>{QUIPS[drawNumber % QUIPS.length]}</div>
 
             <span className={`${styles.seam} ${styles.seamRight}`} />
           </div>
@@ -144,23 +146,11 @@ export default function PoolTab() {
                 <span className="liveDot" /> YIELD LANDING · THIS PERIOD
               </div>
               <div className={`num ${styles.yieldValue}`}>+{formatUnits(accrued, 2)}</div>
-              {/* Named for what it is. There is no ERC-4626 strategy behind this on Sepolia —
-                  the reserve is funded directly — and the rate is read from the contract
-                  rather than written into the page. */}
-              {/* v6 shows STRATEGY / NET APY here. There is no ERC-4626 vault on Sepolia —
-                  the reserve is funded directly — so the strategy is named for what it
-                  actually is rather than borrowing a label it has not earned. */}
-              <div className={styles.yieldStrat}>
-                <span>
-                  <span className={styles.stratK}>STRATEGY</span>
-                  <span className={styles.stratV}>FUNDED RESERVE</span>
-                </span>
-                <span>
-                  <span className={styles.stratK}>NET APY</span>
-                  <span className={styles.stratV}>
-                    {state.annualRateBps ? `${(Number(state.annualRateBps) / 100).toFixed(2)}%` : "—"}
-                  </span>
-                </span>
+              {/* Derived from the same figures the contract uses, not invented: the pot for
+                  a full period divided by the blocks in one. */}
+              <div className={styles.perBlock}>
+                +{formatUnits(pot / BigInt(Math.max(1, Math.floor(Number(state.periodSeconds) / 12))), 4)} PER BLOCK ·
+                EVERY 12s
               </div>
             </div>
 
@@ -194,21 +184,35 @@ export default function PoolTab() {
               })}
             </div>
             <div className={styles.yieldFoot}>
-              <span>PRIZE PER DRAW · {draws.length} SETTLED</span>
-              <span>PERIOD #{state.currentPeriod}</span>
+              <span>PRIZE PER DRAW · LAST 14</span>
+              <span className={styles.yieldFootHi}>PERIOD #{state.currentPeriod}</span>
+            </div>
+
+            {/* v6 shows STRATEGY / NET APY at the foot of this cell. There is no ERC-4626
+                vault on Sepolia — the reserve is funded directly — so the strategy is named
+                for what it actually is rather than borrowing a label it has not earned. */}
+            <div className={styles.yieldStrat}>
+              <span>
+                STRATEGY <span className={styles.stratV}>FUNDED RESERVE</span>
+              </span>
+              <span>
+                NET APY{" "}
+                <span className={styles.stratV}>
+                  {state.annualRateBps ? `${(Number(state.annualRateBps) / 100).toFixed(2)}%` : "—"}
+                </span>
+              </span>
             </div>
           </div>
         </section>
+
+        <Solvency />
 
         {/* stat rail ------------------------------------------------------ */}
         <section className={styles.rail}>
           <Rail label="POOLED PRINCIPAL" value={lastDraw ? formatUnits(lastDraw.total / 10080n) : "—"} />
           <Rail label="PRIZES PAID" value={formatUnits(draws.reduce((sum, d) => sum + d.prize, 0n))} accent />
           <Rail label="DRAWS SETTLED" value={String(draws.length)} />
-          <Rail label="DEPOSITORS" value={String(state.depositors)} />
         </section>
-
-        <Solvency compact />
 
         <PositionHistory drawCount={state.drawCount} unlocked={isUnlocked} slot={position.slot} />
 
@@ -249,17 +253,6 @@ export default function PoolTab() {
           </div>
         </PositionPanel>
 
-        {/* did I win ------------------------------------------------------ */}
-        {draws.length > 0 && (
-          <DidIWin
-            draws={draws.map((d) => ({ id: d.id, prize: d.prize, period: Number(d.period) }))}
-            currentPeriod={state.currentPeriod}
-            balanceBefore={position.balance}
-            unlocked={isUnlocked}
-            onClaimed={() => state.refetch()}
-          />
-        )}
-
         {/* draw engine ---------------------------------------------------- */}
         <section className="panel">
           <div className="panelHead">
@@ -290,7 +283,22 @@ export default function PoolTab() {
           </div>
           <CloseDraw periodEnded={state.periodEnded} drawPending={state.drawPending} onDone={() => state.refetch()} />
         </section>
-        <ContractLog limit={6} />
+        {/* v6 pairs the personal question with the public record, side by side: the
+            log is the evidence that answering it left nothing behind. */}
+        <section className={styles.pair}>
+          <div>
+            {draws.length > 0 && (
+              <DidIWin
+                draws={draws.map((d) => ({ id: d.id, prize: d.prize, period: Number(d.period) }))}
+                currentPeriod={state.currentPeriod}
+                balanceBefore={position.balance}
+                unlocked={isUnlocked}
+                onClaimed={() => state.refetch()}
+              />
+            )}
+          </div>
+          <ContractLog limit={12} />
+        </section>
       </main>
 
       {sheet && (

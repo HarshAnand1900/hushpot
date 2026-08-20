@@ -35,8 +35,9 @@
    reads as "sealed" rather than as a number. */
 .valueMasked {
   color: var(--masked);
-  font-size: clamp(26px, 3.4vw, 40px);
-  letter-spacing: -0.01em;
+  font-size: clamp(20px, 2.4vw, 27px);
+  letter-spacing: 0.16em;
+  line-height: 1.6;
 }
 
 /* -------------------------------------------------------------- record -- */
@@ -139,7 +140,7 @@
   padding-top: 26px;
   display: flex;
   align-items: flex-end;
-  gap: 2px;
+  gap: 9px;
   height: 120px;
 }
 

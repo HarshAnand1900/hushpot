@@ -227,6 +227,50 @@ describe("HushpotPool — draws and claims", function () {
     });
   });
 
+  // The solvency proof compares holdings against liabilities. A swept prize belongs to
+  // its winner the moment it is parked, so it has to count as a liability even before it
+  // is folded into a leaf — otherwise the proof quietly answers a narrower question than
+  // it appears to.
+  describe("solvency counts parked awards", function () {
+    it("still proves backed while a prize sits parked, and counts it", async function () {
+      await depositPlain(alice, ALICE_DEPOSIT);
+      await depositPlain(bob, BOB_DEPOSIT);
+      await time.increase(PERIOD_SECONDS);
+      await runDraw();
+
+      // Park the prize without folding it: checkClaim writes to _pendingAward only.
+      await (await pool.connect(owner).checkClaim(0, alice.address)).wait();
+      await (await pool.connect(owner).checkClaim(0, bob.address)).wait();
+
+      await (await pool.connect(alice).proveSolvency()).wait();
+      expect(await fhevm.publicDecryptEbool(await pool.solvencyHandle())).to.eq(true);
+
+      // And it is genuinely counted rather than skipped: the prize the pool now owes
+      // shows up in a depositor's balance, which is leaf plus parked.
+      const total = (await poolBalance(alice)) + (await poolBalance(bob));
+      expect(total).to.eq(ALICE_DEPOSIT + BOB_DEPOSIT + (await pool.draws(0)).prize);
+    });
+
+    it("does not double-count an award once it is folded in", async function () {
+      await depositPlain(alice, ALICE_DEPOSIT);
+      await depositPlain(bob, BOB_DEPOSIT);
+      await time.increase(PERIOD_SECONDS);
+      await runDraw();
+
+      await (await pool.connect(owner).checkClaim(0, alice.address)).wait();
+      await (await pool.connect(owner).checkClaim(0, bob.address)).wait();
+
+      // A deposit folds the parked award into the leaf. If the aggregate were not
+      // decremented at the same time, the pool would report owing the prize twice and
+      // the proof would flip to a false shortfall.
+      await depositPlain(alice, 1_000n);
+      await depositPlain(bob, 1_000n);
+
+      await (await pool.connect(alice).proveSolvency()).wait();
+      expect(await fhevm.publicDecryptEbool(await pool.solvencyHandle())).to.eq(true);
+    });
+  });
+
   describe("claiming", function () {
     beforeEach(async function () {
       await depositPlain(alice, ALICE_DEPOSIT);

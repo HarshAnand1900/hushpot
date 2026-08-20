@@ -225,8 +225,11 @@ describe("ConfidentialTimeWeightedTree", function () {
 
   describe("guards", function () {
     it("rejects an out-of-range slot", async function () {
+      // Read the cap rather than hard-coding it, so raising capacity does not silently
+      // turn this into a test of a valid slot.
+      const cap = await pool.LEAF_COUNT();
       const enc = await encrypt(100n, alice);
-      await expect(pool.connect(alice).depositTo(1024, enc.handles[0], enc.inputProof)).to.be.reverted;
+      await expect(pool.connect(alice).depositTo(cap, enc.handles[0], enc.inputProof)).to.be.reverted;
     });
   });
 });

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { usePublicClient } from "wagmi";
 
-import { POOL_ADDRESS, TOKEN_ADDRESS, confidentialTokenAbi, poolAbi } from "@/lib/contract";
+import { POOL_ADDRESS, TOKEN_ADDRESS, poolAbi } from "@/lib/contract";
 import styles from "./VerifyHandle.module.css";
 
 type Result = { ok: boolean; lines: { k: string; v: string }[] };

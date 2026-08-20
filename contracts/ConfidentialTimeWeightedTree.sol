@@ -52,8 +52,25 @@ import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 /// overflows `euint64` by roughly a hundredfold, and encrypted overflow is **silent** —
 /// wrong odds, no revert, no trace.
 abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
-    uint16 public constant LEAF_COUNT = 1024;
-    uint16 public constant LEAF_OFFSET = 1024;
+    /// @dev Capacity, and the price of griefing it.
+    ///
+    /// A slot is claimed on first deposit and never released, and the deposit that claims
+    /// it cannot be checked for size: ERC-7984 clamps rather than reverts, so a transfer
+    /// of more than you hold moves zero and succeeds. There is no way to reject that —
+    /// `moved` is a ciphertext, and branching on it is exactly what FHE forbids. Nor would
+    /// rejecting zero help, because a one-wei deposit is just as cheap and is a legitimate
+    /// deposit besides. Detection is not the lever here; capacity is.
+    ///
+    /// So the cap is set high enough that filling it costs real money. Each claimed slot
+    /// needs its own address and its own ~500k-gas deposit, which at 16,384 slots is on
+    /// the order of eight billion gas — roughly half a million dollars at mainnet prices.
+    /// Legitimate depositors pay nothing for the headroom: {_treeRoot} keeps the tree only
+    /// as deep as the slots actually in use, so a thirteen-person pool walks four levels
+    /// here exactly as it did at 1024.
+    ///
+    /// This prices the attack rather than eliminating it. `docs/THREAT-MODEL.md` says so.
+    uint16 public constant LEAF_COUNT = 16384;
+    uint16 public constant LEAF_OFFSET = 16384;
 
     /// @notice One draw period, in minutes. One week.
     uint64 public constant PERIOD_MINUTES = 10080;
@@ -95,6 +112,32 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// A balance is therefore leaf + pending. Both are ciphertext; the split is an
     /// accounting detail and leaks nothing.
     mapping(uint16 => euint64) internal _pendingAward;
+
+    /// @dev The sum of every parked award, kept as a running encrypted total.
+    ///
+    /// Solvency compares what the pool holds against what it owes, and what it owes is the
+    /// tree root PLUS anything parked — a winner's prize is already theirs, it simply has
+    /// not been folded into a leaf yet. Summing 1024 slots to discover that is impossible
+    /// inside one transaction, so the total is maintained incrementally instead: one
+    /// addition when an award is parked, one subtraction when it is folded. Both are
+    /// operations those paths were performing anyway.
+    euint64 internal _parkedTotal;
+
+    /// @dev Parked awards in aggregate. Zero before the first sweep, which is a legitimate
+    /// state rather than an uninitialised one.
+    function _parkedTotalOf() internal view returns (euint64) {
+        return euint64.unwrap(_parkedTotal) == bytes32(0) ? _zero() : _parkedTotal;
+    }
+
+    /// @dev Park an award against a slot and keep the aggregate in step. Every site that
+    /// writes `_pendingAward` must go through here, or solvency silently understates.
+    function _parkAward(uint16 slot, euint64 award) internal {
+        _pendingAward[slot] = FHE.add(_pendingAward[slot], award);
+        FHE.allowThis(_pendingAward[slot]);
+
+        _parkedTotal = FHE.add(_parkedTotalOf(), award);
+        FHE.allowThis(_parkedTotal);
+    }
 
     event PeriodAdvanced(uint32 indexed period, uint256 startedAt);
     event SlotAssigned(address indexed account, uint16 indexed slot);
@@ -215,6 +258,11 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         _balance[node] = FHE.add(_balance[node], pending);
         _lateCredit[node] = FHE.add(_lateCreditOf(node), FHE.mul(pending, minuteOfPeriod()));
         _pendingAward[slot] = _zero();
+
+        // The award has moved from parked to banked. Leaving it counted in both places
+        // would make the pool look like it owed the prize twice.
+        _parkedTotal = FHE.sub(_parkedTotalOf(), pending);
+        FHE.allowThis(_parkedTotal);
     }
 
     /// @dev Add encrypted stake to a slot, credited only for the remainder of the period.

@@ -5,7 +5,7 @@ What is encrypted, what is public, what leaks, and what you have to trust.
 This document is deliberately unflattering. A confidential system that only advertises its strengths is harder to
 evaluate than one that names its edges, and every claim below can be checked against the deployed contract.
 
-**Contract:** `HushpotPool` · Sepolia · `0x38DcB3cf3f057A866c4BB5534C3ecCe742A441a2`
+**Contract:** `HushpotPool` · Sepolia · `0xCFe1Fb2F5f0f00e9f45b4E7316f333b7a7926330`
 
 > The live address always matches [`web/src/lib/contract.ts`](../web/src/lib/contract.ts). Earlier deployments
 > referenced in git history are superseded.
@@ -144,7 +144,20 @@ stalls a draw but corrupts nothing.
 **Cannot:** read any balance, influence the die, prevent a withdrawal, or move depositor funds. There is no
 owner-withdraw path in the contract.
 
-**Worth naming:** the owner can set the yield rate to zero, which would make prizes zero. It would be visible
+**Worth naming, and this is the sharpest one:** the owner can end the 30-day claim window early. `startNextPeriod()`
+enforces `CLAIM_GRACE` against everybody _except_ the owner, and rolling the period is what closes a claim — a draw is
+answerable only while its own period is current. So an owner who rolls early can strand an unclaimed prize.
+
+The exemption exists because a testnet demonstration cannot wait a month to show a second cycle, and it is the same
+exemption that lets the owner open a draw before the week is up. The Judge panel disables the roll until every slot has
+been swept, but that is a frontend courtesy, not a contract rule — the contract does not check it.
+
+Mitigating it in practice: a keeper sweeps every participant before the roll, so prizes land without anyone having to
+remember to claim. Mitigating it properly: enforce "all slots swept" on-chain, or drop the owner exemption once the demo
+period is over. **Until then this is a real trust assumption, and the 30-day window is a 30-day window for everyone
+except the owner.**
+
+**Also worth naming:** the owner can set the yield rate to zero, which would make prizes zero. It would be visible
 immediately — the rate is public — but it is an admin power that a production deployment should put behind a timelock or
 governance.
 
@@ -183,6 +196,8 @@ Honest omissions, with what each would take:
 | ----------------------------------------------------- | ------------------------------------------------------------ |
 | Yield is an admin-funded reserve, not a live strategy | Route deposits into a yield source and feed the same reserve |
 | No timelock on owner functions                        | Governance or a delay on rate changes and draw triggers      |
+| Owner can close the claim window early                | Enforce a full sweep on-chain, or drop the exemption         |
+| Slots are claimed permanently and cannot be reclaimed | Priced, not prevented — see below                            |
 | Unclaimed prizes are not swept back automatically     | A rollover pass once the claim window closes                 |
 | Pool capacity is fixed at 1,024 slots                 | A deeper tree, at higher per-deposit cost                    |
 | No formal audit                                       | The reason this document exists                              |
@@ -190,3 +205,25 @@ Honest omissions, with what each would take:
 ---
 
 _Last updated 10 August 2026. If something here is wrong, that is a bug — please report it._
+
+## 9. Slot exhaustion
+
+A slot is claimed on the first deposit from an address and is never released. The deposit that claims it cannot be
+checked for size: ERC-7984 clamps a transfer to the sender's balance rather than reverting, so asking to move more than
+you hold moves zero and still succeeds. `moved` comes back as a ciphertext, and branching on a ciphertext is precisely
+what FHE does not allow — so the contract cannot refuse a deposit that moved nothing.
+
+**Rejecting zero would not fix it anyway.** A one-wei deposit costs the attacker the same gas, occupies a slot just as
+permanently, and is a perfectly legitimate deposit. Any rule that turns away the zero case turns away a real user in the
+next breath. Detection is not the lever.
+
+What is left is capacity. `LEAF_COUNT` is 16,384. Filling it requires 16,384 separate addresses, each funded with gas
+and each sending its own ~500k-gas confidential deposit — on the order of eight billion gas, roughly half a million
+dollars at mainnet prices, and that buys nothing except a full pool. Legitimate depositors pay nothing for the headroom:
+`_treeRoot()` keeps the tree only as deep as the slots actually in use, so a thirteen-person pool walks four levels at
+16,384 exactly as it did at 1,024.
+
+**This prices the attack rather than eliminating it, and the distinction matters.** A reclamation path would eliminate
+it, but every version we could design requires proving a slot is empty, and proving that means publicly decrypting a
+balance that might not be — which trades a capacity bug for a privacy one. We would rather have the capacity bug and say
+so.

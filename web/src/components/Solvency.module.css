@@ -1,32 +1,163 @@
-.solvency {
-  padding: 28px 26px;
+/* v6 geometry: badge | reading | copy, on a yellow-tinted gradient band. */
+.band {
+  position: relative;
+  border: 1px solid rgba(255, 210, 8, 0.3);
+  background: linear-gradient(90deg, rgba(255, 210, 8, 0.075), rgba(6, 6, 6, 0.72) 46%);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 300px;
+  min-width: 0;
+}
+
+/* --- the badge ------------------------------------------------------------ */
+
+.badgeCell {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  padding: 24px 30px;
+  border-right: 1px solid rgba(255, 210, 8, 0.22);
+}
+
+.badge {
+  position: relative;
+  width: 74px;
+  height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--yellow);
+  border-radius: 50%;
+  animation: solv-glow 3.6s ease-in-out infinite;
+}
+
+.ringInner {
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(255, 210, 8, 0.32);
+  border-radius: 50%;
+}
+
+@keyframes solv-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ratio {
+  font-size: 24px;
+  letter-spacing: -0.01em;
+  color: var(--yellow);
+}
+
+.badgeLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+  color: var(--yellow);
+  white-space: nowrap;
+}
+
+/* --- the reading ---------------------------------------------------------- */
+
+.readCell {
+  padding: 20px 28px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.readHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--text-2);
+}
+
+.headRule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--rule), transparent);
+}
+
+.readRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-top: 1px solid var(--rule-soft);
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+}
+
+.rowK {
+  color: #7e7e7e;
+  overflow-wrap: anywhere;
+}
+
+.rowV {
+  color: var(--white);
+  text-align: right;
+}
+
+.stamp {
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--text-4);
+}
+
+/* --- the copy ------------------------------------------------------------- */
+
+.ctaCell {
+  padding: 20px 26px;
+  border-left: 1px solid rgba(255, 210, 8, 0.22);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
 }
 
 .copy {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.65;
-  color: var(--text-1);
-  max-width: 70ch;
-}
-
-.backed,
-.short {
-  font-size: 14px;
-  line-height: 1.6;
-  padding: 14px 16px;
-  border: 1px solid var(--yellow);
-  background: rgba(255, 210, 8, 0.07);
-  color: var(--white);
-  max-width: 70ch;
-  animation: hp-in 0.3s ease both;
-}
-
-.solvencyNote {
   font-size: 12px;
-  color: var(--text-3);
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.err {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--yellow);
+}
+
+@media (max-width: 980px) {
+  .band {
+    grid-template-columns: 1fr;
+  }
+  .badgeCell {
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 210, 8, 0.22);
+    flex-direction: row;
+  }
+  .ctaCell {
+    border-left: 0;
+    border-top: 1px solid rgba(255, 210, 8, 0.22);
+  }
 }

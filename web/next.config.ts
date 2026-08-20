@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
   // The relayer SDK ships ESM + WASM and needs transpiling for the client bundle.
   transpilePackages: ["@zama-fhe/relayer-sdk"],
 
+  // The panel used to live at /operator and that URL is already in the wild — in an
+  // earlier README, and anywhere it was copied from. A 404 on a judge-facing link is
+  // the cheapest possible way to lose marks, so the old path keeps working.
+  async redirects() {
+    return [{ source: "/operator", destination: "/judge", permanent: true }];
+  },
+
   webpack: (config, { webpack }) => {
     // `@wagmi/connectors` re-exports Coinbase's baseAccount connector, which reaches
     // @coinbase/cdp-sdk → @x402/* — packages that aren't published. We never use that

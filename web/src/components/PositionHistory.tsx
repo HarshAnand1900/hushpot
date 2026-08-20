@@ -5,7 +5,7 @@ import { parseAbiItem } from "viem";
 import { useAccount, usePublicClient } from "wagmi";
 
 import { DEPLOY_BLOCK, POOL_ADDRESS, poolAbi } from "@/lib/contract";
-import { formatUnits, shortenAddress } from "@/lib/format";
+import { shortenAddress } from "@/lib/format";
 import styles from "./PositionHistory.module.css";
 
 const EV_CLAIM = parseAbiItem(
@@ -120,29 +120,46 @@ export function PositionHistory({
         </span>
       </div>
 
-      <div className={styles.intro}>
-        Your whole record — deposits, withdrawals, claims, anything you ever won — is ciphertext until you decrypt it
-        locally. Nothing here is fetched from a server.
-        {!unlocked && <div className={styles.hint}>REVEAL BELOW TO OPEN THE RECORD ↓</div>}
-      </div>
-
-      <div className={styles.head}>
-        <span>DRAW</span>
-        <span>WHAT YOU FOUND WHEN YOU LOOKED</span>
-        <span>AMOUNT</span>
-        <span>CLAIM</span>
-      </div>
-
-      {rows?.length === 0 && <div className={styles.empty}>No draws have settled yet.</div>}
-
-      {rows?.map((r) => (
-        <div key={String(r.draw)} className={styles.row}>
-          <span className={styles.draw}>#{String(r.draw)}</span>
-          <span className={r.opened ? styles.found : `${styles.found} ${styles.masked}`}>{r.found}</span>
-          <span className={styles.amount}>{r.amount}</span>
-          <span className={r.claim === "CHECKED" ? `${styles.claim} ${styles.claimOn}` : styles.claim}>{r.claim}</span>
+      {/* Locked, v6 shows only this: a run of dots and the reason. The table would be
+          six rows of •••••• and says less than the sentence does. */}
+      {!unlocked && (
+        <div className={styles.sealed}>
+          <div className={styles.dots} aria-hidden="true">
+            {Array.from({ length: 7 }, (_, i) => (
+              <span key={i} className={i === 3 ? `${styles.dot} ${styles.dotOn}` : styles.dot} />
+            ))}
+          </div>
+          <p className={styles.sealedCopy}>
+            Your whole record — deposits, withdrawals, claims, anything you ever won — is ciphertext until you decrypt
+            it locally. Nothing here is fetched from a server.
+          </p>
+          <div className={styles.hint}>REVEAL BELOW TO OPEN THE RECORD ↓</div>
         </div>
-      ))}
+      )}
+
+      {unlocked && (
+        <>
+          <div className={styles.head}>
+            <span>DRAW</span>
+            <span>WHAT YOU FOUND WHEN YOU LOOKED</span>
+            <span>AMOUNT</span>
+            <span>CLAIM</span>
+          </div>
+
+          {rows?.length === 0 && <div className={styles.empty}>No draws have settled yet.</div>}
+
+          {rows?.map((r) => (
+            <div key={String(r.draw)} className={styles.row}>
+              <span className={styles.draw}>#{String(r.draw)}</span>
+              <span className={r.opened ? styles.found : `${styles.found} ${styles.masked}`}>{r.found}</span>
+              <span className={styles.amount}>{r.amount}</span>
+              <span className={r.claim === "CHECKED" ? `${styles.claim} ${styles.claimOn}` : styles.claim}>
+                {r.claim}
+              </span>
+            </div>
+          ))}
+        </>
+      )}
 
       {/* The proof strip: a real handle, and the two facts about where it can be read. */}
       <div className={styles.strip}>

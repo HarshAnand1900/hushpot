@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAccount, usePublicClient } from "wagmi";
+import { usePublicClient } from "wagmi";
 
 import { usePositionHistory } from "@/hooks/usePositionHistory";
 import { POOL_ADDRESS, TOKEN_DECIMALS, poolAbi } from "@/lib/contract";
@@ -36,7 +36,6 @@ export function PositionPanel({
   /** The reveal footer, when still locked. */
   children?: React.ReactNode;
 }) {
-  const { address } = useAccount();
   const publicClient = usePublicClient();
 
   const odds =
@@ -61,7 +60,7 @@ export function PositionPanel({
     };
   }, [publicClient, slot, isUnlocked]);
 
-  const masked = handle ? `${handle.slice(0, 10)}…` : "••••••";
+  const masked = "▪▪▪▪▪▪";
 
   // --- add-to-position projection -----------------------------------------
   const [add, setAdd] = useState(0);
@@ -99,8 +98,8 @@ export function PositionPanel({
     const now = Number(minuteOfPeriod);
     const perMinute = Number(balance);
 
-    return Array.from({ length: 24 }, (_, i) => {
-      const minute = Math.round(((i + 1) / 24) * Number(PERIOD_MINUTES));
+    return Array.from({ length: 6 }, (_, i) => {
+      const minute = Math.round(((i + 1) / 6) * Number(PERIOD_MINUTES));
       // Before now it is history, after now it is the projection if nothing changes.
       const mine = Number(weight) + perMinute * Math.max(0, minute - now);
       const all = Number(poolTotal) + perMinute * Math.max(0, minute - now);
@@ -132,22 +131,7 @@ export function PositionPanel({
 
           <div className={styles.recordHead}>YOUR RECORD · THIS BROWSER ONLY</div>
 
-          {!isUnlocked && (
-            <div className={styles.sealed}>
-              <div className={styles.sealedBars} aria-hidden="true">
-                {Array.from({ length: 7 }, (_, i) => (
-                  <span key={i} className={styles.sealedBar} style={{ width: `${38 + ((i * 37) % 55)}%` }} />
-                ))}
-              </div>
-              <p className={styles.sealedNote}>
-                Your whole record — deposits, withdrawals, anything you ever won — is ciphertext until you decrypt it in
-                this browser. None of it is fetched from a server, and none of it is readable by us.
-              </p>
-              <div className={styles.sealedCue}>REVEAL BELOW TO OPEN THE RECORD ↓</div>
-            </div>
-          )}
-
-          <dl className={styles.record} hidden={!isUnlocked}>
+          <dl className={styles.record}>
             {(history.deposits ?? []).slice(-2).map((d) => (
               <div key={String(d.block)} className={styles.row}>
                 <dt>
@@ -172,7 +156,7 @@ export function PositionPanel({
                 actually weighted by, so time is what belongs here. */}
             <div className={styles.row}>
               <dt>
-                TIME IN THE POOL <span className={styles.rowNote}>odds accrue every minute</span>
+                BLOCKS HELD <span className={styles.rowNote}>earning the whole time</span>
               </dt>
               <dd className={isUnlocked ? styles.rowValue : styles.rowMasked}>
                 {isUnlocked ? (history.heldFor ?? "—") : masked}
@@ -200,7 +184,7 @@ export function PositionPanel({
           </div>
 
           <div className={styles.spark}>
-            {(curve.length ? curve : Array.from({ length: 24 }, () => null)).map((p, i) => (
+            {(curve.length ? curve : Array.from({ length: 6 }, () => null)).map((p, i) => (
               <span
                 key={i}
                 className={styles.bar}
@@ -214,7 +198,7 @@ export function PositionPanel({
           </div>
           <div className={styles.sparkFoot}>
             <span>YOUR ODDS · THIS PERIOD</span>
-            <span>{isUnlocked ? "SOLID = SO FAR" : "SEALED"}</span>
+            <span>NOW</span>
           </div>
 
           <div className={styles.oddsNote}>

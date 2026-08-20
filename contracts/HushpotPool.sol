@@ -45,7 +45,18 @@ interface IConfidentialWrapper {
 /// WHAT LEAKS
 /// ----------
 /// That a given address deposited, and when — both are inherent to a public chain, since
-/// the transaction itself is visible. Never how much. See `docs/THREAT-MODEL.md`.
+/// the transaction itself is visible.
+///
+/// Via {deposit}, never how much: the amount is a ciphertext handle from the moment it
+/// leaves the wallet, and no plaintext figure exists anywhere in this contract.
+///
+/// Via {depositUnderlying}, the amount IS public, and deliberately so — it is a plain
+/// ERC-20 transfer of an ordinary token, and it emits the figure in
+/// {DepositedFromUnderlying}. That path exists for convenience, for anyone who does not
+/// already hold the confidential token. Everything after the entry is encrypted either
+/// way, but the entry itself is not. Anyone who wants both convenience and privacy should
+/// shield at one time and deposit at another, so the two are not linkable by size or
+/// timing. See `docs/THREAT-MODEL.md`.
 contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     using SafeERC20 for IERC20;
 
@@ -376,7 +387,13 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// trigger is not worth much.
     function proveSolvency() external {
         euint64 held = token.confidentialBalanceOf(address(this));
-        euint64 owed = _balance[_treeRoot()]; // the tree root is total principal
+
+        // What the pool owes is the tree root PLUS anything parked. A swept prize belongs
+        // to its winner from the moment it is parked, even though it has not been folded
+        // into a leaf yet — counting only the root would understate the liability for as
+        // long as any award sat unclaimed, and the proof would be answering a narrower
+        // question than the one it appears to answer.
+        euint64 owed = FHE.add(_balance[_treeRoot()], _parkedTotalOf());
 
         ebool backed = FHE.ge(held, owed);
 
@@ -529,8 +546,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         // additions — to deposit what is, for all but one checker, an encrypted zero. The
         // award joins the tree on this slot's next deposit or withdrawal, which walks that
         // path anyway. Winnings still join the principal, just one transaction later.
-        _pendingAward[slot] = FHE.add(_pendingAward[slot], award);
-        FHE.allowThis(_pendingAward[slot]);
+        _parkAward(slot, award);
 
         emit ClaimChecked(drawId, slot, msg.sender);
     }
@@ -628,8 +644,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
             FHE.asEuint64(0)
         );
 
-        _pendingAward[slot] = FHE.add(_pendingAward[slot], award);
-        FHE.allowThis(_pendingAward[slot]);
+        _parkAward(slot, award);
 
         claimChecked[drawId][slot] = true;
         emit ClaimChecked(drawId, slot, msg.sender);
