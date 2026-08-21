@@ -85,7 +85,15 @@ export default function PoolTab() {
         {/* hero band ------------------------------------------------------ */}
         <section className={`${styles.hero} brackets bracketsLower`}>
           <div className={`${styles.potCell} yellowBand`}>
-            <div className={styles.potKicker}>THE POT · DRAW #{drawNumber} · PUBLIC BY DESIGN</div>
+            {/* Two numbers live here and they are not the same draw: the label is the one
+                coming next, the figure is what the last one actually paid. Saying only
+                "PUBLIC BY DESIGN" left that unexplained and read as a contradiction
+                against PERIOD #0 in the status strip. */}
+            <div className={styles.potKicker}>
+              {drawNumber > 0
+                ? `NEXT POT · DRAW #${drawNumber} · PROJECTED FROM DRAW #${drawNumber - 1}`
+                : "THE POT · DRAW #0 · PUBLIC BY DESIGN"}
+            </div>
             <div className={`num ${styles.potNumber}`}>
               {potParts.whole}
               <span className={styles.potFrac}>.{potParts.frac}</span>
