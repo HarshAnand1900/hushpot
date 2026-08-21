@@ -197,6 +197,58 @@ oracle, and every property proven there is re-asserted against the encrypted ver
 
 ---
 
+## Operating the protocol
+
+There is no admin login, because there is no server holding state. "Admin" here is an address with on-chain permissions,
+plus automation that calls public functions on a schedule. Almost everything is the second kind.
+
+### What is gated, and what is not
+
+| Owner only         | What it does                            |
+| ------------------ | --------------------------------------- |
+| `fundPrizeReserve` | tops up the pot with plain tokens       |
+| `setAnnualRateBps` | sets the rate the prize is derived from |
+
+Everything else — `openDraw`, `settleDraw`, `sweepRange`, `startNextPeriod`, `proveSolvency`, `sponsorPrize`,
+`checkClaim` — is callable by anyone, deliberately. A pool whose draw only its operator can start is a pool its operator
+can stall.
+
+The consequence worth stating: **the operator cannot run the pool on its own terms, and cannot stop anyone else running
+it.** The one exception is the claim window, where the owner may roll a period early; that is a real trust assumption
+and is documented in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
+
+### Three ways to call anything
+
+1. **The Judge panel** — [`/judge`](https://hushpot-fhevm.vercel.app/judge) runs the whole cycle from a browser.
+   Owner-gated steps are labelled and enable only for the owner.
+2. **Etherscan** — the contract is verified, so the _Write Contract_ tab is a working admin UI with no code and no local
+   setup. This is how most protocols are actually operated.
+3. **The CLI** — `tasks/hushpot.ts` covers every operation. `npx hardhat hushpot:status --network sepolia` to see where
+   things stand.
+
+### Keeping it running
+
+Nobody clicks weekly. `openDraw → settleDraw → sweepRange → startNextPeriod` is a cron job, and `tasks/hushpot.ts`
+already is that bot — it needs a scheduler (Gelato, Chainlink Automation, OpenZeppelin Defender, or a VPS) and a hot
+wallet with gas. That wallet holds no power over deposits: the worst it can do is stop showing up, and then anyone else
+runs the draw instead.
+
+### Deliberately not upgradeable
+
+There is no proxy. The period is a `constant`, the tree geometry is a `constant`, and the draw logic cannot be swapped.
+Changing any of it means deploying a new pool and letting people move to it voluntarily.
+
+That is the same choice PoolTogether makes — its Prize Pool is immutable with no admin controls at all — and here it is
+load-bearing rather than merely tidy. "There is no winner field" is a much weaker claim if someone can upgrade one in
+tomorrow. The cost is real: parameters nobody thought to expose cannot be changed later, and the seven-day period is one
+of them.
+
+**For a production deployment**, two things should change before real money is involved, and neither is built here:
+ownership should move to a multisig behind a timelock (`Ownable.transferOwnership` makes that one transaction, no
+redeploy), and the weekly cycle should be a funded keeper rather than a person.
+
+---
+
 ## Running it yourself
 
 **Requirements:** Node 20+, a wallet with Sepolia ETH.

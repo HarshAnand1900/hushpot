@@ -2,12 +2,13 @@
 
 Four documents, each with one job. Start wherever your question sits.
 
-| If you want to know…                                      | Read                                 |
-| --------------------------------------------------------- | ------------------------------------ |
-| What this is, how the draw works, how to run it           | [`../README.md`](../README.md)       |
-| What is encrypted, what leaks, and what you have to trust | [`THREAT-MODEL.md`](THREAT-MODEL.md) |
-| Why the product is shaped this way, and who it is for     | [`BRIEF.md`](BRIEF.md)               |
-| What is deliberately not built yet, and why               | [`ROADMAP.md`](ROADMAP.md)           |
+| If you want to know…                                      | Read                                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| What this is, how the draw works, how to run it           | [`../README.md`](../README.md)                                               |
+| What is encrypted, what leaks, and what you have to trust | [`THREAT-MODEL.md`](THREAT-MODEL.md)                                         |
+| Why the product is shaped this way, and who it is for     | [`BRIEF.md`](BRIEF.md)                                                       |
+| What is deliberately not built yet, and why               | [`ROADMAP.md`](ROADMAP.md)                                                   |
+| How the protocol is run, and by whom                      | [`../README.md#operating-the-protocol`](../README.md#operating-the-protocol) |
 
 ## The short version
 
@@ -45,3 +46,5 @@ Stated plainly rather than buried, and covered in full in [`THREAT-MODEL.md`](TH
 - **`depositUnderlying` publishes the deposit's size.** It is the convenience route; the confidential route is the
   default and leaves nothing in the clear.
 - **Yield is funded from a reserve**, not a live strategy. On mainnet the same reserve would be fed by real yield.
+- **Ownership is a single key**, not a multisig, and the contract is not upgradeable — see
+  [Operating the protocol](../README.md#operating-the-protocol).

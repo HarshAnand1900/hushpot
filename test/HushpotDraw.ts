@@ -305,12 +305,7 @@ describe("HushpotPool — draws and claims", function () {
 
       // No refreshMyBalance call here — the handle must already be readable by alice.
       const slot = await pool.slotOf(alice.address);
-      const after = await fhevm.userDecryptEuint(
-        FhevmType.euint64,
-        await pool.balanceHandle(slot),
-        poolAddress,
-        alice,
-      );
+      const after = await fhevm.userDecryptEuint(FhevmType.euint64, await pool.balanceHandle(slot), poolAddress, alice);
 
       const prize = (await pool.draws(0)).prize;
       expect([before, before + prize]).to.include(after);
