@@ -428,3 +428,14 @@
     min-width: 56px;
   }
 }
+
+/* Confirmation that the faucet did something. The confidential balance it produces is a
+   ciphertext, so there is no number to display — saying so beats an unchanged screen. */
+.minted {
+  border: 1px solid rgba(255, 210, 8, 0.4);
+  background: rgba(255, 210, 8, 0.07);
+  padding: 13px 15px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--white);
+}

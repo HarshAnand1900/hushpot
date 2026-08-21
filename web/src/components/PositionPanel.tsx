@@ -38,8 +38,8 @@ export function PositionPanel({
 }) {
   const publicClient = usePublicClient();
 
-  const odds =
-    weight !== undefined && poolTotal && poolTotal > 0n ? (Number(weight) / Number(poolTotal)) * 100 : undefined;
+  const hasDenominator = poolTotal !== undefined && poolTotal > 0n;
+  const odds = weight !== undefined && hasDenominator ? (Number(weight) / Number(poolTotal)) * 100 : undefined;
 
   const history = usePositionHistory(drawNumber, isUnlocked ? odds : undefined);
 
@@ -179,9 +179,21 @@ export function PositionPanel({
           <div className={styles.label}>
             <span className="liveDot" /> ODDS · DRAW #{drawNumber}
           </div>
-          <div className={`num ${styles.value} ${isUnlocked ? "" : styles.valueMasked}`}>
+          {/* Odds divide your weight by a denominator that is only published at a draw.
+              On a pool where none has settled there is no such figure, so the number is
+              not merely hidden — it does not exist yet. Saying that beats a mask that
+              looks identical to "you have not revealed", which is what it looked like. */}
+          <div className={`num ${styles.value} ${isUnlocked && odds !== undefined ? "" : styles.valueMasked}`}>
             {odds !== undefined && isUnlocked ? `${odds.toFixed(2)}%` : masked}
           </div>
+
+          {!hasDenominator && (
+            <div className={styles.oddsPending}>
+              No draw has settled yet, so there is no published pool total to divide into. Your odds appear once the
+              first draw closes — the denominator is deliberately frozen at a draw rather than read live, because a live
+              one would let anyone recover every deposit by subtraction.
+            </div>
+          )}
 
           <div className={styles.spark}>
             {(curve.length ? curve : Array.from({ length: 6 }, () => null)).map((p, i) => (
@@ -202,9 +214,11 @@ export function PositionPanel({
           </div>
 
           <div className={styles.oddsNote}>
-            {isUnlocked
-              ? "climbing every minute you stay in — computed here, never transmitted"
-              : "computed here, never transmitted"}
+            {!hasDenominator
+              ? "waiting on the first draw"
+              : isUnlocked
+                ? "climbing every minute you stay in — computed here, never transmitted"
+                : "computed here, never transmitted"}
           </div>
         </div>
       </div>

@@ -305,3 +305,12 @@
     margin-top: 22px;
   }
 }
+
+/* Shown when no draw has settled, so there is no denominator to divide into. */
+.oddsPending {
+  margin-top: 14px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-3);
+  max-width: 52ch;
+}

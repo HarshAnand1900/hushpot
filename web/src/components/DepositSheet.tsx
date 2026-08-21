@@ -70,6 +70,10 @@ export function DepositSheet({
   });
 
   const [minting, setMinting] = useState(false);
+  // Set once a faucet run succeeds. Without it the sheet looked identical afterwards —
+  // `shielded` goes back to undefined, so the same "no cUSDT yet" button re-rendered and
+  // the whole thing read as a no-op even though 10,000 tokens had just landed.
+  const [minted, setMinted] = useState(false);
 
   /**
    * Your cUSDT balance, once you ask for it.
@@ -179,6 +183,7 @@ export function DepositSheet({
         setShielded(undefined);
       }
 
+      setMinted(true);
       await refetchWallet();
     } finally {
       setMinting(false);
@@ -436,7 +441,14 @@ export function DepositSheet({
 
           {error && <div className={styles.error}>{error}</div>}
 
-          {mode === "deposit" && (route === "confidential" ? !shielded : available === 0n) && (
+          {minted && (
+            <div className={styles.minted}>
+              10,000 {route === "confidential" ? "cUSDT shielded into your wallet" : "tUSDT minted to your wallet"}.
+              {route === "confidential" && " It is a ciphertext, so there is nothing to show until you open it."}
+            </div>
+          )}
+
+          {mode === "deposit" && !minted && (route === "confidential" ? !shielded : available === 0n) && (
             <button
               className={styles.faucet}
               onClick={() => faucet(route === "confidential")}
