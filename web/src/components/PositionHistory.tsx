@@ -167,8 +167,12 @@ export function PositionHistory({
     }
   }, [address, drawCount, publicClient, slot]);
 
+  // Polled like the rest of the page, so a deposit or a sweep shows up here without a
+  // reload. Everything it reads is a public log, so this costs nothing but an RPC call.
   useEffect(() => {
     void load();
+    const id = setInterval(() => void load(), 20_000);
+    return () => clearInterval(id);
   }, [load]);
 
   if (!address) return null;

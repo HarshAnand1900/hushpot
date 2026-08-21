@@ -34,7 +34,7 @@ export function DrawTimeline({ drawId, isLatest }: { drawId: bigint; isLatest: b
     if (!publicClient) return;
     let live = true;
 
-    void (async () => {
+    const load = async () => {
       try {
         const [at, window, slots] = await Promise.all([
           publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "lastDrawSettledAt" }),
@@ -91,10 +91,16 @@ export function DrawTimeline({ drawId, isLatest }: { drawId: bigint; isLatest: b
       } catch {
         /* the receipt is still readable without this strip */
       }
-    })();
+    };
+
+    // Polled, because a sweep happening while this page is open should be visible without
+    // a reload — the claim counts are the part of the receipt that actually moves.
+    void load();
+    const id = setInterval(() => void load(), 20_000);
 
     return () => {
       live = false;
+      clearInterval(id);
     };
   }, [publicClient, address, drawId]);
 
