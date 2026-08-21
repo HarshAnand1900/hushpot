@@ -10,8 +10,8 @@ Built for the Zama Developer Program, Mainnet Season 4.
 
 - **Live app:** <https://hushpot-fhevm.vercel.app>
 - **Contract:**
-  [`0x2fb1feeaE2Af30E7a642FbAA6A5735c6276E1f59`](https://sepolia.etherscan.io/address/0x2fb1feeaE2Af30E7a642FbAA6A5735c6276E1f59)
-  (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0x2fb1feeaE2Af30E7a642FbAA6A5735c6276E1f59#code).
+  [`0xFc07aA77FCAEd9759a330d138eb6F942Ecb337b3`](https://sepolia.etherscan.io/address/0xFc07aA77FCAEd9759a330d138eb6F942Ecb337b3)
+  (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0xFc07aA77FCAEd9759a330d138eb6F942Ecb337b3#code).
   The address in [`web/src/lib/contract.ts`](web/src/lib/contract.ts) is always the live one
 - **Judge panel:** [`/judge`](https://hushpot-fhevm.vercel.app/judge) — run a whole draw cycle from the browser, no
   terminal
@@ -346,6 +346,8 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 - a withdrawal is clamped to the balance held, because a ciphertext cannot be branched on
 - no second draw can settle in the same period
 - a prize never touches principal
+- leaving with `exitPool` returns the principal in full and gives the slot back at the next roll
+- a recycled slot starts clean, with none of the previous holder's time credit
 - solvency counts prizes that are parked but not yet folded in, and never counts one twice
 - a sponsorship lands in full in the very next prize, and the accumulator is spent, not carried
 - weights freeze when a period ends, so deposits during a claim window cannot move a settled draw

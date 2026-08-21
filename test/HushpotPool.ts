@@ -249,6 +249,36 @@ describe("HushpotPool", function () {
 
   // The obvious objection to a pool with encrypted balances is that nobody can check the
   // money is still there. This proves it while revealing neither figure.
+  // A slot used to be permanent, so every sweep paid gas for every address that had ever
+  // deposited. Leaving now gives the slot back.
+  describe("exitPool", function () {
+    it("pays out everything and gives up the slot", async function () {
+      await fund(alice, 1000n);
+      await deposit(alice, 400n);
+      expect(await pool.hasSlot(alice.address)).to.eq(true);
+
+      await (await pool.connect(alice).exitPool()).wait();
+
+      expect(await pool.hasSlot(alice.address)).to.eq(false);
+      expect(await walletBalance(alice), "principal came back in full").to.eq(1000n);
+    });
+
+    it("does not free the slot until the period rolls", async function () {
+      await fund(alice, 1000n);
+      await deposit(alice, 400n);
+      await (await pool.connect(alice).exitPool()).wait();
+
+      // Reusing it the same period would hand the next depositor the time credit alice
+      // earned before leaving. Recycling across a roll is covered in HushpotDraw.
+      expect(await pool.freeSlotCount()).to.eq(0);
+      expect(await pool.slotsUsed(), "the slot is spoken for until then").to.eq(1);
+    });
+
+    it("refuses to exit a slot that was never claimed", async function () {
+      await expect(pool.connect(bob).exitPool()).to.be.revertedWithCustomError(pool, "NoSlotAssigned");
+    });
+  });
+
   describe("solvency", function () {
     it("proves the pool is fully backed, without revealing either amount", async function () {
       await fund(alice, 1000n);

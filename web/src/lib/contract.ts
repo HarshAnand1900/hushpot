@@ -11,13 +11,13 @@
 
 export const CHAIN_ID = 11155111;
 
-export const POOL_ADDRESS = "0x2fb1feeaE2Af30E7a642FbAA6A5735c6276E1f59" as const;
+export const POOL_ADDRESS = "0xFc07aA77FCAEd9759a330d138eb6F942Ecb337b3" as const;
 
 /**
  * Block the pool was deployed in. Log scans start here rather than at genesis — public
  * Sepolia endpoints reject unbounded ranges, and nothing about this pool exists before it.
  */
-export const DEPLOY_BLOCK = 11530333n;
+export const DEPLOY_BLOCK = 11536232n;
 
 /** cUSDTMock — "Confidential USDT (Mock)", 6 decimals, rate 1. */
 export const TOKEN_ADDRESS = "0x4E7B06D78965594eB5EF5414c357ca21E1554491" as const;

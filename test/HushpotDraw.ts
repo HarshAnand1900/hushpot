@@ -25,6 +25,7 @@ describe("HushpotPool — draws and claims", function () {
   let owner: HardhatEthersSigner;
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;
+  let carol: HardhatEthersSigner;
 
   let usdt: TestERC20;
   let cusdt: TestConfidentialWrapper;
@@ -37,6 +38,7 @@ describe("HushpotPool — draws and claims", function () {
     owner = signers[0];
     alice = signers[1];
     bob = signers[2];
+    carol = signers[3];
   });
 
   beforeEach(async function () {
@@ -372,6 +374,35 @@ describe("HushpotPool — draws and claims", function () {
       // Whatever each of them now holds, principal plus any prize, earns a full period.
       expect(await poolWeight(alice)).to.eq((await poolBalance(alice)) * PERIOD_MINUTES);
       expect(await poolWeight(bob)).to.eq((await poolBalance(bob)) * PERIOD_MINUTES);
+    });
+  });
+
+  // The half of slot recycling that needs a real period roll.
+  describe("retired slots come back", function () {
+    it("recycles a retired slot at the roll instead of growing the tree", async function () {
+      await depositPlain(alice, ALICE_DEPOSIT);
+      await depositPlain(bob, BOB_DEPOSIT);
+      const aliceSlot = await pool.slotOf(alice.address);
+      const usedBefore = await pool.slotsUsed();
+
+      await (await pool.connect(alice).exitPool()).wait();
+      expect(await pool.hasSlot(alice.address)).to.eq(false);
+      expect(await pool.freeSlotCount(), "held until the roll").to.eq(0);
+
+      // A draw has to settle before the period can roll.
+      await time.increase(PERIOD_SECONDS);
+      await runDraw();
+      await (await pool.sweepRange(0, await pool.slotsUsed())).wait();
+      await time.increase(31 * 24 * 60 * 60);
+      await (await pool.startNextPeriod()).wait();
+
+      expect(await pool.freeSlotCount(), "released by the roll").to.eq(1);
+
+      // The next newcomer takes the retired slot rather than appending one.
+      await depositPlain(carol, 50_000n);
+      expect(await pool.slotOf(carol.address)).to.eq(aliceSlot);
+      expect(await pool.slotsUsed(), "capacity did not grow").to.eq(usedBefore);
+      expect(await pool.freeSlotCount()).to.eq(0);
     });
   });
 

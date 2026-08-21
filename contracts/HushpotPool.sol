@@ -260,6 +260,40 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     // Reading your own position
     // -------------------------------------------------------------------------
 
+    /// @notice Take everything out and give up your slot.
+    ///
+    /// @dev The reason this exists as its own function rather than falling out of a large
+    /// withdrawal: the contract cannot tell that you emptied your balance. `withdraw`
+    /// clamps to what you hold, and asking "was that all of it?" is a comparison on
+    /// ciphertext — the one thing FHE will not let a contract branch on.
+    ///
+    /// So this does not *detect* an empty balance, it *creates* one. Requesting
+    /// `type(uint64).max` clamps to the whole balance, which leaves the leaf at exactly
+    /// zero without anything ever having been compared. Emptiness by construction.
+    ///
+    /// Why it matters: a slot was permanent, so every sweep paid gas for every address
+    /// that had *ever* deposited. A pool with a thousand lifetime depositors and fifty
+    /// active ones still cost a thousand transactions a draw, computing an encrypted zero
+    /// for people who left months ago. Ordinary churn, not an attack, and it degraded the
+    /// pool forever.
+    ///
+    /// The slot is not reused until the period rolls. See {_retireSlot} for why that
+    /// delay is load-bearing rather than lazy.
+    ///
+    /// This does not close the griefing case — an attacker will not volunteer to leave —
+    /// and that one stays priced rather than prevented. See `docs/THREAT-MODEL.md`.
+    function exitPool() external {
+        uint16 slot = slotOf(msg.sender);
+
+        euint64 all = _debitSlot(slot, FHE.asEuint64(type(uint64).max));
+        FHE.allowTransient(all, address(token));
+        token.confidentialTransfer(msg.sender, all);
+
+        _retireSlot(slot, msg.sender);
+
+        emit Withdrawn(msg.sender, slot);
+    }
+
     /// @notice Compute your principal and authorise yourself to decrypt it.
     /// @dev A transaction, not a view — FHE operations mutate coprocessor state. Read the
     /// handle with {balanceHandle} afterwards and decrypt off-chain via EIP-712.

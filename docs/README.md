@@ -41,8 +41,8 @@ Stated plainly rather than buried, and covered in full in [`THREAT-MODEL.md`](TH
 
 - The **owner can end the 30-day claim window early**, because rolling the period is what closes a claim and the grace
   check exempts the owner.
-- **Slots are claimed permanently and cannot be reclaimed.** The attack is priced rather than prevented — see
-  [§9](THREAT-MODEL.md#9-slot-exhaustion) for why detecting it is impossible under FHE.
+- **A griefer's slots cannot be reclaimed.** A depositor can give their own slot back with `exitPool`, but nobody can
+  take one from an attacker — that case is priced rather than prevented. See [§9](THREAT-MODEL.md#9-slot-exhaustion).
 - **`depositUnderlying` publishes the deposit's size.** It is the convenience route; the confidential route is the
   default and leaves nothing in the clear.
 - **Yield is funded from a reserve**, not a live strategy. On mainnet the same reserve would be fed by real yield.

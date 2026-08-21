@@ -139,8 +139,20 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         FHE.allowThis(_parkedTotal);
     }
 
+    /// @dev Slots given up this period, released for reuse when it rolls.
+    uint16[] internal _retiring;
+
+    /// @dev Released slots waiting to be handed to the next new depositor.
+    uint16[] internal _freeSlots;
+
+    /// @notice How many retired slots are waiting to be reused.
+    function freeSlotCount() external view returns (uint256) {
+        return _freeSlots.length;
+    }
+
     event PeriodAdvanced(uint32 indexed period, uint256 startedAt);
     event SlotAssigned(address indexed account, uint16 indexed slot);
+    event SlotRetired(address indexed account, uint16 indexed slot);
 
     error SlotOutOfRange();
     error NoSlotAssigned();
@@ -172,14 +184,47 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         uint16 plusOne = _slotOfPlusOne[account];
         if (plusOne != 0) return plusOne - 1;
 
-        if (slotsUsed >= LEAF_COUNT) revert PoolFull();
-        uint16 slot = slotsUsed;
-        slotsUsed = slot + 1;
+        uint16 slot;
+        uint256 free = _freeSlots.length;
+
+        if (free > 0) {
+            // Reuse before growing. A recycled slot was emptied by its previous holder and
+            // released at a period boundary, so its leaf is zero and its period-scoped
+            // corrections have already aged out — nothing to clear.
+            slot = _freeSlots[free - 1];
+            _freeSlots.pop();
+        } else {
+            if (slotsUsed >= LEAF_COUNT) revert PoolFull();
+            slot = slotsUsed;
+            slotsUsed = slot + 1;
+        }
 
         _slotOfPlusOne[account] = slot + 1;
         slotOwner[slot] = account;
         emit SlotAssigned(account, slot);
         return slot;
+    }
+
+    /**
+     * @dev Give up a slot, to be recycled when the period rolls.
+     *
+     * The release is deferred on purpose. Emptying a leaf writes `_earlyExit` for the
+     * *current* period — the departing holder genuinely earned credit up to the minute
+     * they left — so handing the slot to somebody else the same week would gift them that
+     * credit. Waiting for the roll costs nothing and makes it impossible: {_lateCreditOf}
+     * and {_earlyExitOf} both return zero once the stamp no longer matches
+     * `currentPeriod`, so a slot released at a boundary is clean by construction rather
+     * than by a reset anyone has to remember to write.
+     *
+     * The caller is responsible for having emptied the balance first. Nothing here checks
+     * it, because checking a ciphertext for zero is precisely what FHE does not allow —
+     * see {HushpotPool-exitPool}, which empties by construction instead.
+     */
+    function _retireSlot(uint16 slot, address account) internal {
+        delete _slotOfPlusOne[account];
+        delete slotOwner[slot];
+        _retiring.push(slot);
+        emit SlotRetired(account, slot);
     }
 
     // -------------------------------------------------------------------------
@@ -192,6 +237,15 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     function _advancePeriod() internal {
         currentPeriod += 1;
         periodStart = block.timestamp;
+
+        // Slots given up during the period that just ended become available now. Their
+        // period-scoped corrections belong to the old period and read as zero from here.
+        uint256 n = _retiring.length;
+        for (uint256 i = 0; i < n; i++) {
+            _freeSlots.push(_retiring[i]);
+        }
+        if (n > 0) delete _retiring;
+
         emit PeriodAdvanced(currentPeriod, periodStart);
     }
 

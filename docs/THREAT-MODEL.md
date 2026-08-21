@@ -5,7 +5,7 @@ What is encrypted, what is public, what leaks, and what you have to trust.
 This document is deliberately unflattering. A confidential system that only advertises its strengths is harder to
 evaluate than one that names its edges, and every claim below can be checked against the deployed contract.
 
-**Contract:** `HushpotPool` · Sepolia · `0x2fb1feeaE2Af30E7a642FbAA6A5735c6276E1f59`
+**Contract:** `HushpotPool` · Sepolia · `0xFc07aA77FCAEd9759a330d138eb6F942Ecb337b3`
 
 > The live address always matches [`web/src/lib/contract.ts`](../web/src/lib/contract.ts). Earlier deployments
 > referenced in git history are superseded.
@@ -203,7 +203,7 @@ Honest omissions, with what each would take:
 | Yield is an admin-funded reserve, not a live strategy | Route deposits into a yield source and feed the same reserve |
 | No timelock on owner functions                        | Governance or a delay on rate changes and draw triggers      |
 | Owner can close the claim window early                | Enforce a full sweep on-chain, or drop the exemption         |
-| Slots are claimed permanently and cannot be reclaimed | Priced, not prevented — see below                            |
+| Slots are never released by a griefer                 | Priced, not prevented — see below                            |
 | Unclaimed prizes are not swept back automatically     | A rollover pass once the claim window closes                 |
 | Pool capacity is fixed at 1,024 slots                 | A deeper tree, at higher per-deposit cost                    |
 | No formal audit                                       | The reason this document exists                              |
@@ -214,20 +214,25 @@ _Last updated 10 August 2026. If something here is wrong, that is a bug — plea
 
 ## 9. Slot exhaustion
 
-A slot is claimed on the first deposit from an address and is never released. The deposit that claims it cannot be
-checked for size: ERC-7984 clamps a transfer to the sender's balance rather than reverting, so asking to move more than
-you hold moves zero and still succeeds. `moved` comes back as a ciphertext, and branching on a ciphertext is precisely
-what FHE does not allow — so the contract cannot refuse a deposit that moved nothing.
+A slot is claimed on the first deposit from an address. Since `exitPool`, a depositor can give theirs back — it is
+released at the next period roll and handed to the next newcomer before the tree grows — so ordinary churn no longer
+costs the pool anything permanently. That closes the case that actually degrades a live pool: a thousand lifetime
+depositors with fifty active ones used to mean a thousand transactions per sweep, forever.
 
-**Rejecting zero would not fix it anyway.** A one-wei deposit costs the attacker the same gas, occupies a slot just as
+What it does not close is griefing, because an attacker will not volunteer to leave. The deposit that claims it cannot
+be checked for size: ERC-7984 clamps a transfer to the sender's balance rather than reverting, so asking to move more
+than you hold moves zero and still succeeds. `moved` comes back as a ciphertext, and branching on a ciphertext is
+precisely what FHE does not allow — so the contract cannot refuse a deposit that moved nothing.
+
+**Rejecting zero would not fix that either.** A one-wei deposit costs the attacker the same gas, occupies a slot just as
 permanently, and is a perfectly legitimate deposit. Any rule that turns away the zero case turns away a real user in the
 next breath. Detection is not the lever.
 
-What is left is capacity. `LEAF_COUNT` is 16,384. Filling it requires 16,384 separate addresses, each funded with gas
-and each sending its own ~500k-gas confidential deposit — on the order of eight billion gas, roughly half a million
-dollars at mainnet prices, and that buys nothing except a full pool. Legitimate depositors pay nothing for the headroom:
-`_treeRoot()` keeps the tree only as deep as the slots actually in use, so a thirteen-person pool walks four levels at
-16,384 exactly as it did at 1,024.
+So for the adversarial case what is left is capacity. `LEAF_COUNT` is 16,384. Filling it requires 16,384 separate
+addresses, each funded with gas and each sending its own ~500k-gas confidential deposit — on the order of eight billion
+gas, roughly half a million dollars at mainnet prices, and that buys nothing except a full pool. Legitimate depositors
+pay nothing for the headroom: `_treeRoot()` keeps the tree only as deep as the slots actually in use, so a
+thirteen-person pool walks four levels at 16,384 exactly as it did at 1,024.
 
 **This prices the attack rather than eliminating it, and the distinction matters.** A reclamation path would eliminate
 it, but every version we could design requires proving a slot is empty, and proving that means publicly decrypting a
