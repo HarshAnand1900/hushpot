@@ -48,19 +48,45 @@ export default function DrawsTab() {
         {draws.length === 0 ? (
           <section className="panel">
             <div className="panelHead">
-              <span>SETTLED DRAWS</span>
-              <span>0</span>
+              <span>DRAWS</span>
+              <span>0 SETTLED</span>
             </div>
-            <div className={styles.empty}>No draw has settled yet. The first one closes at the end of this period.</div>
+            {/* Even with no history there is a draw underway, and saying so is more useful
+                than an empty panel. */}
+            <div className={styles.live}>
+              <span className={styles.liveId}>
+                <span className="liveDot" /> #0
+              </span>
+              <span className={styles.liveState}>
+                {state.drawPending ? "IN FLIGHT" : state.periodEnded ? "READY TO OPEN" : "OPEN FOR DEPOSITS"}
+              </span>
+            </div>
+            <div className={styles.empty}>
+              No draw has settled yet. The first one closes at the end of this period, and its receipt appears here the
+              moment it does.
+            </div>
           </section>
         ) : (
           <section className={styles.body}>
             {/* sidebar --------------------------------------------------- */}
             <aside className={`panel ${styles.sidebar}`}>
               <div className="panelHead">
-                <span>SETTLED DRAWS</span>
-                <span>{draws.length}</span>
+                <span>DRAWS</span>
+                <span>{draws.length} SETTLED</span>
               </div>
+
+              {/* The draw currently underway has no record to show — `draws[id]` is not
+                  written until settlement — so it was invisible here, and the page read as
+                  history with no present tense. This is that missing row. */}
+              <div className={styles.live}>
+                <span className={styles.liveId}>
+                  <span className="liveDot" /> #{Number(state.drawCount)}
+                </span>
+                <span className={styles.liveState}>
+                  {state.drawPending ? "IN FLIGHT" : state.periodEnded ? "READY TO OPEN" : "OPEN FOR DEPOSITS"}
+                </span>
+              </div>
+
               {draws.map((d, i) => (
                 <button
                   key={String(d.id)}

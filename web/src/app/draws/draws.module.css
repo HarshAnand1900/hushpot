@@ -378,3 +378,32 @@
   letter-spacing: 0.2em;
   color: var(--text-3);
 }
+
+/* The draw that has not happened yet. Deliberately unlike the settled rows: no prize
+   figure, because there is nothing to report until it settles. */
+.live {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--rule);
+  background: rgba(255, 210, 8, 0.05);
+}
+
+.liveId {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  color: var(--yellow);
+}
+
+.liveState {
+  font-family: var(--font-mono), monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  color: var(--text-3);
+  white-space: nowrap;
+}
