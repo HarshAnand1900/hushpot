@@ -443,8 +443,18 @@ export function DepositSheet({
 
           {minted && (
             <div className={styles.minted}>
-              10,000 {route === "confidential" ? "cUSDT shielded into your wallet" : "tUSDT minted to your wallet"}.
-              {route === "confidential" && " It is a ciphertext, so there is nothing to show until you open it."}
+              {route === "confidential" ? (
+                <>
+                  <strong>Landed.</strong> 10,000 tUSDT was minted and then wrapped into cUSDT — two transactions, both
+                  confirmed. Your cUSDT balance is a ciphertext, so there is no figure to display until you open it with
+                  the Reveal button above.
+                </>
+              ) : (
+                <>
+                  <strong>Landed.</strong> 10,000 tUSDT is in your wallet — a plain token, so the balance above updated
+                  on its own.
+                </>
+              )}
             </div>
           )}
 
@@ -461,11 +471,11 @@ export function DepositSheet({
             >
               {minting
                 ? route === "confidential"
-                  ? "Minting and shielding…"
+                  ? "Minting, then shielding — two transactions…"
                   : "Minting…"
                 : route === "confidential"
-                  ? "Get 10,000 cUSDT, shielded"
-                  : "Get 10,000 test tUSDT"}
+                  ? "Get 10,000 cUSDT — mints tUSDT, then shields it"
+                  : "Get 10,000 tUSDT — plain, unshielded"}
             </button>
           )}
 

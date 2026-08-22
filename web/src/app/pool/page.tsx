@@ -54,7 +54,17 @@ export default function PoolTab() {
   // "This week's pot" is what gets paid at close, projected from the last published pool
   // total — never a live reading, which would leak deposits by subtraction. The share
   // accrued so far is shown separately rather than standing in for the whole thing.
+  // What the last draw actually paid — not a forecast of the next one.
+  //
+  // This used to be presented as the projected next pot, which was wrong in a way that
+  // only showed up once sponsorship landed: a one-off gift inflates the prize it joins and
+  // then does not repeat, so projecting it forward promised a pot that will not arrive.
+  // The next prize is `prizeFor(liveTotal) + whatever gets sponsored`, and the live total
+  // is encrypted precisely so nobody can read it — so there is nothing honest to project.
   const pot = lastDraw ? lastDraw.prize : 0n;
+
+  // Yield accruing toward the *next* draw, from the formula alone. Sponsorship is excluded
+  // because it is a gift that has already been paid out, not a rate.
   const accrued = (pot * BigInt(Math.floor(weekPct * 100))) / 10_000n;
   const potParts = splitUnits(pot);
 
@@ -91,14 +101,16 @@ export default function PoolTab() {
                 against PERIOD #0 in the status strip. */}
             <div className={styles.potKicker}>
               {drawNumber > 0
-                ? `NEXT POT · DRAW #${drawNumber} · PROJECTED FROM DRAW #${drawNumber - 1}`
+                ? `LAST PAID OUT · DRAW #${drawNumber - 1} · ALREADY IN SOMEBODY'S BALANCE`
                 : "THE POT · DRAW #0 · PUBLIC BY DESIGN"}
             </div>
             <div className={`num ${styles.potNumber}`}>
               {potParts.whole}
               <span className={styles.potFrac}>.{potParts.frac}</span>
             </div>
-            <div className={styles.potUnit}>cUSDT · YIELD LANDS EVERY BLOCK</div>
+            <div className={styles.potUnit}>
+              {drawNumber > 0 ? "cUSDT · WON, NOT AVAILABLE" : "cUSDT · YIELD LANDS EVERY BLOCK"}
+            </div>
 
             <div className={styles.tagline}>
               <div className="editorial">
@@ -163,7 +175,7 @@ export default function PoolTab() {
           <div className={styles.yieldCell}>
             <div className={styles.yieldTop}>
               <div className={styles.yieldLabel}>
-                <span className="liveDot" /> YIELD LANDING · THIS PERIOD
+                <span className="liveDot" /> BUILDING TOWARD DRAW #{drawNumber}
               </div>
               <div className={`num ${styles.yieldValue}`}>+{formatUnits(accrued, 2)}</div>
               {/* Derived from the same figures the contract uses, not invented: the pot for
