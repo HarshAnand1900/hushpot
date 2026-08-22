@@ -173,3 +173,31 @@
     display: none;
   }
 }
+
+/* Below this the logo, four tabs, the faucet and the wallet cannot share one line, and
+   the row pushed the whole page into horizontal scroll. Wrapping is cheaper than a
+   hamburger and keeps every destination visible. */
+@media (max-width: 700px) {
+  .inner {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    padding: 11px 16px;
+  }
+
+  .spacer {
+    display: none;
+  }
+
+  .tabs {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 8px 6px;
+    text-align: center;
+    font-size: 12.5px;
+  }
+}

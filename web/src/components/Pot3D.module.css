@@ -1,3 +1,20 @@
+/*
+ * The renderer is called as `setSize(w, h, false)` — the `false` tells three.js not to
+ * write inline styles, so the canvas element keeps only its *buffer* attributes. Those are
+ * multiplied by the device pixel ratio, so on a 1.5x display a 158px mount produced a
+ * 237px canvas that overflowed its box and sat on top of the type beside it.
+ *
+ * Constraining the element in CSS decouples layout size from buffer size, which is the
+ * whole point of passing `false`. Without this the pot silently grows by whatever DPR the
+ * viewer happens to have, which is why it looked fine on one screen and broken on another.
+ */
+.canvas > canvas,
+.exhibitCanvas > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .wrap {
   position: relative;
   display: flex;

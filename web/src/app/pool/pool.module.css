@@ -244,6 +244,15 @@
   flex: none;
 }
 
+/* Pot3D writes its `size` prop as an inline width/height, which fights the clamp above and
+   wins — so at narrower viewports a 158px pot sat inside a 133px box and spilled sideways.
+   The clamp is the one that knows how much room there is, so let it drive; three.js reads
+   the mount's client size on resize and follows. */
+.potWindow > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 /* The pot sits on something. Without this it floats. */
 .potShadow {
   position: relative;
