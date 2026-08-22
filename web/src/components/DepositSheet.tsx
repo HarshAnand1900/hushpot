@@ -448,7 +448,12 @@ export function DepositSheet({
             </div>
           )}
 
-          {mode === "deposit" && !minted && (route === "confidential" ? !shielded : available === 0n) && (
+          {/* Always available while depositing. This used to appear only when the wallet
+              was empty — `available === 0n`, or an unrevealed confidential balance — so
+              anyone holding a single token had no way to top up, and the header's Faucet
+              button led to a sheet with no faucet in it. On a testnet the faucet is the
+              way in; it should never hide. */}
+          {mode === "deposit" && (
             <button
               className={styles.faucet}
               onClick={() => faucet(route === "confidential")}
@@ -459,8 +464,8 @@ export function DepositSheet({
                   ? "Minting and shielding…"
                   : "Minting…"
                 : route === "confidential"
-                  ? "No cUSDT yet — get 10,000, shielded"
-                  : "Your wallet is empty — get 10,000 test tUSDT"}
+                  ? "Get 10,000 cUSDT, shielded"
+                  : "Get 10,000 test tUSDT"}
             </button>
           )}
 
