@@ -69,11 +69,11 @@ export function DepositSheet({
     query: { enabled: !!address && mode === "deposit" },
   });
 
-  const [minting, setMinting] = useState(false);
+  const [minting, setMinting] = useState<false | "plain" | "confidential">(false);
   // Set once a faucet run succeeds. Without it the sheet looked identical afterwards —
   // `shielded` goes back to undefined, so the same "no cUSDT yet" button re-rendered and
   // the whole thing read as a no-op even though 10,000 tokens had just landed.
-  const [minted, setMinted] = useState(false);
+  const [minted, setMinted] = useState<false | "plain" | "confidential">(false);
 
   /**
    * Your cUSDT balance, once you ask for it.
@@ -122,7 +122,7 @@ export function DepositSheet({
    */
   const faucet = async (shield: boolean) => {
     if (!address) return;
-    setMinting(true);
+    setMinting(shield ? "confidential" : "plain");
     try {
       const amount = 10_000n * SCALE;
 
@@ -183,7 +183,7 @@ export function DepositSheet({
         setShielded(undefined);
       }
 
-      setMinted(true);
+      setMinted(shield ? "confidential" : "plain");
       await refetchWallet();
     } finally {
       setMinting(false);
@@ -441,9 +441,23 @@ export function DepositSheet({
 
           {error && <div className={styles.error}>{error}</div>}
 
+          {/* Two named buttons rather than one that silently follows the route selector.
+              Which token you are about to receive should be the thing you click, not
+              something you infer from a radio button further up the sheet. */}
+          {mode === "deposit" && (
+            <div className={styles.faucetRow}>
+              <button className={styles.faucet} onClick={() => faucet(true)} disabled={minting !== false || busy}>
+                {minting === "confidential" ? "Minting, then shielding…" : "Mint 10,000 cUSDT"}
+              </button>
+              <button className={styles.faucet} onClick={() => faucet(false)} disabled={minting !== false || busy}>
+                {minting === "plain" ? "Minting…" : "Mint 10,000 tUSDT"}
+              </button>
+            </div>
+          )}
+
           {minted && (
             <div className={styles.minted}>
-              {route === "confidential" ? (
+              {minted === "confidential" ? (
                 <>
                   <strong>Landed.</strong> 10,000 tUSDT was minted and then wrapped into cUSDT — two transactions, both
                   confirmed. Your cUSDT balance is a ciphertext, so there is no figure to display until you open it with
@@ -456,27 +470,6 @@ export function DepositSheet({
                 </>
               )}
             </div>
-          )}
-
-          {/* Always available while depositing. This used to appear only when the wallet
-              was empty — `available === 0n`, or an unrevealed confidential balance — so
-              anyone holding a single token had no way to top up, and the header's Faucet
-              button led to a sheet with no faucet in it. On a testnet the faucet is the
-              way in; it should never hide. */}
-          {mode === "deposit" && (
-            <button
-              className={styles.faucet}
-              onClick={() => faucet(route === "confidential")}
-              disabled={minting || busy}
-            >
-              {minting
-                ? route === "confidential"
-                  ? "Minting, then shielding — two transactions…"
-                  : "Minting…"
-                : route === "confidential"
-                  ? "Get 10,000 cUSDT — mints tUSDT, then shields it"
-                  : "Get 10,000 tUSDT — plain, unshielded"}
-            </button>
           )}
 
           <button className={styles.submit} onClick={submit} disabled={!canSubmit}>

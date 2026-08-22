@@ -39,7 +39,18 @@ export function PositionPanel({
   const publicClient = usePublicClient();
 
   const hasDenominator = poolTotal !== undefined && poolTotal > 0n;
-  const odds = weight !== undefined && hasDenominator ? (Number(weight) / Number(poolTotal)) * 100 : undefined;
+
+  // Your weight is current; the denominator is the total published at the last draw. When
+  // the pool has grown since — you deposited, or a prize was folded into your balance —
+  // the ratio compares two different moments and can exceed 100%, which is nonsense on
+  // its face. It is capped and labelled as an estimate rather than printed as fact.
+  //
+  // There is no exact figure available: the live total is encrypted precisely so nobody
+  // can read it, and a per-slot weight snapshot at draw time would be storage nobody
+  // needs. An estimate honestly labelled beats a wrong number stated plainly.
+  const rawOdds = weight !== undefined && hasDenominator ? (Number(weight) / Number(poolTotal)) * 100 : undefined;
+  const odds = rawOdds === undefined ? undefined : Math.min(rawOdds, 100);
+  const oddsStale = rawOdds !== undefined && rawOdds > 100.5;
 
   const history = usePositionHistory(drawNumber, isUnlocked ? odds : undefined);
 
@@ -184,7 +195,7 @@ export function PositionPanel({
               not merely hidden — it does not exist yet. Saying that beats a mask that
               looks identical to "you have not revealed", which is what it looked like. */}
           <div className={`num ${styles.value} ${isUnlocked && odds !== undefined ? "" : styles.valueMasked}`}>
-            {odds !== undefined && isUnlocked ? `${odds.toFixed(2)}%` : masked}
+            {odds !== undefined && isUnlocked ? `${oddsStale ? "≈" : ""}${odds.toFixed(2)}%` : masked}
           </div>
 
           {!hasDenominator && (
@@ -216,9 +227,11 @@ export function PositionPanel({
           <div className={styles.oddsNote}>
             {!hasDenominator
               ? "waiting on the first draw"
-              : isUnlocked
-                ? "climbing every minute you stay in — computed here, never transmitted"
-                : "computed here, never transmitted"}
+              : oddsStale
+                ? `estimated against the total published at draw #${Math.max(0, drawNumber - 1)} — the pool has grown since, so your real share is lower`
+                : isUnlocked
+                  ? "climbing every minute you stay in — computed here, never transmitted"
+                  : "computed here, never transmitted"}
           </div>
         </div>
       </div>

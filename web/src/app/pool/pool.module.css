@@ -153,6 +153,10 @@
   gap: 0;
   padding: 22px 14px 20px;
   text-align: center;
+  min-width: 0;
+  /* Without this the column refuses to shrink below its content and the pot rides up
+     over the headline. */
+  min-height: 0;
 }
 
 /* A slow diagonal glint across the niche. The pot is the object on display and this is
@@ -190,7 +194,7 @@
 .nicheLine {
   position: relative;
   margin-top: 12px;
-  font-size: 21px;
+  font-size: clamp(16px, 1.5vw, 21px);
   line-height: 1.12;
   color: var(--white);
 }
@@ -222,25 +226,29 @@
 .nicheGlow {
   position: absolute;
   left: 50%;
-  top: 50%;
-  width: 230px;
-  height: 230px;
-  margin: -115px 0 0 -115px;
+  top: 42%;
+  width: 200px;
+  height: 200px;
+  margin: -100px 0 0 -100px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 210, 8, 0.16) 0%, transparent 68%);
   pointer-events: none;
 }
 
+/* Scales with the column rather than sitting at a fixed 172px, which is what pushed the
+   stack past the row height and put the pot behind the type. */
 .potWindow {
   position: relative;
-  width: 172px;
-  height: 172px;
+  width: clamp(104px, 13vw, 158px);
+  height: clamp(104px, 13vw, 158px);
+  flex: none;
 }
 
 /* The pot sits on something. Without this it floats. */
 .potShadow {
   position: relative;
-  width: 118px;
+  flex: none;
+  width: 92px;
   height: 9px;
   border-radius: 50%;
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.85) 0%, transparent 72%);

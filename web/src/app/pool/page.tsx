@@ -152,7 +152,7 @@ export default function PoolTab() {
             <div className={styles.nicheKicker}>ALL OF IT · TO ONE OF {state.depositors || "—"}</div>
 
             <div className={styles.potWindow}>
-              <Pot3D size={172} quiet />
+              <Pot3D size={158} quiet />
             </div>
             <span className={styles.potShadow} aria-hidden="true" />
 
