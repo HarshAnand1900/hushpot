@@ -451,7 +451,12 @@ export function Pot3D({
     const width = exhibit ? mount.clientWidth || size : size;
     const height = exhibit ? mount.clientHeight || size : size;
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+    // A dimmed exhibit is decoration behind the page, not the thing being looked at, and
+    // it covers the whole viewport — at 1.6x that is roughly five million pixels a frame,
+    // for ever. Rendering it at 1.0 costs nothing visible through the dim layer and cuts
+    // the fill work by about two and a half times.
+    const decorative = exhibit && dim !== false;
+    renderer.setPixelRatio(decorative ? 1 : Math.min(window.devicePixelRatio || 1, 1.6));
     renderer.setSize(width, height, false);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
@@ -1302,9 +1307,27 @@ export function Pot3D({
     let raf = 0;
     let t = 0;
 
+    // Frames the decorative background is allowed to skip, and the cheap checks that let
+    // it skip whole stretches. The page felt worst while a transaction was in flight —
+    // exactly when a full-screen 3D render is competing with FHE work on the main thread.
+    let frame = 0;
+    let modalOpen = false;
+
     const tick = () => {
       raf = requestAnimationFrame(tick);
       t += 1 / 60;
+
+      if (decorative) {
+        frame++;
+
+        // Nothing is visible in a hidden tab, and nothing behind a modal is worth 60fps.
+        // The DOM query is once a second rather than once a frame.
+        if (frame % 60 === 0) modalOpen = document.querySelector('[role="dialog"]') !== null;
+        if (document.hidden || modalOpen) return;
+
+        // Half rate. It is a slow idle turn behind a dim veil; nobody can tell.
+        if (frame % 2 === 0) return;
+      }
 
       // Idle turn, but hold still while someone is looking at it.
       if (!dragging && !hovered) target.az += 0.0013;

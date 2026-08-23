@@ -13,6 +13,20 @@ import { waitForTransactionReceipt } from "wagmi/actions";
  */
 const MAX_ALLOWANCE = (1n << 256n) - 1n;
 
+/**
+ * Let the browser paint before something blocking runs.
+ *
+ * FHE encryption is WebAssembly on the main thread: for the second or two it runs, nothing
+ * repaints and the tab reports as unresponsive. React had already been told to show the
+ * "encrypting" step, but the commit had not been painted yet, so the freeze arrived with
+ * the *previous* frame still on screen and looked like the click had done nothing.
+ *
+ * Two frames is the reliable point: one for React to commit, one for the browser to paint
+ * it. It costs about 32ms and buys a UI that visibly acknowledges the click before it
+ * stalls.
+ */
+const paint = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
 import {
   POOL_ADDRESS,
   TOKEN_ADDRESS,
@@ -161,6 +175,7 @@ export function useDeposit() {
         // Kicked off before the branch so the two paths share it, and so a returning
         // depositor — who needs no grant at all — starts encrypting immediately.
         const encrypt = async () => {
+          await paint();
           const { getFhevm, toHex } = await import("@/lib/fhe");
           const fhevm = await getFhevm();
           const enc = await fhevm.createEncryptedInput(POOL_ADDRESS, address).add64(amount).encrypt();
@@ -225,6 +240,7 @@ export function useDeposit() {
       try {
         setStep("withdrawing");
 
+        await paint();
         const { getFhevm, toHex } = await import("@/lib/fhe");
         const fhevm = await getFhevm();
 

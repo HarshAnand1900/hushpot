@@ -210,6 +210,14 @@ export function DepositSheet({
   const tooMuch = balanceKnown && amount > available;
   const canSubmit = amount > 0n && !tooMuch && !busy;
 
+  // Warm the FHE WebAssembly the moment the sheet opens, not when the button is pressed.
+  // Loading it, initialising the SDK and building the instance all happen on the main
+  // thread; paying for that at click time is most of what made a deposit feel like a
+  // freeze. By the time anyone has typed an amount it is ready.
+  useEffect(() => {
+    void import("@/lib/fhe").then((m) => m.preloadFhevm());
+  }, []);
+
   useEffect(() => {
     if (step === "done") {
       const id = setTimeout(() => {
