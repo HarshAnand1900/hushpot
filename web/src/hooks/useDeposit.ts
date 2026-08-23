@@ -4,6 +4,8 @@ import { useCallback, useState } from "react";
 import { useAccount, useConfig, usePublicClient, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
+import { describeError, toast } from "@/lib/toast";
+
 /**
  * Approve once, deposit many times.
  *
@@ -137,11 +139,18 @@ export function useDeposit() {
         await waitForTransactionReceipt(config, { hash: depositTx });
 
         setStep("done");
+        toast({
+          kind: "success",
+          title: "Deposit confirmed",
+          detail: "Your position is earning odds from this minute — the amount was public on this route.",
+          hash: depositTx,
+        });
         return true;
       } catch (e) {
         const message = e instanceof Error ? e.message : "The deposit failed.";
         setError(/user rejected|denied/i.test(message) ? "Transaction declined." : message.slice(0, 160));
         setStep("error");
+        toast({ kind: "error", title: "Deposit failed", detail: describeError(e) });
         return false;
       }
     },
@@ -213,11 +222,18 @@ export function useDeposit() {
         await waitForTransactionReceipt(config, { hash: tx });
 
         setStep("done");
+        toast({
+          kind: "success",
+          title: "Deposit confirmed",
+          detail: "Nothing but a ciphertext left this browser — the size was never written down.",
+          hash: tx,
+        });
         return true;
       } catch (e) {
         const message = e instanceof Error ? e.message : "The deposit failed.";
         setError(/user rejected|denied/i.test(message) ? "Transaction declined." : message.slice(0, 160));
         setStep("error");
+        toast({ kind: "error", title: "Deposit failed", detail: describeError(e) });
         return false;
       }
     },
@@ -255,9 +271,16 @@ export function useDeposit() {
         await waitForTransactionReceipt(config, { hash: tx });
 
         setStep("done");
+        toast({
+          kind: "success",
+          title: "Withdrawal confirmed",
+          detail: "Principal is back in your wallet, still encrypted.",
+          hash: tx,
+        });
         return true;
       } catch (e) {
         const message = e instanceof Error ? e.message : "The withdrawal failed.";
+        toast({ kind: "error", title: "Withdrawal failed", detail: describeError(e) });
         setError(/user rejected|denied/i.test(message) ? "Transaction declined." : message.slice(0, 160));
         setStep("error");
         return false;

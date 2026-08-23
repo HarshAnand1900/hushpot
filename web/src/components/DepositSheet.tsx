@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { useAccount, useConfig, usePublicClient, useReadContract, useSignTypedData, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
+import { describeError, toast } from "@/lib/toast";
+
 /** Approve once. See the note in `useDeposit` — the allowance is public either way. */
 const MAX_ALLOWANCE = (1n << 256n) - 1n;
 
@@ -92,7 +94,7 @@ export function DepositSheet({
     setRevealError(undefined);
     try {
       const { currentSession, openSession, decryptHandle } = await import("@/lib/fhe");
-      if (!currentSession()) await openSession(address, signTypedDataAsync as never);
+      if (!currentSession(address)) await openSession(address, signTypedDataAsync as never);
 
       const handle = (await publicClient?.readContract({
         address: TOKEN_ADDRESS,
@@ -184,7 +186,14 @@ export function DepositSheet({
       }
 
       setMinted(shield ? "confidential" : "plain");
+      toast({
+        kind: "success",
+        title: shield ? "10,000 cUSDT minted and shielded" : "10,000 tUSDT minted",
+        detail: shield ? "Your balance is a ciphertext — press Reveal to read it." : undefined,
+      });
       await refetchWallet();
+    } catch (e) {
+      toast({ kind: "error", title: "Faucet failed", detail: describeError(e) });
     } finally {
       setMinting(false);
     }

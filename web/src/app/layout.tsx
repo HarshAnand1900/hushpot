@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { NetworkGuard } from "@/components/NetworkGuard";
 
+import { Toast } from "@/components/Toast";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -56,6 +57,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <div className="scan" />
         </div>
         <div className="scanlines" aria-hidden="true" />
+
+        {/* Above everything, on every page: wallet flows are long enough that people look
+            away, and the app used to return to its resting state without ever saying
+            whether the thing they started had worked. */}
+        <Toast />
 
         <div className="content">
           <Providers>

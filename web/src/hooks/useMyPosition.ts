@@ -40,7 +40,7 @@ export function useMyPosition() {
   // not going to ask for. Read in an effect: `sessionStorage` is invisible to the server,
   // and reading it during the first render would break hydration.
   const [needsSignature, setNeedsSignature] = useState(true);
-  useEffect(() => setNeedsSignature(!currentSession()), []);
+  useEffect(() => setNeedsSignature(!currentSession(address)), [address]);
   const [position, setPosition] = useState<MyPosition>({});
   const [error, setError] = useState<string>();
 
@@ -70,7 +70,7 @@ export function useMyPosition() {
       }
 
       // 1. One signature, cached for the visit.
-      if (!currentSession()) {
+      if (!currentSession(address)) {
         setStage("signing");
         await openSession(address, signTypedDataAsync as never);
       }

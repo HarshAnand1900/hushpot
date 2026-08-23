@@ -98,8 +98,12 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
         ...(plain as unknown as Raw[]).map((l) =>
           row(
             l,
-            "DEPOSIT",
-            `${shortenAddress(l.args.account as string)} DEPOSITED ${formatUnits(l.args.amount as bigint)} cUSDT`,
+            // The figure is here because this route genuinely published it — a plain
+            // ERC-20 transfer of tUSDT, wrapped on arrival. Printing it beside the
+            // shielded rows without saying so made it look like a leak rather than the
+            // documented trade-off it is.
+            "DEPOSIT · PUBLIC",
+            `${shortenAddress(l.args.account as string)} DEPOSITED ${formatUnits(l.args.amount as bigint)} tUSDT · PLAIN ROUTE, SIZE PUBLIC BY DESIGN`,
           ),
         ),
         ...shieldedOnly.map((l) =>

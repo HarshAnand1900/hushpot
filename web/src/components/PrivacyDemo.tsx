@@ -35,7 +35,7 @@ export function PrivacyDemo() {
     setNote(undefined);
 
     try {
-      if (!currentSession()) {
+      if (!currentSession(address)) {
         await openSession(address, signTypedDataAsync as never);
       }
 

@@ -161,11 +161,26 @@ function sweepStaleSessions() {
   }
 }
 
-export function currentSession(): DecryptSession | null {
+/**
+ * The stored session, optionally checked against who is connected now.
+ *
+ * The `user` argument is not decoration. An EIP-712 decrypt grant authorises one address,
+ * and callers that only asked "is there a session?" would happily reuse the previous
+ * account's grant after a wallet switch — the relayer then refuses with "not authorized to
+ * user decrypt handle", naming an address the user is no longer using. Persisting sessions
+ * across tabs made that a routine occurrence rather than a rare one.
+ */
+export function currentSession(user?: string): DecryptSession | null {
   if (!session && typeof window !== "undefined") {
     sweepStaleSessions();
     session = restore();
   }
+
+  // A grant belongs to one address. Handing the previous account's session to a newly
+  // connected wallet is how you get "not authorized to user decrypt handle" naming an
+  // address the person is not even using any more.
+  if (user && session && session.user.toLowerCase() !== user.toLowerCase()) return null;
+
   return session;
 }
 
@@ -189,8 +204,8 @@ export async function openSession(
     message: Record<string, unknown>;
   }) => Promise<`0x${string}`>,
 ): Promise<DecryptSession> {
-  const existing = currentSession();
-  if (existing && existing.user.toLowerCase() === user.toLowerCase()) return existing;
+  const existing = currentSession(user);
+  if (existing) return existing;
 
   const fhevm = await getFhevm();
   const { publicKey, privateKey } = fhevm.generateKeypair();

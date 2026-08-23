@@ -6,6 +6,7 @@ import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { decryptHandle } from "@/lib/fhe";
+import { describeError, toast } from "@/lib/toast";
 import { formatCountdown, formatUnits } from "@/lib/format";
 import styles from "./DidIWin.module.css";
 
@@ -158,11 +159,27 @@ export function DidIWin({
 
       setDelta(gained);
       setPhase(gained > 0n ? "won" : "lost");
+      toast(
+        gained > 0n
+          ? {
+              kind: "success",
+              title: `You won ${formatUnits(gained)} cUSDT`,
+              detail: "It is already in your pool balance, legible to nobody else.",
+              hash: tx,
+            }
+          : {
+              kind: "success",
+              title: "Not this draw",
+              detail: "Your balance is unchanged — nothing was ever at risk.",
+              hash: tx,
+            },
+      );
       onClaimed();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not check the draw.";
       setError(/user rejected|denied/i.test(message) ? "Transaction declined." : message.slice(0, 160));
       setPhase("error");
+      toast({ kind: "error", title: "Could not check the draw", detail: describeError(e) });
     }
   }, [address, balanceBefore, config, draw, onClaimed, publicClient, writeContractAsync]);
 
