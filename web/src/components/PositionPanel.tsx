@@ -52,8 +52,17 @@ export function PositionPanel({
   // can read it, and a per-slot weight snapshot at draw time would be storage nobody
   // needs. An estimate honestly labelled beats a wrong number stated plainly.
   const rawOdds = weight !== undefined && hasDenominator ? (Number(weight) / Number(poolTotal)) * 100 : undefined;
-  const odds = rawOdds === undefined ? undefined : Math.min(rawOdds, 100);
+
+  // Past 100% the denominator is provably out of date — your weight has outgrown the total
+  // that was published at the last draw, because you deposited or won since. Capping it at
+  // 100 was worse than useless: it reads as "you will certainly win", which is false and
+  // was being shown while a second depositor sat in the pool.
+  //
+  // There is no better figure to substitute. The live total is encrypted precisely so
+  // nobody can read it, and the other depositors' weights are theirs. So the number is
+  // withheld until the next draw republishes a total, and the panel says why.
   const oddsStale = rawOdds !== undefined && rawOdds > 100.5;
+  const odds = rawOdds === undefined || oddsStale ? undefined : rawOdds;
 
   const history = usePositionHistory(drawNumber, isUnlocked ? odds : undefined);
 
@@ -90,7 +99,10 @@ export function PositionPanel({
 
     const mine = Number(weight) + extra;
     const all = Number(poolTotal) + extra;
-    return all > 0 ? Math.min((mine / all) * 100, 100) : undefined;
+    const p = all > 0 ? (mine / all) * 100 : undefined;
+
+    // Same staleness, same answer: no projection is better than a confident wrong one.
+    return p !== undefined && p <= 100.5 ? p : undefined;
   }, [add, odds, weight, poolTotal, minuteOfPeriod]);
 
   const delta = projected !== undefined && odds !== undefined ? projected - odds : 0;
@@ -208,7 +220,7 @@ export function PositionPanel({
               not merely hidden — it does not exist yet. Saying that beats a mask that
               looks identical to "you have not revealed", which is what it looked like. */}
           <div className={`num ${styles.value} ${isUnlocked && odds !== undefined ? "" : styles.valueMasked}`}>
-            {odds !== undefined && isUnlocked ? `${oddsStale ? "≈" : ""}${odds.toFixed(2)}%` : masked}
+            {odds !== undefined && isUnlocked ? `${odds.toFixed(2)}%` : oddsStale && isUnlocked ? "—" : masked}
           </div>
 
           {!hasDenominator && (
@@ -241,7 +253,7 @@ export function PositionPanel({
             {!hasDenominator
               ? "waiting on the first draw"
               : oddsStale
-                ? `estimated against the total published at draw #${Math.max(0, drawNumber - 1)} — the pool has grown since, so your real share is lower`
+                ? `out of date — the pool has grown past the total published at draw #${Math.max(0, drawNumber - 1)}, and the live one is encrypted. Your real share is recalculable only when the next draw publishes a new total.`
                 : isUnlocked
                   ? "climbing every minute you stay in — computed here, never transmitted"
                   : "computed here, never transmitted"}
@@ -281,10 +293,12 @@ export function PositionPanel({
               <span className={styles.label}>ODDS AFTER</span>
               <span className={`num ${styles.projValue}`}>
                 {projected !== undefined ? `${projected.toFixed(2)}%` : "—"}
-                <span className={styles.projDelta}>
-                  {delta >= 0 ? "+" : ""}
-                  {delta.toFixed(2)} pts
-                </span>
+                {projected !== undefined && (
+                  <span className={styles.projDelta}>
+                    {delta >= 0 ? "+" : ""}
+                    {delta.toFixed(2)} pts
+                  </span>
+                )}
               </span>
             </div>
             <div className={styles.projTrack}>

@@ -342,7 +342,7 @@ export default function PoolTab() {
           </div>
           <ContractLog limit={12} />
         </section>
-        <PositionHistory drawCount={state.drawCount} unlocked={isUnlocked} slot={position.slot} />
+        <PositionHistory drawCount={state.drawCount} slot={position.slot} />
       </main>
 
       {sheet && (

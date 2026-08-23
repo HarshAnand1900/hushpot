@@ -128,3 +128,76 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* A row you can open. Only confidential moves have a ciphertext to reveal, so only those
+   get the affordance. */
+.rowOpenable {
+  cursor: pointer;
+}
+.rowOpenable:hover {
+  background: rgba(255, 210, 8, 0.04);
+}
+
+.chev {
+  color: var(--yellow);
+}
+
+.detail {
+  padding: 18px 22px 20px;
+  border-bottom: 1px solid var(--rule-soft);
+  background: rgba(255, 210, 8, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 8px 18px;
+  align-items: baseline;
+  width: 100%;
+}
+
+.dk {
+  font-family: var(--font-mono), monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.22em;
+  color: var(--text-4);
+}
+
+.dv {
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  color: var(--text-1);
+  overflow-wrap: anywhere;
+}
+a.dv:hover {
+  color: var(--yellow);
+}
+
+.revealed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.revealedValue {
+  font-size: 28px;
+  color: var(--yellow);
+}
+
+.detailNote {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-3);
+  max-width: 74ch;
+}
+
+@media (max-width: 700px) {
+  .detailGrid {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+}
