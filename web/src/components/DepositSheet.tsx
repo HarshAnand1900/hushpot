@@ -51,7 +51,8 @@ export function DepositSheet({
    * transfer and is public forever. cUSDT costs an operator grant the first time and
    * leaves nothing in the clear.
    */
-  const [route, setRoute] = useState<"plain" | "confidential">("confidential");
+  // Every deposit is confidential. See the note where the selector used to be.
+  const route = "confidential" as const;
 
   // The two directions live in one sheet, so changing your mind costs a tab rather than
   // closing, finding the other button, and reopening.
@@ -202,7 +203,7 @@ export function DepositSheet({
   // A confidential balance is a ciphertext, so there is no figure to show and no Max to
   // offer. Comparing the requested amount against the *plain* balance would be worse than
   // useless here — it is a different token.
-  const balanceKnown = mode === "withdraw" || route === "plain" || shielded !== undefined;
+  const balanceKnown = mode === "withdraw" || shielded !== undefined;
   const available =
     mode === "deposit"
       ? route === "confidential"
@@ -398,46 +399,33 @@ export function DepositSheet({
             </div>
           )}
 
-          {/* which token, which is a privacy choice ----------------------- */}
-          {mode === "deposit" && (
-            <div className={styles.routes} role="radiogroup" aria-label="Deposit route">
-              {(
-                [
-                  // The privacy consequence stated on the control itself, not buried in a
-                  // doc. Honesty reads as intentional when it is where the choice is made.
-                  { key: "confidential", title: "cUSDT", sub: "Amount hidden · recommended" },
-                  { key: "plain", title: "Plain tUSDT", sub: "Amount public · quick demo" },
-                ] as const
-              ).map((r) => (
-                <button
-                  key={r.key}
-                  role="radio"
-                  aria-checked={route === r.key}
-                  className={route === r.key ? `${styles.route} ${styles.routeOn}` : styles.route}
-                  onClick={() => !busy && setRoute(r.key)}
-                  disabled={busy}
-                >
-                  <span className={styles.routeTitle}>{r.title}</span>
-                  <span className={styles.routeSub}>{r.sub}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          {/* No route selector any more.
+          
+              The bounty asks for deposits to remain encrypted, and `depositUnderlying`
+              cannot honour that: moving plain tUSDT is a standard ERC-20 transfer, so the
+              amount is in the calldata and in the token's own Transfer event before the
+              pool ever wraps it. Encrypting everything downstream cannot unpublish it.
+              
+              So every deposit here is confidential. Acquiring cUSDT is a separate,
+              openly public step — that is what the mint button below does — and keeping
+              the two apart is also what breaks the timing link between them. The
+              contract keeps `depositUnderlying` for the Judge page, where showing the
+              trade-off is the point. */}
 
           {/* what this actually does -------------------------------------- */}
           <div className={styles.note}>
             <span className={styles.noteMark} aria-hidden="true" />
             {mode === "deposit" && route === "confidential" ? (
               <span>
-                Nothing but a ciphertext leaves this browser. The chain will record that you deposited, and when — but
-                not how much, not now and not ever. Asking for more cUSDT than you hold moves nothing rather than
-                failing, so check the figure: a confidential transfer cannot revert on a balance it is not allowed to
-                read.
-                <br />
-                <br />
-                Getting cUSDT in the first place is public — minting and shielding are plain transfers. Shield 10,000
-                and deposit 10,000 a minute later and the two are trivially linked by timing. Shield once, deposit a
-                different amount later, and that link is gone.
+                Nothing but a ciphertext leaves this browser — the chain records that you deposited and when, never how
+                much.
+                <details className={styles.more}>
+                  <summary>What still leaks</summary>
+                  Asking for more than you hold moves nothing rather than failing, so check the figure: a confidential
+                  transfer cannot revert on a balance it is not allowed to read. And getting cUSDT is public — shield
+                  10,000 then deposit 10,000 a minute later and the two are linked by timing. Shield once, deposit a
+                  different amount later, and that link is gone.
+                </details>
               </span>
             ) : mode === "deposit" ? (
               <span>
@@ -480,12 +468,9 @@ export function DepositSheet({
               Which token you are about to receive should be the thing you click, not
               something you infer from a radio button further up the sheet. */}
           {mode === "deposit" && (
-            <div className={styles.faucetRow}>
+            <div className={styles.faucetRow} data-single="yes">
               <button className={styles.faucet} onClick={() => faucet(true)} disabled={minting !== false || busy}>
                 {minting === "confidential" ? "Minting, then shielding…" : "Mint 10,000 cUSDT"}
-              </button>
-              <button className={styles.faucet} onClick={() => faucet(false)} disabled={minting !== false || busy}>
-                {minting === "plain" ? "Minting…" : "Mint 10,000 tUSDT"}
               </button>
             </div>
           )}

@@ -13,7 +13,7 @@
 
 .sheet {
   width: min(470px, 100%);
-  max-height: 92vh;
+  max-height: 90vh;
   overflow-y: auto;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 14px;
@@ -77,8 +77,8 @@
 .body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px;
+  gap: 12px;
+  padding: 16px;
 }
 
 /* ---------------------------------------------------------------- amount -- */
@@ -86,8 +86,8 @@
 .amountCard {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px;
+  gap: 11px;
+  padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.02);
@@ -446,8 +446,40 @@
   gap: 10px;
 }
 
+/* Only cUSDT can be deposited now, so there is one button and it takes the width. */
+.faucetRow[data-single="yes"] {
+  grid-template-columns: 1fr;
+}
+
 @media (max-width: 520px) {
   .faucetRow {
     grid-template-columns: 1fr;
   }
+}
+
+/* The caveat, folded away. It is real and stays reachable, but it was making the sheet
+   taller than the viewport and pushing the deposit button out of sight. */
+.more {
+  margin-top: 9px;
+}
+
+.more > summary {
+  cursor: pointer;
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: var(--yellow);
+  list-style: none;
+}
+.more > summary::-webkit-details-marker {
+  display: none;
+}
+.more > summary::before {
+  content: "+ ";
+}
+.more[open] > summary::before {
+  content: "− ";
+}
+.more[open] > summary {
+  margin-bottom: 7px;
 }

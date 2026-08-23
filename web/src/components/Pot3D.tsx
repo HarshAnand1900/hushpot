@@ -23,6 +23,11 @@ import styles from "./Pot3D.module.css";
  *     most of the character.
  */
 
+/** Index 0 is empty on purpose: the pot says nothing until it is touched. */
+function randomQuip() {
+  return QUIPS[1 + Math.floor(Math.random() * (QUIPS.length - 1))];
+}
+
 const QUIPS = [
   "",
   "it rattles.",
@@ -430,7 +435,16 @@ export function Pot3D({
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const dropCoinRef = useRef<(() => void) | null>(null);
-  const [clicks, setClicks] = useState(0);
+
+  /**
+   * The squash-and-stretch on its own.
+   *
+   * The pump used to be a side effect of a coin landing, so keeping one meant keeping the
+   * other. Separating them lets the pot react to a click without pretending a deposit just
+   * happened — which it never had, and which read as a promise the page could not keep.
+   */
+  const pumpRef = useRef<(() => void) | null>(null);
+  const [quip, setQuip] = useState("");
   const [ringKey, setRingKey] = useState(0);
   const [hovering, setHovering] = useState(false);
 
@@ -812,6 +826,10 @@ export function Pot3D({
     const SLOT_X = -0.06;
     const SLOT_Y = BR * 0.88;
 
+    pumpRef.current = () => {
+      pulse = 1;
+    };
+
     dropCoinRef.current = () => {
       if (live.length >= MAX_COINS) live.shift();
       // Straight down the pot's axis, so the coin meets the slot however far the
@@ -835,7 +853,7 @@ export function Pot3D({
     let ambient = 0;
     const stillPreferred = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (exhibit && !dim && !stillPreferred) {
-      ambient = window.setInterval(() => dropCoinRef.current?.(), 1300);
+      ambient = window.setInterval(() => pumpRef.current?.(), 1300);
     }
 
     // ---- the exhibit -------------------------------------------------------
@@ -1259,8 +1277,8 @@ export function Pot3D({
       dragging = false;
       el.releasePointerCapture(e.pointerId);
       if (travelled < 6) {
-        dropCoinRef.current?.();
-        setClicks((c) => c + 1);
+        pumpRef.current?.();
+        setQuip(randomQuip());
         setRingKey((k) => k + 1);
       }
     };
@@ -1289,7 +1307,7 @@ export function Pot3D({
 
     // "Drop a deposit" on the landing throws three coins in, 130ms apart.
     const onDropRequest = () => {
-      for (let i = 0; i < 3; i++) setTimeout(() => dropCoinRef.current?.(), i * 130);
+      for (let i = 0; i < 3; i++) setTimeout(() => pumpRef.current?.(), i * 130);
     };
     window.addEventListener("hushpot:drop", onDropRequest);
 
@@ -1419,7 +1437,7 @@ export function Pot3D({
     };
   }, [size, variant, dim]);
 
-  const quip = QUIPS[clicks % QUIPS.length];
+
   const exhibit = variant === "exhibit";
 
   return (
