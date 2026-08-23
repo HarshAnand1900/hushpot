@@ -23,9 +23,17 @@ import styles from "./Pot3D.module.css";
  *     most of the character.
  */
 
-/** Index 0 is empty on purpose: the pot says nothing until it is touched. */
-function randomQuip() {
-  return QUIPS[1 + Math.floor(Math.random() * (QUIPS.length - 1))];
+/**
+ * A different line every click.
+ *
+ * Index 0 is empty on purpose — the pot says nothing until it is touched. Drawing purely
+ * at random from a short list repeats often enough that it reads as broken: with a dozen
+ * quips, better than one click in twelve lands on the one already showing and nothing
+ * appears to happen. Excluding the current line makes every click visibly do something.
+ */
+function randomQuip(current: string) {
+  const pool = QUIPS.filter((q, i) => i > 0 && q !== current);
+  return pool[Math.floor(Math.random() * pool.length)] ?? QUIPS[1];
 }
 
 const QUIPS = [
@@ -1278,7 +1286,7 @@ export function Pot3D({
       el.releasePointerCapture(e.pointerId);
       if (travelled < 6) {
         pumpRef.current?.();
-        setQuip(randomQuip());
+        setQuip((q) => randomQuip(q));
         setRingKey((k) => k + 1);
       }
     };
@@ -1436,7 +1444,6 @@ export function Pot3D({
       if (el.parentNode) el.parentNode.removeChild(el);
     };
   }, [size, variant, dim]);
-
 
   const exhibit = variant === "exhibit";
 

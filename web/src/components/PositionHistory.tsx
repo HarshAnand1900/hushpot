@@ -264,7 +264,23 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
           <div key={`${r.kind}-${r.block}-${i}`}>
             <div
               className={openable ? `${styles.row} ${styles.rowOpenable}` : styles.row}
-              onClick={() => openable && setOpenTx(isOpen ? undefined : r.tx)}
+              onClick={() => {
+                if (!openable) return;
+                // Closing forgets the figure. Nothing needs it once the panel is shut, and
+                // an amount left sitting in memory is an amount that can reappear on a
+                // re-render in front of somebody else.
+                const tx = r.tx;
+                if (isOpen && tx) {
+                  setRevealed((prev) => {
+                    const next = { ...prev };
+                    delete next[tx];
+                    return next;
+                  });
+                  setOpenTx(undefined);
+                } else {
+                  setOpenTx(tx);
+                }
+              }}
               role={openable ? "button" : undefined}
               tabIndex={openable ? 0 : undefined}
             >
@@ -273,8 +289,13 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
                 <span className={styles.stamp}>{r.at ? new Date(r.at * 1000).toUTCString().slice(5, 22) : "—"}</span>
               </span>
               <span className={styles.what}>{r.what}</span>
+              {/* The row never carries the figure, even after you have opened it. This
+                  table is the observer's view — showing what the chain shows is the whole
+                  point — and printing a decrypted amount into it would undo that the
+                  moment somebody glanced over your shoulder. The value stays inside the
+                  panel, where you chose to look. */}
               <span className={r.clear ? styles.amount : `${styles.amount} ${styles.masked}`}>
-                {r.tx && revealed[r.tx] ? revealed[r.tx] : r.amount}
+                {r.amount}
                 {openable && <span className={styles.chev}>{isOpen ? " ▾" : " ▸"}</span>}
               </span>
             </div>
