@@ -83,7 +83,14 @@ export default function PoolTab() {
 
   return (
     <>
-      <Pot3D variant="exhibit" dim="faint" />
+      {/* No full-viewport 3D exhibit here, deliberately.
+      
+          Pool is the page where every transaction happens, and a second three.js renderer
+          covering the viewport was competing with FHE encryption for the main thread —
+          the deposit freeze. The global CSS backdrop in layout.tsx already provides the
+          glow; the pot that matters is the interactive one in the hero, which is small and
+          cheap. Draws and Proof keep the exhibit: nothing blocking happens there. */}
+      <div className="warmGlow" aria-hidden="true" />
       <AppHeader pot={pot} />
 
       <main className={`${styles.page} rise`}>

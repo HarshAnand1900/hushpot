@@ -349,6 +349,31 @@ button {
   background: radial-gradient(ellipse 100% 86% at 50% 38%, #1c1c1c 0%, #151515 46%, #000 72%, #050505 100%);
 }
 
+/*
+ * A warm bloom where the 3D exhibit used to throw light.
+ *
+ * Pool drops the full-viewport renderer so the main thread is free during a transaction,
+ * but the page still wants the pot's glow behind it. This is the same warmth for the cost
+ * of one gradient — no canvas, no animation loop, nothing to compete with WebAssembly.
+ */
+.warmGlow {
+  position: fixed;
+  left: 50%;
+  top: 46%;
+  width: min(90vw, 1100px);
+  height: min(70vh, 720px);
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 210, 8, 0.09) 0%,
+    rgba(255, 170, 8, 0.035) 38%,
+    transparent 70%
+  );
+  filter: blur(30px);
+}
+
 .backdrop .blobA,
 .backdrop .blobB {
   position: absolute;

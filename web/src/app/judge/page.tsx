@@ -232,6 +232,7 @@ export default function JudgeTab() {
 
   return (
     <>
+      <div className="warmGlow" aria-hidden="true" />
       <AppHeader pot={lastDraw ? lastDraw.prize : 0n} />
 
       <main className={`${styles.page} rise`}>
