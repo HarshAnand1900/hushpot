@@ -11,6 +11,31 @@ const nextConfig: NextConfig = {
   // The panel used to live at /operator and that URL is already in the wild — in an
   // earlier README, and anywhere it was copied from. A 404 on a judge-facing link is
   // the cheapest possible way to lose marks, so the old path keeps working.
+  /**
+   * Cross-origin isolation, so the FHE WebAssembly can use threads.
+   *
+   * The relayer SDK is built with wasm-bindgen-rayon: `initSDK()` asks for
+   * `navigator.hardwareConcurrency` threads, but silently falls back to single-threaded
+   * unless the document is cross-origin isolated — the SDK even logs the two headers it
+   * wants. Without them every encryption ran on the main thread and locked the tab for a
+   * second or two, which is the "page unresponsive" dialog during a deposit.
+   *
+   * `credentialless` rather than `require-corp`: it still unlocks SharedArrayBuffer, but
+   * lets cross-origin subresources load without each one having to send CORP — which
+   * matters because the wallet modal pulls in remote images we do not control.
+   */
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
+        ],
+      },
+    ];
+  },
+
   async redirects() {
     return [{ source: "/operator", destination: "/judge", permanent: true }];
   },
