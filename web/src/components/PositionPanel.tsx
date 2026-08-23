@@ -21,6 +21,7 @@ export function PositionPanel({
   minuteOfPeriod,
   onDeposit,
   onWithdraw,
+  onLock,
   children,
 }: {
   balance?: bigint;
@@ -33,6 +34,8 @@ export function PositionPanel({
   minuteOfPeriod: bigint;
   onDeposit: () => void;
   onWithdraw: () => void;
+  /** Clears the stored decrypt key. Absent when there is nothing to clear. */
+  onLock?: () => void;
   /** The reveal footer, when still locked. */
   children?: React.ReactNode;
 }) {
@@ -87,7 +90,7 @@ export function PositionPanel({
 
     const mine = Number(weight) + extra;
     const all = Number(poolTotal) + extra;
-    return all > 0 ? (mine / all) * 100 : undefined;
+    return all > 0 ? Math.min((mine / all) * 100, 100) : undefined;
   }, [add, odds, weight, poolTotal, minuteOfPeriod]);
 
   const delta = projected !== undefined && odds !== undefined ? projected - odds : 0;
@@ -124,9 +127,19 @@ export function PositionPanel({
     <section className="panel">
       <div className="panelHead">
         <span>YOUR POSITION</span>
-        <span style={{ color: isUnlocked ? "var(--yellow)" : undefined }}>
-          {isUnlocked ? "DECRYPTED IN THIS TAB" : "ENCRYPTED ON-CHAIN"}
-        </span>
+        {/* The session key now lives on disk for the week the signature covers, so there
+            has to be a way to revoke it without waiting the week out. It belongs here,
+            beside the state it controls, rather than as a chip in the header that competed
+            with the reveal button. */}
+        {isUnlocked && onLock ? (
+          <button className={styles.lock} onClick={onLock} title="Forget the decrypt key on this device">
+            DECRYPTED · LOCK AGAIN
+          </button>
+        ) : (
+          <span style={{ color: isUnlocked ? "var(--yellow)" : undefined }}>
+            {isUnlocked ? "DECRYPTED" : "ENCRYPTED ON-CHAIN"}
+          </span>
+        )}
       </div>
 
       <div className={styles.grid}>

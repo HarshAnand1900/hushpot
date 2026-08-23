@@ -32,7 +32,7 @@ export default function PoolTab() {
   const lastDraw = useLastDraw(state.drawCount);
   const { draws } = useDraws(state.drawCount);
   const { isConnected } = useAccount();
-  const { stage, position, error, reveal, isUnlocked } = useMyPosition();
+  const { stage, position, error, reveal, lock, isUnlocked } = useMyPosition();
   // "join" is deposit with the withdraw tab hidden: it is the way in for someone who
   // has nothing in yet, and withdrawing would need a decrypted balance to mean anything.
   const [sheet, setSheet] = useState<"deposit" | "withdraw" | "join" | null>(null);
@@ -262,6 +262,7 @@ export default function PoolTab() {
           minuteOfPeriod={state.minuteOfPeriod}
           onDeposit={() => setSheet("deposit")}
           onWithdraw={() => setSheet("withdraw")}
+          onLock={lock}
         >
           <div className={styles.revealFooter}>
             <button className="btnPrimary" style={{ width: "100%" }} onClick={reveal} disabled={!isConnected || busy}>

@@ -92,13 +92,16 @@ let session: DecryptSession | null = null;
 /**
  * Where a session survives a reload.
  *
- * Kept in `sessionStorage`, not `localStorage`: it lives for the life of the tab and dies
- * when the tab closes, which is the same lifetime the in-memory session already had. The
- * gain is that refreshing the page, or bouncing through a wallet redirect, no longer costs
- * another signature — the single most common reason people were signing twice.
+ * `localStorage`, so it outlives the tab. The reasoning: the EIP-712 grant you sign is
+ * already valid for seven days — that is the permission you gave. Throwing the session
+ * away when the tab closes did not shorten that grant, it just made you re-sign to use
+ * the days you had already authorised. One signature a week rather than one per tab.
  *
- * Nothing sensitive to anyone but you is in here. The keypair is generated in the browser
- * and never leaves it, and the signature only authorises decrypting your own handles.
+ * The trade this makes, stated plainly: the keypair now sits on disk for the week. It is
+ * generated in the browser and never leaves it, and it only decrypts handles you already
+ * own — but anyone with access to your machine and your browser profile could open your
+ * balance without your wallet. On a shared computer, use the LOCK AGAIN control on
+ * YOUR POSITION, which clears it immediately.
  */
 /**
  * Keyed by the contracts the signature actually names.
@@ -113,8 +116,8 @@ const STORE_KEY = `hushpot.session.${POOL_ADDRESS.slice(2, 10)}.${TOKEN_ADDRESS.
 
 function persist(s: DecryptSession | null) {
   try {
-    if (!s) sessionStorage.removeItem(STORE_KEY);
-    else sessionStorage.setItem(STORE_KEY, JSON.stringify(s));
+    if (!s) localStorage.removeItem(STORE_KEY);
+    else localStorage.setItem(STORE_KEY, JSON.stringify(s));
   } catch {
     /* private mode, or storage disabled — the session simply stays in memory */
   }
@@ -122,7 +125,7 @@ function persist(s: DecryptSession | null) {
 
 function restore(): DecryptSession | null {
   try {
-    const raw = sessionStorage.getItem(STORE_KEY);
+    const raw = localStorage.getItem(STORE_KEY);
     if (!raw) return null;
 
     const s = JSON.parse(raw) as DecryptSession;
@@ -137,7 +140,7 @@ function restore(): DecryptSession | null {
       SESSION_CONTRACTS.every((c) => s.contracts.some((h) => h.toLowerCase() === c.toLowerCase()));
 
     if (Date.now() >= expiresAt || !covers) {
-      sessionStorage.removeItem(STORE_KEY);
+      localStorage.removeItem(STORE_KEY);
       return null;
     }
     return s;
@@ -149,9 +152,9 @@ function restore(): DecryptSession | null {
 /** Drop any session stored under a previous deployment's key. */
 function sweepStaleSessions() {
   try {
-    for (let i = sessionStorage.length - 1; i >= 0; i--) {
-      const key = sessionStorage.key(i);
-      if (key && key.startsWith("hushpot.session.") && key !== STORE_KEY) sessionStorage.removeItem(key);
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("hushpot.session.") && key !== STORE_KEY) localStorage.removeItem(key);
     }
   } catch {
     /* storage unavailable — nothing was stored to go stale */

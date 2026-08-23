@@ -314,3 +314,18 @@
   color: var(--text-3);
   max-width: 52ch;
 }
+
+/* Revokes the stored decrypt key. Sits in the panel header, in place of the status text
+   it replaces when there is something to revoke. */
+.lock {
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: var(--yellow);
+  border: 1px solid rgba(255, 210, 8, 0.35);
+  padding: 5px 9px;
+  transition: background 0.18s;
+}
+.lock:hover {
+  background: rgba(255, 210, 8, 0.1);
+}

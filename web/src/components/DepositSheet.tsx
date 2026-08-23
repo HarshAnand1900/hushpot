@@ -193,8 +193,13 @@ export function DepositSheet({
   // A confidential balance is a ciphertext, so there is no figure to show and no Max to
   // offer. Comparing the requested amount against the *plain* balance would be worse than
   // useless here — it is a different token.
-  const balanceKnown = mode === "withdraw" || route === "plain";
-  const available = mode === "deposit" ? ((walletBalance as bigint | undefined) ?? 0n) : (inPool ?? 0n);
+  const balanceKnown = mode === "withdraw" || route === "plain" || shielded !== undefined;
+  const available =
+    mode === "deposit"
+      ? route === "confidential"
+        ? (shielded ?? 0n)
+        : ((walletBalance as bigint | undefined) ?? 0n)
+      : (inPool ?? 0n);
 
   const amount = useMemo(() => {
     const n = Number(raw);
@@ -360,6 +365,19 @@ export function DepositSheet({
             <div className={styles.warn}>
               More than you {mode === "deposit" ? "hold" : "have in the pool"}. A confidential transfer that exceeds
               your balance moves nothing — it would cost gas and do nothing at all.
+            </div>
+          )}
+
+          {/* The failure this prevents is genuinely silent. ERC-7984 clamps rather than
+              reverting, so an oversized deposit moves zero, emits `Deposited` anyway, and
+              shows up in the log and your history as though it worked. The contract cannot
+              tell you — the comparison is on ciphertext — so the only place this can be
+              caught is here, before the amount is signed. */}
+          {mode === "deposit" && route === "confidential" && !balanceKnown && amount > 0n && (
+            <div className={styles.warn}>
+              Your cUSDT balance is still sealed, so this amount cannot be checked against it. If it turns out to exceed
+              what you hold, the transfer moves <strong>nothing</strong> and still records a deposit — no revert, no
+              error. Reveal your wallet balance above first.
             </div>
           )}
 
