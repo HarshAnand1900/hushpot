@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
 import Link from "next/link";
 
-import { AppHeader } from "@/components/AppHeader";
+import { AppHeader, FAUCET_EVENT } from "@/components/AppHeader";
 import { DepositSheet } from "@/components/DepositSheet";
 import { DidIWin } from "@/components/DidIWin";
 import { ContractLog } from "@/components/ContractLog";
@@ -44,6 +44,13 @@ export default function PoolTab() {
       setSheet("join");
       window.history.replaceState(null, "", "/pool");
     }
+
+    // Clicking Faucet while already on this page is a same-page navigation: React
+    // re-renders without remounting, so the query check above never runs a second time
+    // and the button looked completely dead. The event does not depend on routing.
+    const open = () => setSheet("join");
+    window.addEventListener(FAUCET_EVENT, open);
+    return () => window.removeEventListener(FAUCET_EVENT, open);
   }, []);
 
   const drawNumber = Number(state.drawCount);

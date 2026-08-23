@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { formatUnits } from "@/lib/format";
 import { ConnectButton } from "./ConnectButton";
 import styles from "./AppHeader.module.css";
+
+/** Fired by the header Faucet button when the Pool tab is already open. */
+export const FAUCET_EVENT = "hushpot:faucet";
 
 const TABS = [
   { href: "/pool", label: "Pool" },
@@ -18,6 +21,7 @@ const TABS = [
 
 export function AppHeader({ pot }: { pot: bigint }) {
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <header className={styles.header}>
@@ -55,9 +59,19 @@ export function AppHeader({ pot }: { pot: bigint }) {
 
         {/* A judge lands with an empty wallet, so the faucet has to be reachable from
             anywhere — not only from inside a sheet they have to find first. */}
-        <Link className={styles.faucet} href="/pool?faucet=1">
+        {/* This was a link to /pool?faucet=1, which silently did nothing when you were
+            already on /pool: the App Router re-renders without remounting, so the effect
+            reading that query never fired again. An event works from any page and does
+            not depend on routing at all. */}
+        <button
+          className={styles.faucet}
+          onClick={() => {
+            if (pathname === "/pool") window.dispatchEvent(new Event(FAUCET_EVENT));
+            else router.push("/pool?faucet=1");
+          }}
+        >
           Faucet
-        </Link>
+        </button>
 
         <ConnectButton />
       </div>
