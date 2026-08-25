@@ -15,7 +15,20 @@ export type DepositRow = {
 
 export type OddsPoint = { draw: number; odds: number };
 
-const HISTORY_KEY = "hushpot.odds.v1";
+/**
+ * The odds series lives in memory for the life of the page, and nowhere else.
+ *
+ * It used to be written to `localStorage`, keyed by address. That looked harmless — it is
+ * your own number, on your own machine — but odds are `yourWeight / publishedTotal`, and
+ * the total is public at every draw. So the stored figure is a plaintext derivative of an
+ * encrypted balance: read the file, divide by the published total, and you have the
+ * position without holding any key.
+ *
+ * The whole product claims amounts are encrypted. Writing a function of the amount to disk
+ * in the clear contradicts that for the sake of a sparkline, so the sparkline gives way.
+ * It fills in again as draws settle while the tab is open.
+ */
+const seriesByAddress = new Map<string, OddsPoint[]>();
 
 /**
  * Your record, assembled from two places.
@@ -137,11 +150,15 @@ export function usePositionHistory(drawCount: number, currentOdds?: number) {
   }, [address, publicClient, drawCount]);
 
   // --- browser half --------------------------------------------------------
-  const read = useCallback((): Record<string, OddsPoint[]> => {
+  const read = useCallback((): Record<string, OddsPoint[]> => Object.fromEntries(seriesByAddress), []);
+
+  // Anything an earlier build wrote to disk is a plaintext derivative of an encrypted
+  // balance, so it is cleared on load rather than left for whoever opens the profile next.
+  useEffect(() => {
     try {
-      return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "{}") as Record<string, OddsPoint[]>;
+      localStorage.removeItem("hushpot.odds.v1");
     } catch {
-      return {};
+      /* nothing to clean up */
     }
   }, []);
 
@@ -164,10 +181,10 @@ export function usePositionHistory(drawCount: number, currentOdds?: number) {
     all[key] = next;
 
     try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
+      seriesByAddress.set(key, next);
       setOdds(next);
     } catch {
-      /* private mode, or the quota is gone — the series is a nicety, not the product */
+      /* the series is a nicety, not the product */
     }
   }, [address, currentOdds, drawCount, read]);
 

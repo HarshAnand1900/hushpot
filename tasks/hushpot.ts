@@ -494,3 +494,102 @@ task("hushpot:activity", "Simulate one day of deposits, top-ups and withdrawals"
     console.log(`  npx hardhat hushpot:draw --force --network ${hre.network.name}`);
     console.log(`  npx hardhat hushpot:sweep --draw <id> --network ${hre.network.name}`);
   });
+
+/**
+ * The keeper: one tick of the weekly cycle, and only what is due.
+ *
+ * Deliberately a single idempotent pass rather than a long-running loop. Run it every few
+ * minutes from cron and it decides for itself what the pool needs — nothing at all, most
+ * of the time. A process that has to stay alive for a week is a process that will be dead
+ * on the week that matters.
+ *
+ * The order is not negotiable, and it is the reason this exists. Rolling the period ends
+ * the claim window permanently: `checkClaim` reverts once `draw.period != currentPeriod`,
+ * so a prize not swept by then is deducted from the reserve and credited to nobody, for
+ * ever. That has already happened once on the live pool by hand. Here the roll simply
+ * cannot run until every slot is checked.
+ *
+ * Deposits need no attention at the boundary. Balances live in the tree across periods,
+ * and the period-scoped corrections read as zero the moment the stamp moves on, so
+ * everyone's principal rolls into the new week at full credit without a single write.
+ */
+task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.")
+  .addOptionalParam("openHour", "UTC hour on Monday to open the draw", "0", types.string)
+  .addOptionalParam("rollHour", "UTC hour on Monday to start the next period", "6", types.string)
+  .addFlag("dryRun", "Say what would happen without sending anything")
+  .setAction(async (args, hre) => {
+    const pool = await getPool(hre);
+    const openHour = Number(args.openHour);
+    const rollHour = Number(args.rollHour);
+
+    const now = new Date();
+    const isMonday = now.getUTCDay() === 1;
+    const hour = now.getUTCHours();
+    const stamp = now.toISOString().replace(".000", "");
+
+    const act = async (what: string, fn: () => Promise<unknown>) => {
+      console.log(`${stamp}  ${what}`);
+      if (args.dryRun) return console.log(`            (dry run — nothing sent)`);
+      await withRetry(what, fn);
+    };
+
+    // 1 ── A draw left half-open is the most urgent state there is: the total is published
+    //      and the prize is not yet assigned. Finish it before considering anything else.
+    if (await pool.drawPending()) {
+      return act("settling the open draw", async () => {
+        const handle = await pool.pendingTotalHandle();
+        await hre.fhevm.initializeCLIApi();
+        const d = await hre.fhevm.publicDecrypt([handle]);
+        await (await pool.settleDraw(d.abiEncodedClearValues, d.decryptionProof)).wait();
+      });
+    }
+
+    const drawCount = await pool.drawCount();
+    const currentPeriod = await pool.currentPeriod();
+    const settledThisPeriod = drawCount > 0n && (await pool.draws(drawCount - 1n)).period === currentPeriod;
+
+    // 2 ── Open the week's draw. Forced six hours before the nominal seven-day boundary so
+    //      that settling and sweeping finish inside the maintenance window, rather than
+    //      pushing the next period later by however long they took.
+    if (!settledThisPeriod) {
+      const due = (await pool.periodEnded()) || (isMonday && hour >= openHour && hour < rollHour);
+      if (!due) {
+        const left =
+          Number(await pool.periodStart()) + Number(await pool.PERIOD_SECONDS()) - Math.floor(Date.now() / 1000);
+        return console.log(
+          `${stamp}  nothing due · draw opens Monday ${openHour}:00 UTC (${Math.max(0, Math.floor(left / 3600))}h of period left)`,
+        );
+      }
+
+      return act("opening and settling the draw", async () => {
+        await (await pool.openDraw()).wait();
+        const handle = await pool.pendingTotalHandle();
+        await hre.fhevm.initializeCLIApi();
+        const d = await hre.fhevm.publicDecrypt([handle]);
+        await (await pool.settleDraw(d.abiEncodedClearValues, d.decryptionProof)).wait();
+      });
+    }
+
+    // 3 ── Sweep. One slot per tick keeps every transaction well inside the HCU ceiling and
+    //      means a failure costs one slot rather than the batch.
+    const drawId = drawCount - 1n;
+    const slots = Number(await pool.slotsUsed());
+
+    for (let slot = 0; slot < slots; slot++) {
+      if (await pool.claimChecked(drawId, slot)) continue;
+      const owner = await pool.slotOwner(slot);
+      return act(`checking draw #${drawId} for slot ${slot}`, async () => {
+        await (await pool.checkClaim(drawId, owner)).wait();
+      });
+    }
+
+    // 4 ── Only now may the period roll, and only on the hour that keeps the schedule from
+    //      drifting. Everyone has been paid; the window can close safely.
+    if (!(isMonday && hour >= rollHour)) {
+      return console.log(`${stamp}  draw #${drawId} settled and fully swept · rolls Monday ${rollHour}:00 UTC`);
+    }
+
+    await act("rolling into the next period", async () => {
+      await (await pool.startNextPeriod()).wait();
+    });
+  });

@@ -55,6 +55,19 @@ The right-hand term carries no draw time, so it can be computed the moment someo
 total. The left multiplies a figure identical for everyone, so it factors out against the sum of balances. The whole
 pool therefore resolves to running totals plus one multiplication — and **no end-of-period sweep ever runs**.
 
+### Odds are measured against the last published total
+
+Your odds are `yourWeight ÷ poolTotal`, and `poolTotal` is the figure published at the **last settled draw** — never a
+live reading.
+
+That is not a convenience. A live denominator would let anyone divide their own odds into it to recover the running pool
+total, then watch it move by a single deposit and recover that deposit by subtraction. Freezing it at a draw boundary
+means the only total anyone learns is the one the draw already made public.
+
+The cost is that odds go stale between draws. Deposit after a draw and your weight grows while the denominator does not,
+so the ratio drifts upward and can exceed 100%. The app does not paper over that with a capped number: past 100% it
+shows `—` and says the pool has outgrown the last published total. A fresh figure arrives with the next draw.
+
 ### Selection
 
 Participants occupy contiguous bands of a number line from zero to the pool total. A draw picks a point; whoever's band
@@ -226,12 +239,67 @@ and is documented in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner)
 3. **The CLI** — `tasks/hushpot.ts` covers every operation. `npx hardhat hushpot:status --network sepolia` to see where
    things stand.
 
+### The weekly schedule, in UTC
+
+Periods are seven days long and start whenever the roll is called, so the schedule is set by _when you call it_, not by
+anything in the contract. Held to this cadence it never drifts:
+
+| UTC                         | What happens                                         |
+| --------------------------- | ---------------------------------------------------- |
+| **Monday 06:00**            | `startNextPeriod` — the week opens, deposits accrue  |
+| Monday 06:00 → Monday 00:00 | 162 hours of odds accruing                           |
+| **Monday 00:00**            | `hushpot:draw --force` — seal, roll the die, settle  |
+| Monday 00:00 → 06:00        | `hushpot:sweep --draw N` — prizes land               |
+| **Monday 06:00**            | roll again, and the next week starts exactly on time |
+
+The six-hour gap is the maintenance window: the draw is opened six hours before the nominal seven-day boundary, using
+the owner's `--force` exemption, so that settling and sweeping finish before the next period is due to start. Without it
+the roll would slip by however long the sweep took, and the schedule would walk forward every week.
+
+**Sweep before you roll, every time.** Rolling closes the claim window permanently — `checkClaim` reverts once
+`draw.period != currentPeriod` — so a prize that has not been checked by then is stranded: deducted from the reserve,
+credited to nobody, unrecoverable by anyone including the owner. This has already happened once on the live pool, to
+draw #0, which is why it is stated twice.
+
 ### Keeping it running
 
-Nobody clicks weekly. `openDraw → settleDraw → sweepRange → startNextPeriod` is a cron job, and `tasks/hushpot.ts`
-already is that bot — it needs a scheduler (Gelato, Chainlink Automation, OpenZeppelin Defender, or a VPS) and a hot
-wallet with gas. That wallet holds no power over deposits: the worst it can do is stop showing up, and then anyone else
-runs the draw instead.
+```bash
+npx hardhat hushpot:keeper --network sepolia
+```
+
+One tick of the cycle, and only what is due. Run it every few minutes from a scheduler and it works out for itself what
+the pool needs — nothing at all, most of the time:
+
+1. **A draw left open** is finished first. The total is published and the prize is not yet assigned, so nothing else
+   matters until it settles.
+2. **The week's draw** opens on Monday at `--open-hour` (00:00 UTC by default), or any time after the period has
+   genuinely elapsed.
+3. **Sweeping** runs one slot per tick. Small transactions stay well inside the HCU ceiling, and a failure costs one
+   slot rather than a batch.
+4. **The roll** happens on Monday at `--roll-hour` (06:00 UTC), and _only once every slot is swept_.
+
+That last condition is the whole reason the keeper exists. Rolling ends the claim window permanently — `checkClaim`
+reverts once `draw.period != currentPeriod` — so a prize not swept by then is deducted from the reserve and credited to
+nobody, for ever. It has already happened once on the live pool, done by hand. The keeper cannot make that mistake.
+
+Deposits need no attention at the boundary: balances live in the tree across periods, and the period-scoped corrections
+read as zero once the stamp moves on, so everyone's principal carries into the new week at full credit without a single
+write.
+
+`--dry-run` prints what it would do and sends nothing.
+
+**Scheduling it.** On Windows, one line registers it to run every ten minutes:
+
+```powershell
+schtasks /create /tn Hushpot /tr "cmd /c cd /d %USERPROFILE%\OneDrive\Desktop\hushpot && npx hardhat hushpot:keeper --network sepolia >> keeper.log 2>&1" /sc minute /mo 10
+```
+
+A VPS with cron, Gelato, Chainlink Automation or OpenZeppelin Defender all work the same way. **Do not put the mnemonic
+in GitHub Actions secrets** — this repository is going public, and a workflow with signing rights is a standing
+invitation. Keep the key on a machine you control.
+
+The keeper wallet holds no power over deposits. The worst it can do is stop showing up, and then anyone else can run the
+cycle by hand.
 
 ### Deliberately not upgradeable
 

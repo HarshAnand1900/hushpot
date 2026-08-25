@@ -18,6 +18,11 @@ clear. Two calls and the encryption was worth nothing. It is now `internal`, and
 total is published once per period and never otherwise. A test harness exposes it with a comment saying why that would
 be a break in production.
 
+**Odds were written to disk in plaintext — fixed.** The odds sparkline persisted its series to `localStorage`, keyed by
+address. Odds are `yourWeight / publishedTotal` and the total is public at every draw, so the stored figure was a
+plaintext derivative of an encrypted balance: read the file, divide, and the position falls out without any key. The
+series now lives in memory for the life of the page, and any entry an earlier build wrote is deleted on load.
+
 **A self-check followed by a sweep credited twice — fixed.** `sweepRange` did not skip slots already settled by
 `checkClaim`, so a winner could be paid the prize twice out of a reserve that had only set one aside. `sweepRange` now
 skips already-checked slots — after advancing the running band edge, which matters: returning early without advancing
