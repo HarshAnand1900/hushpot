@@ -49,6 +49,22 @@ const QUIPS = [
   "that one landed on a ciphertext.",
   "the chain saw a handle, nothing else.",
   "still nobody's name in there.",
+  "it knows it holds something. not what.",
+  "an explorer would find this deeply boring.",
+  "the die has not been read by anyone. including itself.",
+  "someone is winning. good luck finding out who.",
+  "auditable, and completely useless to read.",
+  "no announcement is coming.",
+  "the arithmetic worked. the numbers stayed shut.",
+  "it counted without looking.",
+  "even the contract is guessing.",
+  "a very well-documented silence.",
+  "your balance moved. or did not. same gas either way.",
+  "there is no winner field to leak.",
+  "the relayer saw ciphertext and went home.",
+  "loud object, quiet ledger.",
+  "somebody just got richer, anonymously.",
+  "it would tell you if it could. it cannot.",
 ];
 
 type Variant = "exhibit" | "solo";
@@ -428,12 +444,15 @@ export function Pot3D({
   variant = "solo",
   dim = false,
   quiet = false,
+  quips = false,
   className,
 }: {
   size?: number;
   variant?: Variant;
   /** Drop the instruction line and the quips, for places that carry their own copy. */
   quiet?: boolean;
+  /** Keep the quips even when `quiet` drops the instruction line. */
+  quips?: boolean;
   /**
    * Pushed back behind app content: same room, lower presence. "faint" goes further
    * still, for tabs where the panels are doing the work and the room is only a hint.
@@ -1475,7 +1494,10 @@ export function Pot3D({
         </div>
       )}
 
-      {quip && !quiet && <div className={exhibit ? styles.exhibitQuip : styles.quip}>{quip}</div>}
+      {/* The quip is separable from the instruction line above it. A `quiet` pot sits in a
+          cell that supplies its own caption, but that is no reason for it to stop talking
+          back when clicked — the line is the reward for touching it. */}
+      {quip && (!quiet || quips) && <div className={exhibit ? styles.exhibitQuip : styles.quip}>{quip}</div>}
     </div>
   );
 }

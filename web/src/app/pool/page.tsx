@@ -18,14 +18,6 @@ import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { formatCountdown, formatUnits, shortenAddress, splitUnits } from "@/lib/format";
 import styles from "./pool.module.css";
 
-/** The line under the pot. It rotates by draw so the page is not identical every week. */
-const QUIPS = [
-  "one of you is about to have a very quiet week",
-  "the pot does not know your name either",
-  "somebody wins. the chain never finds out who",
-  "all of it, to one of you",
-];
-
 export default function PoolTab() {
   const now = useNow();
   const state = usePoolState();
@@ -166,7 +158,7 @@ export default function PoolTab() {
             <div className={styles.nicheKicker}>ALL OF IT · TO ONE OF {state.depositors || "—"}</div>
 
             <div className={styles.potWindow}>
-              <Pot3D size={158} quiet />
+              <Pot3D size={158} quiet quips />
             </div>
             <span className={styles.potShadow} aria-hidden="true" />
 
@@ -177,7 +169,6 @@ export default function PoolTab() {
               <br />
               can be yours.
             </div>
-            <div className={styles.nicheQuip}>{QUIPS[drawNumber % QUIPS.length]}</div>
 
             <button className={styles.nicheCta} onClick={() => setSheet("join")}>
               Take your shot
