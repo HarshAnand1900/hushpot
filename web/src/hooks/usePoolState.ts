@@ -27,6 +27,7 @@ export function usePoolState() {
       { ...pool, functionName: "drawCount" },
       { ...pool, functionName: "drawPending" },
       { ...pool, functionName: "annualRateBps" },
+      { ...pool, functionName: "sponsoredThisDraw" },
     ],
     query: { refetchInterval: 12_000 },
   });
@@ -42,6 +43,7 @@ export function usePoolState() {
     drawCount,
     drawPending,
     rateBps,
+    sponsored,
   ] = data ?? [];
 
   return {
@@ -57,6 +59,8 @@ export function usePoolState() {
     drawCount: (drawCount?.result as bigint | undefined) ?? 0n,
     drawPending: (drawPending?.result as boolean | undefined) ?? false,
     annualRateBps: (rateBps?.result as bigint | undefined) ?? 500n,
+    /** Sponsorships banked for the next draw. Public, and nobody's position. */
+    sponsoredThisDraw: (sponsored?.result as bigint | undefined) ?? 0n,
   };
 }
 

@@ -169,7 +169,7 @@ export default function JudgeTab() {
       role: "ANYONE",
       title: "Grow the prize",
       sig: "sponsorPrize(uint256)",
-      note: "Mints 500 test tokens and puts them straight into the reserve. Takes no odds and creates no position — a sponsorship can never win itself back.",
+      note: `Mints 500 test tokens and adds them to the next prize on top of the yield. Takes no odds and creates no position — a sponsorship can never win itself back. It does not move the figure in the header, which is what the last draw paid; banked so far for draw #${state.drawCount}: ${formatUnits(state.sponsoredThisDraw)} cUSDT.`,
       disabled: !isConnected,
       go: () => run("sponsor", "sponsorPrize(500)", sponsor),
     },
@@ -256,6 +256,11 @@ export default function JudgeTab() {
             />
             <Row label="CYCLE PROGRESS" value={`${done.size} / ${steps.length}`} accent={done.size > 0} />
             <Row label="RESERVE" value={`${formatUnits(state.prizeReserve)} cUSDT`} />
+            <Row
+              label={`BANKED · DRAW #${state.drawCount}`}
+              value={`${formatUnits(state.sponsoredThisDraw)} cUSDT`}
+              accent={state.sponsoredThisDraw > 0n}
+            />
             <Row
               label={`SWEPT · DRAW #${drawId}`}
               value={cursor === undefined ? "—" : `${cursor} / ${state.depositors}`}

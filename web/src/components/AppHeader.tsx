@@ -19,7 +19,7 @@ const TABS = [
   { href: "/judge", label: "Judge" },
 ];
 
-export function AppHeader({ pot }: { pot: bigint }) {
+export function AppHeader({ pot, sponsored = 0n }: { pot: bigint; sponsored?: bigint }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -53,7 +53,19 @@ export function AppHeader({ pot }: { pot: bigint }) {
           <span className={styles.potLabel}>POT</span>
           <span className={`num ${styles.potValue}`}>{formatUnits(pot)}</span>
           <span className="liveDot" />
-          <span className={styles.potLive}>LIVE</span>
+          <span className={styles.potLive}>LAST PAID</span>
+
+          {/* A sponsorship lands in the *next* draw, so the figure beside it does not move
+              and the gift looks like it went nowhere. This is the only place it can be
+              seen before the draw settles, and it is public either way. */}
+          {sponsored > 0n && (
+            <>
+              <span className={styles.hair} />
+              <span className={styles.potLabel}>BANKED</span>
+              <span className={`num ${styles.potValue} ${styles.banked}`}>+{formatUnits(sponsored)}</span>
+            </>
+          )}
+
           <span className={styles.hair} />
         </div>
 

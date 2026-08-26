@@ -40,6 +40,7 @@ export const poolAbi = [
   { type: "function", name: "periodEnded", inputs: [], outputs: [{ type: "bool" }], stateMutability: "view" },
   { type: "function", name: "slotsUsed", inputs: [], outputs: [{ type: "uint16" }], stateMutability: "view" },
   { type: "function", name: "prizeReserve", inputs: [], outputs: [{ type: "uint64" }], stateMutability: "view" },
+  { type: "function", name: "sponsoredThisDraw", inputs: [], outputs: [{ type: "uint64" }], stateMutability: "view" },
   { type: "function", name: "annualRateBps", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
   {
     type: "function",
