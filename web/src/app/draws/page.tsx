@@ -28,7 +28,7 @@ export default function DrawsTab() {
   return (
     <>
       <Pot3D variant="exhibit" dim />
-      <AppHeader pot={pot} sponsored={state.sponsoredThisDraw} />
+      <AppHeader pot={pot} />
 
       <main className={`${styles.page} rise`}>
         {/* summary band --------------------------------------------------- */}

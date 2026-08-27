@@ -79,7 +79,7 @@ export default function PoolTab() {
           glow; the pot that matters is the interactive one in the hero, which is small and
           cheap. Draws and Proof keep the exhibit: nothing blocking happens there. */}
       <div className="warmGlow" aria-hidden="true" />
-      <AppHeader pot={pot} sponsored={state.sponsoredThisDraw} />
+      <AppHeader pot={pot} />
 
       <main className={`${styles.page} rise`}>
         {/* status strip -------------------------------------------------- */}

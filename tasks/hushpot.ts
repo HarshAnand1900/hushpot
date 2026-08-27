@@ -269,6 +269,8 @@ async function withRetry<T>(label: string, fn: () => Promise<T>, attempts = 4): 
  */
 task("hushpot:seed", "Fill the pool with several depositors, so the demo means something")
   .addOptionalParam("count", "How many extra depositors", "4", types.string)
+  .addOptionalParam("scale", "Multiply every amount, to reach a realistic pool size", "1", types.string)
+  .addFlag("topUp", "Deposit again for accounts that already hold a slot")
   .setAction(async (args, hre) => {
     const pool = await getPool(hre);
     const poolAddress = await pool.getAddress();
@@ -326,17 +328,28 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
 
     for (let i = 1; i <= count; i++) {
       const who = signers[i];
-      const amount = amounts[i - 1] * 1_000_000n;
+      // Scaled because the prize is a *rate* on the pool, not a fixed figure: at 5% APY a
+      // week pays roughly 0.096% of whatever is deposited, so a 1,000 weekly prize needs
+      // about 1,040,000 in the pool. A small pool with a large prize would be a lie about
+      // the yield; a larger pool with a proportional prize is simply what the arithmetic
+      // says a real one looks like.
+      const amount = amounts[i - 1] * 1_000_000n * BigInt(args.scale);
 
       console.log(`--- depositor ${i}: ${who.address}`);
 
       // Resumable. Public RPCs drop transactions and lag on nonces, so this task will be
       // re-run; anyone already holding a slot is already a depositor and re-depositing
       // for them just burns gas and skews the spread we set up.
-      if (await pool.hasSlot(who.address)) {
-        console.log(`  already in the pool · slot ${await pool.slotOf(who.address)}\n`);
+      // Unless `--top-up`, which is how an existing pool is grown rather than widened:
+      // the prize is a rate on the pool, so raising the prize means raising the deposits,
+      // not adding more addresses holding the same small amounts.
+      const hasSlot = await pool.hasSlot(who.address);
+      if (hasSlot && !args.topUp) {
+        console.log(`  already in the pool · slot ${await pool.slotOf(who.address)}
+`);
         continue;
       }
+      if (hasSlot) console.log(`  topping up slot ${await pool.slotOf(who.address)}`);
 
       // Gas, if they need it.
       const eth = await hre.ethers.provider.getBalance(who.address);

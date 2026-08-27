@@ -73,7 +73,7 @@ export default function ProofTab() {
   return (
     <>
       <Pot3D variant="exhibit" dim />
-      <AppHeader pot={pot} sponsored={state.sponsoredThisDraw} />
+      <AppHeader pot={pot} />
 
       <main className={`${styles.page} rise`}>
         {/* ── 01 · the claim, tested live ───────────────────────────────── */}

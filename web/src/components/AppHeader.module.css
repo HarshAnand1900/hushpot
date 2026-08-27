@@ -202,9 +202,3 @@
   }
 }
 
-/* Sponsorships waiting for the next draw. Yellow because it is money that has arrived,
-   dimmer than the paid figure because it has not been awarded yet. */
-.banked {
-  color: var(--yellow);
-  font-size: 19px;
-}
