@@ -278,48 +278,45 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
     const funder = signers[0];
     const count = Math.min(Number(args.count), signers.length - 1);
 
-    // Deliberately uneven, and long-tailed rather than evenly spread: a real pool is a
-    // few large depositors and a lot of small ones, which is also the shape that makes
-    // the odds column worth looking at.
+    // Deliberately uneven and long-tailed: a real pool is a few larger depositors and a
+    // lot of small ones, which is the shape that makes the odds column worth looking at.
+    //
+    // Kept in the hundreds-to-thousands, not the hundreds of thousands. Seeded accounts
+    // that dwarf the real wallets make the demo worse in two ways: whoever is presenting
+    // has no meaningful odds against them, and the prize — which scales with the pool —
+    // drains the reserve in a couple of draws. This spread totals around 76,000, so a
+    // full week yields roughly 73 cUSDT and the reserve lasts hundreds of cycles.
     const amounts = [
-      420_000n,
-      180_000n,
-      640_000n,
-      95_000n,
-      310_000n,
-      55_000n,
-      720_000n,
-      240_000n,
-      130_000n,
-      38_000n,
-      505_000n,
-      72_000n,
-      890_000n,
-      21_000n,
-      265_000n,
-      148_000n,
-      60_000n,
-      410_000n,
-      87_000n,
-      1_150_000n,
-      44_000n,
-      330_000n,
-      96_500n,
-      610_000n,
-      27_000n,
-      480_000n,
-      155_000n,
-      780_000n,
-      63_000n,
-      205_000n,
-      118_000n,
-      925_000n,
-      33_500n,
-      570_000n,
-      82_000n,
-      290_000n,
-      141_000n,
-      690_000n,
+      3_200n,
+      850n,
+      6_400n,
+      420n,
+      2_100n,
+      1_350n,
+      9_000n,
+      640n,
+      4_700n,
+      380n,
+      1_800n,
+      2_950n,
+      520n,
+      7_300n,
+      1_150n,
+      460n,
+      3_800n,
+      980n,
+      5_600n,
+      1_600n,
+      720n,
+      2_400n,
+      340n,
+      4_100n,
+      1_050n,
+      880n,
+      6_900n,
+      1_450n,
+      2_700n,
+      590n,
     ];
     // Enough for an approve and a confidential deposit (~2.4M gas) with headroom for a
     // gas spike, without stranding ETH in wallets we only use to make the demo real.
@@ -516,6 +513,7 @@ task("hushpot:activity", "Simulate one day of deposits, top-ups and withdrawals"
 task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.")
   .addOptionalParam("openHour", "UTC hour on Monday to open the draw", "0", types.string)
   .addOptionalParam("rollHour", "UTC hour on Monday to start the next period", "6", types.string)
+  .addFlag("force", "Open the draw before the period has elapsed. Read the warning first.")
   .addFlag("dryRun", "Say what would happen without sending anything")
   .setAction(async (args, hre) => {
     const pool = await getPool(hre);
@@ -552,7 +550,29 @@ task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.
     //      that settling and sweeping finish inside the maintenance window, rather than
     //      pushing the next period later by however long they took.
     if (!settledThisPeriod) {
-      const due = (await pool.periodEnded()) || (isMonday && hour >= openHour && hour < rollHour);
+      // Only once the period has genuinely elapsed, unless explicitly forced.
+      //
+      // A draw settles against bands that {_checkWin} recomputes from the *live* tree, so
+      // a draw is only final while the tree cannot move. That is exactly what elapsing
+      // guarantees: `minuteOfPeriod` saturates, and a deposit then adds `amount × PERIOD`
+      // to the balance term and the same to `lateCredit`, cancelling to zero.
+      //
+      // Force the draw early and that protection is gone. Deposits between the forced
+      // settlement and the roll still change weights — 1,000 deposited at minute 6,809
+      // adds 3,271,000 ticket-minutes — which shifts the bands of every later slot
+      // against a die that was already committed. Nobody can aim it, since the die is
+      // encrypted, but the outcome is no longer settled at settlement.
+      //
+      // The cost of not forcing is that the roll waits for the sweep, so the weekly slot
+      // drifts by however long that takes. Drift is cosmetic; a draw that can still move
+      // is not.
+      const elapsed = await pool.periodEnded();
+      const due = elapsed || (args.force && isMonday && hour >= openHour && hour < rollHour);
+
+      if (!elapsed && args.force) {
+        console.log(`${stamp}  ⚠ forcing early — deposits before the roll can still shift bands for this draw`);
+      }
+
       if (!due) {
         const left =
           Number(await pool.periodStart()) + Number(await pool.PERIOD_SECONDS()) - Math.floor(Date.now() / 1000);

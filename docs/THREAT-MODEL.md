@@ -18,6 +18,20 @@ clear. Two calls and the encryption was worth nothing. It is now `internal`, and
 total is published once per period and never otherwise. A test harness exposes it with a comment saying why that would
 be a break in production.
 
+**A forced draw does not stay settled.** `_checkWin` derives each band from the live tree rather than a snapshot taken
+at settlement, which is safe only while the tree cannot move. That is what elapsing guarantees: once `minuteOfPeriod`
+saturates, a deposit adds `amount × PERIOD_MINUTES` to the balance term and the same to `lateCredit`, so the weight
+change is exactly zero.
+
+Open the draw early with the owner's `--force` exemption and that protection is gone. Deposits between settlement and
+the roll still move weights — 1,000 deposited at minute 6,809 of 10,080 adds 3,271,000 ticket-minutes — which shifts the
+bands of every higher-indexed slot against a die that is already committed. It cannot be aimed, since the die is
+encrypted and nobody can read it, but the outcome is no longer fixed at settlement.
+
+**Mitigation:** the keeper refuses to force unless told to, so in normal operation the draw waits for the period to
+elapse and the freeze holds. Forcing remains available for demonstrations, where compressing a week into minutes is the
+point, and it now prints a warning saying what it gives up. This is the same owner exemption documented in §4.3.
+
 **Odds were written to disk in plaintext — fixed.** The odds sparkline persisted its series to `localStorage`, keyed by
 address. Odds are `yourWeight / publishedTotal` and the total is public at every draw, so the stored figure was a
 plaintext derivative of an encrypted balance: read the file, divide, and the position falls out without any key. The
