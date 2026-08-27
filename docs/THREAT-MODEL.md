@@ -217,15 +217,16 @@ balance and at another depositor's. One opens. One does not.
 
 Honest omissions, with what each would take:
 
-| Gap                                                   | What would close it                                          |
-| ----------------------------------------------------- | ------------------------------------------------------------ |
-| Yield is an admin-funded reserve, not a live strategy | Route deposits into a yield source and feed the same reserve |
-| No timelock on owner functions                        | Governance or a delay on rate changes and draw triggers      |
-| Owner can close the claim window early                | Enforce a full sweep on-chain, or drop the exemption         |
-| Slots are never released by a griefer                 | Priced, not prevented — see below                            |
-| Unclaimed prizes are not swept back automatically     | A rollover pass once the claim window closes                 |
-| Pool capacity is finite — 16,384 slots                | Priced rather than removed; see §9                           |
-| No formal audit                                       | The reason this document exists                              |
+| Gap                                                   | What would close it                                                  |
+| ----------------------------------------------------- | -------------------------------------------------------------------- |
+| Yield is an admin-funded reserve, not a live strategy | Route deposits into a yield source and feed the same reserve         |
+| Coinbase / Base Account cannot connect                | Drop cross-origin isolation, at the cost of a frozen tab per deposit |
+| No timelock on owner functions                        | Governance or a delay on rate changes and draw triggers              |
+| Owner can close the claim window early                | Enforce a full sweep on-chain, or drop the exemption                 |
+| Slots are never released by a griefer                 | Priced, not prevented — see below                                    |
+| Unclaimed prizes are not swept back automatically     | A rollover pass once the claim window closes                         |
+| Pool capacity is finite — 16,384 slots                | Priced rather than removed; see §9                                   |
+| No formal audit                                       | The reason this document exists                                      |
 
 ---
 

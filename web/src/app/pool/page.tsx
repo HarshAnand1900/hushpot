@@ -55,16 +55,31 @@ export default function PoolTab() {
   // accrued so far is shown separately rather than standing in for the whole thing.
   // What the last draw actually paid — not a forecast of the next one.
   //
-  // This used to be presented as the projected next pot, which was wrong in a way that
-  // only showed up once sponsorship landed: a one-off gift inflates the prize it joins and
-  // then does not repeat, so projecting it forward promised a pot that will not arrive.
-  // The next prize is `prizeFor(liveTotal) + whatever gets sponsored`, and the live total
-  // is encrypted precisely so nobody can read it — so there is nothing honest to project.
-  const pot = lastDraw ? lastDraw.prize : 0n;
+  // This week's pot, estimated from public figures only.
+  //
+  // The exact answer is `prizeFor(liveTotal) + sponsored`, and `liveTotal` is encrypted
+  // precisely so nobody can read it — publishing it continuously is the leak the whole
+  // design exists to avoid, since two readings either side of a deposit give you that
+  // deposit. So the yield half is estimated from the total the last draw *did* publish,
+  // on the assumption the pool ends this week roughly where it ended the last one.
+  //
+  // Nothing new is disclosed: both inputs are already public, and the arithmetic is the
+  // contract's own `prizeFor`, run here rather than on-chain.
+  //
+  // Note this uses `prizeFor(lastTotal)` rather than last week's *prize*. The prize
+  // included last week's sponsorship, which is a one-off — carrying it forward would
+  // promise a pot that never arrives. This week's sponsorships are added separately,
+  // and those are exact rather than estimated.
+  const RATE_DIVISOR = 10_000n * 525_600n;
+  const yieldEstimate = lastDraw ? (lastDraw.total * state.annualRateBps) / RATE_DIVISOR : 0n;
+  const pot = yieldEstimate + state.sponsoredThisDraw;
 
-  // Yield accruing toward the *next* draw, from the formula alone. Sponsorship is excluded
-  // because it is a gift that has already been paid out, not a rate.
-  const accrued = (pot * BigInt(Math.floor(weekPct * 100))) / 10_000n;
+  // What the last draw actually paid, kept for the line that says so.
+  const lastPaid = lastDraw ? lastDraw.prize : 0n;
+
+  // How much of that pot the week has earned so far. Sponsorship is already banked in
+  // full, so only the yield half accrues.
+  const accrued = (yieldEstimate * BigInt(Math.floor(weekPct * 100))) / 10_000n + state.sponsoredThisDraw;
   const potParts = splitUnits(pot);
 
   // Odds are computed inside PositionPanel, against a FROZEN denominator — the total
@@ -107,7 +122,7 @@ export default function PoolTab() {
                 against PERIOD #0 in the status strip. */}
             <div className={styles.potKicker}>
               {drawNumber > 0
-                ? `LAST PAID OUT · DRAW #${drawNumber - 1} · ALREADY IN SOMEBODY'S BALANCE`
+                ? `THIS WEEK'S POT · DRAW #${drawNumber} · ESTIMATED FROM PUBLIC FIGURES`
                 : "THE POT · DRAW #0 · PUBLIC BY DESIGN"}
             </div>
             <div className={`num ${styles.potNumber}`}>
@@ -115,7 +130,9 @@ export default function PoolTab() {
               <span className={styles.potFrac}>.{potParts.frac}</span>
             </div>
             <div className={styles.potUnit}>
-              {drawNumber > 0 ? "cUSDT · WON, NOT AVAILABLE" : "cUSDT · YIELD LANDS EVERY BLOCK"}
+              {drawNumber > 0
+                ? `cUSDT · YIELD + ${formatUnits(state.sponsoredThisDraw)} SPONSORED · DRAW #${drawNumber - 1} PAID ${formatUnits(lastPaid)}`
+                : "cUSDT · YIELD LANDS EVERY BLOCK"}
             </div>
 
             <div className={styles.tagline}>

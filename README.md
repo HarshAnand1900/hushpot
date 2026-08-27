@@ -197,7 +197,7 @@ contracts/
   SegmentTree.sol                    plaintext oracle — proven, then encrypted
   TimeWeightedTree.sol               plaintext oracle for the time weighting
   mocks/                             local token pair + test-only tree harness
-test/                                118 tests
+test/                                124 tests
 tasks/hushpot.ts                     the operator + keeper flow
 deploy/01_hushpot.ts                 deployment
 web/                                 the app
@@ -323,7 +323,7 @@ redeploy), and the weekly cycle should be a funded keeper rather than a person.
 
 ```bash
 npm install
-npx hardhat test                 # 118 tests, no network needed
+npx hardhat test                 # 124 tests, no network needed
 ```
 
 Deploying:
@@ -404,7 +404,7 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 
 ## Invariants under test
 
-118 tests, run against the FHEVM mock. The ones worth naming:
+124 tests, run against the FHEVM mock. The ones worth naming:
 
 - exactly one depositor is paid, and exactly the prize — verified by decrypting every participant's balance before and
   after a sweep
@@ -416,8 +416,8 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 - a prize never touches principal
 - leaving with `exitPool` returns the principal in full and gives the slot back at the next roll
 - a recycled slot starts clean, with none of the previous holder's time credit
-- solvency counts prizes that are parked but not yet folded in, and never counts one twice
 - a sponsorship lands in full in the very next prize, and the accumulator is spent, not carried
+- solvency counts prizes that are parked but not yet folded in, and never counts one twice
 - weights freeze when a period ends, so deposits during a claim window cannot move a settled draw
 - odds are proportional to amount _and_ time — a small deposit held all week beats a 5× larger one made at the deadline
 

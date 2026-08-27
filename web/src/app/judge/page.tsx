@@ -47,23 +47,32 @@ export default function JudgeTab() {
   const refresh = useCallback(async () => {
     if (!publicClient) return;
     try {
-      const [o, c] = await Promise.all([
+      // Progress is counted from `claimChecked`, not from `sweepCursor`.
+      //
+      // Only `sweepRange` advances that cursor. `checkClaim` does not — and that is what
+      // the CLI sweep uses, what `checkMyClaim` uses behind the "Did I win?" button, and
+      // what `checkClaimBatch` uses. So a pool swept by any of those still read 0 here,
+      // which left step 06 permanently blocked on a console whose whole purpose is running
+      // the cycle to completion. The per-slot flag is the truth whichever path set it.
+      const slots = state.depositors;
+      const [o, ...flags] = await Promise.all([
         publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "owner" }),
-        state.drawCount > 0n
-          ? publicClient.readContract({
-              address: POOL_ADDRESS,
-              abi: poolAbi,
-              functionName: "sweepCursor",
-              args: [state.drawCount - 1n],
-            })
-          : Promise.resolve(0),
+        ...Array.from({ length: state.drawCount > 0n ? slots : 0 }, (_, slot) =>
+          publicClient.readContract({
+            address: POOL_ADDRESS,
+            abi: poolAbi,
+            functionName: "claimChecked",
+            args: [state.drawCount - 1n, slot],
+          }),
+        ),
       ]);
+
       setOwner(o as string);
-      setCursor(Number(c));
+      setCursor(flags.filter(Boolean).length);
     } catch {
       /* the console still renders without these */
     }
-  }, [publicClient, state.drawCount]);
+  }, [publicClient, state.drawCount, state.depositors]);
 
   useEffect(() => {
     void refresh();
@@ -199,7 +208,7 @@ export default function JudgeTab() {
       role: "ANYONE",
       title: "Pay everyone out",
       sig: "sweepRange(uint256, uint16)",
-      note: "Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. Repeat until every depositor is covered.",
+      note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped rather than paid twice, so this is safe to repeat — ${cursor ?? 0} of ${state.depositors} covered.`,
       disabled: state.drawCount === 0n || sweptAll,
       go: () => run("sweep", `sweepRange(${drawId}, 4)`, () => send("sweepRange", [drawId, 4], 3_600_000n)),
     },

@@ -25,6 +25,18 @@ createAppKit({
     url: "https://hushpot-fhevm.vercel.app",
     icons: [],
   },
+  // Coinbase / Base Account is turned off deliberately.
+  //
+  // Its connect flow talks to a popup through `window.opener`, and the app sets
+  // `Cross-Origin-Opener-Policy: same-origin` — required for cross-origin isolation, which
+  // is what lets the FHE WebAssembly run on worker threads instead of freezing the tab for
+  // a second or two on every deposit. The two cannot both be had: isolation severs exactly
+  // the window relationship that connector depends on, and it says so in the console.
+  //
+  // Offering a wallet that cannot complete is worse than not listing it. Injected wallets
+  // and WalletConnect are unaffected — neither needs the opener channel.
+  enableCoinbase: false,
+
   features: {
     analytics: false,
     // Email and social sign-in create custodial-ish accounts, which sits badly with a

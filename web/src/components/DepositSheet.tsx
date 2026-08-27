@@ -43,7 +43,7 @@ export function DepositSheet({
   const publicClient = usePublicClient();
   const { signTypedDataAsync } = useSignTypedData();
   const { writeContractAsync } = useWriteContract();
-  const { step, error, deposit, depositConfidential, withdraw, exitPool, reset, busy } = useDeposit();
+  const { step, error, depositConfidential, withdraw, exitPool, reset, busy } = useDeposit();
 
   /**
    * Which token funds the deposit, and it is a privacy decision rather than a preference.
@@ -244,7 +244,10 @@ export function DepositSheet({
       void withdraw(amount);
       return;
     }
-    void (route === "confidential" ? depositConfidential(amount) : deposit(amount));
+    // Confidential is the only route now, so there is nothing to branch on. The plain
+    // path stays in the hook and the contract for the Judge page; it is simply not
+    // something this sheet can reach.
+    void depositConfidential(amount);
   };
 
   const steps =
