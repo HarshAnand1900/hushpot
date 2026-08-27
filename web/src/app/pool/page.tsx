@@ -9,6 +9,7 @@ import { DepositSheet } from "@/components/DepositSheet";
 import { DidIWin } from "@/components/DidIWin";
 import { ContractLog } from "@/components/ContractLog";
 import { PositionHistory } from "@/components/PositionHistory";
+import { Schedule } from "@/components/Schedule";
 import { PositionPanel } from "@/components/PositionPanel";
 import { Pot3D } from "@/components/Pot3D";
 import { useMyPosition } from "@/hooks/useMyPosition";
@@ -315,6 +316,8 @@ export default function PoolTab() {
           </div>
           <CloseDraw periodEnded={state.periodEnded} drawPending={state.drawPending} onDone={() => state.refetch()} />
         </section>
+        <Schedule drawNumber={drawNumber} />
+
         {/* v6 pairs the personal question with the public record, side by side: the
             log is the evidence that answering it left nothing behind. */}
         <section className={styles.pair}>

@@ -138,6 +138,32 @@ single-tier claim already measures ~2.4M gas on Sepolia, with five batched toget
 tiers need the per-claim HCU measured before any of it is committed to — if one tier is 2.4M, four tiers is not
 obviously affordable.
 
+**Enforce the sweep on-chain before a period may roll.** Rolling ends every open claim, so a prize not checked by then
+is deducted from the reserve and credited to nobody, permanently. The Judge panel refuses to roll until every slot is
+swept, but that is a frontend courtesy — the contract does not check it, and a prize has already been lost this way on
+the live pool by someone rolling from the terminal. The fix is a counter of unchecked slots per draw and a require in
+`startNextPeriod`; the cost is that a pool with an unreachable depositor can never roll, so it needs an owner override
+and that override is the trust assumption again.
+
+**Snapshot the bands at settlement.** `_checkWin` derives each band from the live tree, which is safe only once the
+period has elapsed and weights freeze. Draw early with the owner's `--force` and deposits made afterwards still shift
+bands against a die that is already committed. Nobody can aim it — the die is encrypted — but "settled" stops meaning
+settled, so forcing is now opt-in on the keeper. Storing the root and each prefix at settlement would make a forced draw
+as final as an elapsed one, at the cost of per-draw storage that only demos need.
+
+**Ownership to a multisig behind a timelock.** One key can set the yield rate to zero and close the claim window early.
+`Ownable.transferOwnership` makes the move a single transaction — the work is standing up the Safe and the delay, not
+the contract change. This is the sharpest remaining trust assumption and the cheapest to retire.
+
+**Real yield, replacing the funded reserve.** `fundPrizeReserve` becomes a harvest step: route idle deposits into a
+lending market and credit realised yield to the same reserve. The draw, the claim, the weighting and the accounting are
+untouched, because they only ever read `prizeReserve`. What changes is solvency — deposits would then be lent rather
+than held, so `proveSolvency` would have to count the strategy's position too.
+
+**Encryption in a dedicated worker.** FHE encryption currently runs on threads unlocked by cross-origin isolation, which
+costs the Coinbase / Base Account connector — its popup flow needs the `window.opener` channel that isolation severs.
+Moving the encryption into a worker we own would free the headers and restore that wallet.
+
 **Confidential delegation — considered and rejected.** PoolTogether lets you delegate your odds to another address while
 keeping your principal, and encrypting the delegated weight looked like a genuinely new primitive. It isn't safe here:
 delegating means a transaction from your address touching someone else's slot, so even with the amount encrypted the

@@ -18,6 +18,46 @@ interface ApprovableToken {
 
 const POOL = "HushpotPool";
 
+/**
+ * Deposit the way the product does — confidentially.
+ *
+ * These tasks used `depositUnderlying`, which is a plain ERC-20 transfer and publishes the
+ * amount. That is a documented convenience route in the contract, but using it to seed a
+ * demo filled the contract log with sixty deposits in the clear, on a site whose headline
+ * claim is that amounts are encrypted. The log was telling the truth and the demo was
+ * making the opposite argument.
+ *
+ * So the seeder does what a real depositor does: shield the tokens, grant the pool
+ * operator rights once, then submit a ciphertext. Nothing about the amount reaches the
+ * chain in the clear, and the log reads `••••••` like every other confidential deposit.
+ */
+async function depositConfidentially(
+  hre: HardhatRuntimeEnvironment,
+  pool: Awaited<ReturnType<typeof getPool>>,
+  who: HardhatEthersSigner,
+  amount: bigint,
+) {
+  const poolAddress = await pool.getAddress();
+  const token = await hre.ethers.getContractAt("TestConfidentialWrapper", await pool.token());
+  const underlying = await hre.ethers.getContractAt("TestERC20", await pool.underlyingToken());
+
+  // Shield first: wrapping is public either way, and keeping it a separate transaction is
+  // what breaks the timing link between acquiring the token and depositing it.
+  await ensureAllowance(underlying.connect(who), who.address, await token.getAddress(), amount);
+  await (await (token.connect(who) as typeof token).wrap(who.address, amount)).wait();
+
+  // ERC-7984's approval: time-bounded rather than amount-bounded, so it cannot leak a size.
+  const until = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60;
+  if (!(await token.isOperator(who.address, poolAddress))) {
+    await (await (token.connect(who) as typeof token).setOperator(poolAddress, until)).wait();
+  }
+
+  await hre.fhevm.initializeCLIApi();
+  const enc = await hre.fhevm.createEncryptedInput(poolAddress, who.address).add64(amount).encrypt();
+
+  return (await (pool.connect(who) as typeof pool).deposit(enc.handles[0], enc.inputProof)).wait();
+}
+
 /** Resolve the deployed pool. `hre.ethers.getContract` is a hardhat-deploy-ethers
  * extension we don't install, so go through the deployments registry.
  *
@@ -140,13 +180,11 @@ task("hushpot:deposit", "Deposit plain tokens, shielded automatically by the poo
       return;
     }
 
-    await ensureAllowance(underlying, deployer, await pool.getAddress(), amount);
+    console.log(`depositing ${amount}, confidentially (the heaviest encrypted operation)...`);
+    const [me] = await hre.ethers.getSigners();
+    const receipt = await depositConfidentially(hre, pool, me, amount);
 
-    console.log(`depositing ${amount} (this is the heaviest encrypted operation)...`);
-    const tx = await pool.depositUnderlying(amount);
-    const receipt = await tx.wait();
-
-    console.log(`  tx       ${tx.hash}`);
+    console.log(`  tx       ${receipt?.hash}`);
     console.log(`  gas used ${receipt?.gasUsed}`);
     console.log(`  slot     ${await pool.slotOf((await hre.getNamedAccounts()).deployer)}`);
   });
@@ -372,12 +410,8 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
         }
       }
 
-      await withRetry("approve", () => ensureAllowance(underlying.connect(who), who.address, poolAddress, amount));
-
-      console.log(`  depositing ${amount / 1_000_000n}...`);
-      const receipt = await withRetry("deposit", async () =>
-        (await (pool.connect(who) as typeof pool).depositUnderlying(amount)).wait(),
-      );
+      console.log(`  depositing ${amount / 1_000_000n}, confidentially...`);
+      const receipt = await withRetry("deposit", () => depositConfidentially(hre, pool, who, amount));
       console.log(`  done · slot ${await pool.slotOf(who.address)} · gas ${receipt?.gasUsed}\n`);
     }
 
@@ -457,9 +491,7 @@ task("hushpot:activity", "Simulate one day of deposits, top-ups and withdrawals"
       }
       await withRetry("approve", () => ensureAllowance(underlying.connect(who), who.address, poolAddress, amount));
 
-      const receipt = await withRetry("deposit", async () =>
-        (await (pool.connect(who) as typeof pool).depositUnderlying(amount)).wait(),
-      );
+      const receipt = await withRetry("deposit", async () => depositConfidentially(hre, pool, who, amount));
       console.log(`      slot ${await pool.slotOf(who.address)} · gas ${receipt?.gasUsed}`);
     }
 
@@ -492,9 +524,7 @@ task("hushpot:activity", "Simulate one day of deposits, top-ups and withdrawals"
           await withRetry("mint", async () => (await underlying.mint(who.address, amount)).wait());
         }
         await withRetry("approve", () => ensureAllowance(underlying.connect(who), who.address, poolAddress, amount));
-        const receipt = await withRetry("deposit", async () =>
-          (await (pool.connect(who) as typeof pool).depositUnderlying(amount)).wait(),
-        );
+        const receipt = await withRetry("deposit", async () => depositConfidentially(hre, pool, who, amount));
         console.log(`      gas ${receipt?.gasUsed}`);
       }
     }
@@ -625,4 +655,57 @@ task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.
     await act("rolling into the next period", async () => {
       await (await pool.startNextPeriod()).wait();
     });
+  });
+
+/**
+ * A second pool, owned by a key that is published on purpose.
+ *
+ * Two of the six cycle steps — opening a draw and rolling the period — are owner-gated
+ * *only for running them early*. Once a period genuinely elapses anyone may call them, but
+ * that is a week away, and a judge should not have to wait a week to press a button.
+ *
+ * The obvious answer is to publish the real owner key, and it is the wrong one: that key
+ * can set the yield rate to zero and close claim windows early, which is the sharpest
+ * trust assumption in the threat model. Handing it out would make the documentation
+ * dishonest.
+ *
+ * So this deploys a throwaway instead. The main pool keeps its integrity; this one absorbs
+ * the experimentation, and it holds nothing that matters — test tokens, a little test ETH,
+ * and a key generated for no other purpose.
+ */
+task("hushpot:sandbox", "Deploy a judge-operated pool whose owner key is public")
+  .addParam("owner", "Address to hand ownership to", undefined, types.string)
+  .addOptionalParam("reserve", "Prize reserve in base units", "10000000000", types.string)
+  .setAction(async (args, hre) => {
+    const [deployer] = await hre.ethers.getSigners();
+    const known = (await import("../config/addresses")).addressesFor(Number(await hre.getChainId()));
+    if (!known) throw new Error("No known token addresses for this chain");
+
+    console.log(`deploying a sandbox pool...`);
+    const factory = await hre.ethers.getContractFactory(POOL);
+    const pool = await factory.deploy(known.confidentialToken);
+    await pool.waitForDeployment();
+    const address = await pool.getAddress();
+    console.log(`  at ${address}`);
+
+    // Fund the reserve while we still own it — `fundPrizeReserve` is owner-gated, and the
+    // whole point is to hand ownership away afterwards.
+    const underlying = await hre.ethers.getContractAt("TestERC20", known.underlyingToken);
+    const reserve = BigInt(args.reserve);
+    await (await underlying.mint(deployer.address, reserve)).wait();
+    await ensureAllowance(underlying, deployer.address, address, reserve);
+    console.log(`  funding reserve with ${reserve / 1_000_000n}...`);
+    await (await pool.fundPrizeReserve(reserve)).wait();
+
+    // Gas for whoever picks up the key.
+    console.log(`  sending 0.05 ETH to ${args.owner}...`);
+    await (await deployer.sendTransaction({ to: args.owner, value: hre.ethers.parseEther("0.05") })).wait();
+
+    console.log(`  transferring ownership...`);
+    await (await pool.transferOwnership(args.owner)).wait();
+
+    console.log(`\nsandbox ready`);
+    console.log(`  pool   ${address}`);
+    console.log(`  owner  ${args.owner}`);
+    console.log(`  owner is now the published key — this pool is expendable by design`);
   });

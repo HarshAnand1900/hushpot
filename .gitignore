@@ -42,3 +42,4 @@ yarn.lock
 # NOTE: `deployments/` is deliberately NOT ignored. It records the deployed addresses,
 # ABIs and transaction hashes, which is what lets a reviewer point the hardhat tasks at
 # the live contract instead of deploying their own. It contains no secrets.
+.sandbox-key

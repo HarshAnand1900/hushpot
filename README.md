@@ -10,8 +10,8 @@ Built for the Zama Developer Program, Mainnet Season 4.
 
 - **Live app:** <https://hushpot-fhevm.vercel.app>
 - **Contract:**
-  [`0xFc07aA77FCAEd9759a330d138eb6F942Ecb337b3`](https://sepolia.etherscan.io/address/0xFc07aA77FCAEd9759a330d138eb6F942Ecb337b3)
-  (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0xFc07aA77FCAEd9759a330d138eb6F942Ecb337b3#code).
+  [`0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69`](https://sepolia.etherscan.io/address/0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69)
+  (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69#code).
   The address in [`web/src/lib/contract.ts`](web/src/lib/contract.ts) is always the live one
 - **Judge panel:** [`/judge`](https://hushpot-fhevm.vercel.app/judge) — run a whole draw cycle from the browser, no
   terminal
@@ -20,6 +20,9 @@ Built for the Zama Developer Program, Mainnet Season 4.
 - **Faucet:** the underlying
   [`USDTMock`](https://sepolia.etherscan.io/address/0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0) has an open `mint`, so
   anyone can self-serve
+- **Judge sandbox:** a second, expendable pool at
+  [`0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE`](https://sepolia.etherscan.io/address/0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE#code)
+  — see [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) — what leaks, and when
 
 ---
@@ -229,6 +232,27 @@ can stall.
 The consequence worth stating: **the operator cannot run the pool on its own terms, and cannot stop anyone else running
 it.** The one exception is the claim window, where the owner may roll a period early; that is a real trust assumption
 and is documented in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
+
+### Running the cycle as a judge, today
+
+Two of the six steps — `openDraw` and `startNextPeriod` — are owner-gated **only for running them early**. Once a period
+genuinely elapses, anyone may call them. The main pool's first period ends **3 September 2026**, so from then every step
+is open to any wallet.
+
+Before then there is a **sandbox pool**, which exists for exactly this and is expendable by design:
+
+|       |                                                                                                                                      |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Pool  | [`0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE`](https://sepolia.etherscan.io/address/0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE#code) |
+| Owner | `0xc2A389C7C5B2adA578e90e0F4731399598301824`                                                                                         |
+
+Its owner key is distributed with the submission rather than committed here. The key was generated for this and nothing
+else, holds 0.05 test ETH, and owns one testnet pool with 10,000 test cUSDT in its reserve — so it is worthless, and
+losing control of it costs nothing.
+
+The main pool's owner key is **not** shared, and that is not an oversight. It can set the yield rate to zero and close
+claim windows early — the sharpest trust assumption in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
+Publishing it would make that document a lie. The sandbox absorbs the experimentation instead.
 
 ### Three ways to call anything
 
