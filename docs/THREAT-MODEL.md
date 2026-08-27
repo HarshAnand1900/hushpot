@@ -14,9 +14,11 @@ evaluate than one that names its edges, and every claim below can be checked aga
 
 **The live pool total was publishable on demand — fixed.** `refreshTotal()` was `external` and marked the running total
 publicly decryptable. Read it, wait for a deposit, read it again, and the difference is that depositor's amount in the
-clear. Two calls and the encryption was worth nothing. It is now `internal`, and `openDraw` is the only caller, so the
-total is published once per period and never otherwise. A test harness exposes it with a comment saying why that would
-be a break in production.
+clear. Two calls and the encryption was worth nothing.
+
+It is now `internal` as `_refreshTotal`, and **nothing in the production contract calls it at all** — `openDraw`
+publishes the total itself, inline, once per period. Only the test harness reaches it, with a comment saying why
+exposing it would be a break. Verified by grep as part of the pre-submission audit rather than assumed.
 
 **A forced draw does not stay settled.** `_checkWin` derives each band from the live tree rather than a snapshot taken
 at settlement, which is safe only while the tree cannot move. That is what elapsing guarantees: once `minuteOfPeriod`
