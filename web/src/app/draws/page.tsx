@@ -7,7 +7,7 @@ import { DrawTimeline } from "@/components/DrawTimeline";
 import { TreeWalk } from "@/components/TreeWalk";
 import { Pot3D } from "@/components/Pot3D";
 import { useDraws } from "@/hooks/useDraws";
-import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
+import { useLastDraw, usePoolState, useWeeklyPot } from "@/hooks/usePoolState";
 import { useVerifyDraw } from "@/hooks/useVerifyDraw";
 import { formatUnits } from "@/lib/format";
 import styles from "./draws.module.css";
@@ -21,7 +21,8 @@ export default function DrawsTab() {
   const [selected, setSelected] = useState(0);
 
   const draw = draws[selected];
-  const pot = lastDraw ? lastDraw.prize : 0n;
+  // The same estimate the other tabs show, so the header is consistent everywhere.
+  const { pot } = useWeeklyPot(state, lastDraw);
   const allPassed = done && results.every((r) => r.ok);
 
   return (

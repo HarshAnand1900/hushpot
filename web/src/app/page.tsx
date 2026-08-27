@@ -3,7 +3,7 @@
 import { ConnectButton } from "@/components/ConnectButton";
 import { LandingSections } from "@/components/LandingSections";
 import { Pot3D } from "@/components/Pot3D";
-import { useLastDraw, useNow, usePoolState } from "@/hooks/usePoolState";
+import { useLastDraw, useNow, usePoolState, useWeeklyPot } from "@/hooks/usePoolState";
 import { POOL_ADDRESS } from "@/lib/contract";
 import { formatCountdown, formatUnits, splitUnits } from "@/lib/format";
 import styles from "./landing.module.css";
@@ -19,7 +19,8 @@ export default function Landing() {
 
   // "This week's pot" is what pays out at close, projected from the last published pool
   // total. Never a live reading — that would leak every deposit by subtraction.
-  const projectedPot = lastDraw ? lastDraw.prize : 0n;
+  // The same estimate the app tabs show — see useWeeklyPot for why it is an estimate.
+  const { pot: projectedPot } = useWeeklyPot(state, lastDraw);
   const pot = splitUnits(projectedPot, 2);
 
   return (

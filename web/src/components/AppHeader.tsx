@@ -53,7 +53,7 @@ export function AppHeader({ pot, sponsored = 0n }: { pot: bigint; sponsored?: bi
           <span className={styles.potLabel}>POT</span>
           <span className={`num ${styles.potValue}`}>{formatUnits(pot)}</span>
           <span className="liveDot" />
-          <span className={styles.potLive}>LAST PAID</span>
+          <span className={styles.potLive}>THIS WEEK</span>
 
           {/* A sponsorship lands in the *next* draw, so the figure beside it does not move
               and the gift looks like it went nowhere. This is the only place it can be

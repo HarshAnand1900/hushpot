@@ -13,7 +13,7 @@ import { PositionPanel } from "@/components/PositionPanel";
 import { Pot3D } from "@/components/Pot3D";
 import { useMyPosition } from "@/hooks/useMyPosition";
 import { useDraws } from "@/hooks/useDraws";
-import { useLastDraw, useNow, usePoolState } from "@/hooks/usePoolState";
+import { useLastDraw, useNow, usePoolState, useWeeklyPot } from "@/hooks/usePoolState";
 import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { formatCountdown, formatUnits, shortenAddress, splitUnits } from "@/lib/format";
 import styles from "./pool.module.css";
@@ -55,27 +55,8 @@ export default function PoolTab() {
   // accrued so far is shown separately rather than standing in for the whole thing.
   // What the last draw actually paid — not a forecast of the next one.
   //
-  // This week's pot, estimated from public figures only.
-  //
-  // The exact answer is `prizeFor(liveTotal) + sponsored`, and `liveTotal` is encrypted
-  // precisely so nobody can read it — publishing it continuously is the leak the whole
-  // design exists to avoid, since two readings either side of a deposit give you that
-  // deposit. So the yield half is estimated from the total the last draw *did* publish,
-  // on the assumption the pool ends this week roughly where it ended the last one.
-  //
-  // Nothing new is disclosed: both inputs are already public, and the arithmetic is the
-  // contract's own `prizeFor`, run here rather than on-chain.
-  //
-  // Note this uses `prizeFor(lastTotal)` rather than last week's *prize*. The prize
-  // included last week's sponsorship, which is a one-off — carrying it forward would
-  // promise a pot that never arrives. This week's sponsorships are added separately,
-  // and those are exact rather than estimated.
-  const RATE_DIVISOR = 10_000n * 525_600n;
-  const yieldEstimate = lastDraw ? (lastDraw.total * state.annualRateBps) / RATE_DIVISOR : 0n;
-  const pot = yieldEstimate + state.sponsoredThisDraw;
-
-  // What the last draw actually paid, kept for the line that says so.
-  const lastPaid = lastDraw ? lastDraw.prize : 0n;
+  // Shared with every other tab, so the header never disagrees with itself.
+  const { pot, yieldEstimate, lastPaid } = useWeeklyPot(state, lastDraw);
 
   // How much of that pot the week has earned so far. Sponsorship is already banked in
   // full, so only the yield half accrues.

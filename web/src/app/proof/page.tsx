@@ -8,7 +8,7 @@ import { HardParts } from "@/components/HardParts";
 import { Solvency } from "@/components/Solvency";
 import { VerifyHandle } from "@/components/VerifyHandle";
 import { SponsorPot } from "@/components/SponsorPot";
-import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
+import { useLastDraw, usePoolState, useWeeklyPot } from "@/hooks/usePoolState";
 import { POOL_ADDRESS, TOKEN_ADDRESS, UNDERLYING_ADDRESS } from "@/lib/contract";
 import styles from "./proof.module.css";
 
@@ -67,7 +67,8 @@ function Act({ n, label }: { n: string; label: string }) {
 export default function ProofTab() {
   const state = usePoolState();
   const lastDraw = useLastDraw(state.drawCount);
-  const pot = lastDraw ? lastDraw.prize : 0n;
+  // The same estimate the other tabs show, so the header is consistent everywhere.
+  const { pot } = useWeeklyPot(state, lastDraw);
 
   return (
     <>

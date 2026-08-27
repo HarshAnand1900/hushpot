@@ -96,3 +96,37 @@ export function useNow(intervalMs = 1000) {
 
   return now;
 }
+
+/**
+ * This week's pot, estimated from public figures only.
+ *
+ * Lives here rather than in a page because every tab shows it in the header, and they had
+ * drifted apart: Pool computed the estimate while Draws and Proof still showed the last
+ * draw's prize, so the same header displayed different numbers under the same label
+ * depending on which tab you were on.
+ *
+ * The exact figure is `prizeFor(liveTotal) + sponsored`, and `liveTotal` is encrypted
+ * precisely so that nobody can read it — two readings either side of a deposit would give
+ * up that deposit. So the yield half is estimated from the total the last draw published,
+ * assuming the pool ends this week near where it ended the last one. Both inputs are
+ * already public and the arithmetic is the contract's own `prizeFor`, so the estimate
+ * discloses nothing new.
+ *
+ * `prizeFor(lastTotal)` rather than last week's *prize*: the prize included last week's
+ * sponsorship, which is a one-off, and carrying it forward would promise a pot that never
+ * arrives. This week's sponsorships are added separately, and those are exact.
+ */
+const RATE_DIVISOR = 10_000n * 525_600n;
+
+export function useWeeklyPot(state: ReturnType<typeof usePoolState>, lastDraw: ReturnType<typeof useLastDraw>) {
+  const yieldEstimate = lastDraw ? (lastDraw.total * state.annualRateBps) / RATE_DIVISOR : 0n;
+
+  return {
+    /** Yield estimate plus everything sponsored so far. What the header shows. */
+    pot: yieldEstimate + state.sponsoredThisDraw,
+    /** The estimated half on its own, for accrual over the week. */
+    yieldEstimate,
+    /** What the previous draw actually paid, for the line that says so. */
+    lastPaid: lastDraw ? lastDraw.prize : 0n,
+  };
+}
