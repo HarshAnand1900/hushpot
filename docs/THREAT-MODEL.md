@@ -224,12 +224,12 @@ Honest omissions, with what each would take:
 | Owner can close the claim window early                | Enforce a full sweep on-chain, or drop the exemption         |
 | Slots are never released by a griefer                 | Priced, not prevented — see below                            |
 | Unclaimed prizes are not swept back automatically     | A rollover pass once the claim window closes                 |
-| Pool capacity is fixed at 1,024 slots                 | A deeper tree, at higher per-deposit cost                    |
+| Pool capacity is finite — 16,384 slots                | Priced rather than removed; see §9                           |
 | No formal audit                                       | The reason this document exists                              |
 
 ---
 
-_Last updated 10 August 2026. If something here is wrong, that is a bug — please report it._
+_Last updated 27 August 2026. If something here is wrong, that is a bug — please report it._
 
 ## 9. Slot exhaustion
 

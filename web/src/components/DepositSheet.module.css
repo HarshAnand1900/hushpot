@@ -483,3 +483,26 @@
 .more[open] > summary {
   margin-bottom: 7px;
 }
+
+/* Leaving, offered quietly beneath the withdraw action. Deliberately not a primary
+   button — it is the right choice for someone who is done, and the wrong one for anyone
+   who simply wants some of their money back. */
+.exit {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-2);
+  padding: 11px 14px;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  transition:
+    border-color 0.18s,
+    color 0.18s;
+}
+.exit:hover:not(:disabled) {
+  border-color: var(--yellow);
+  color: var(--white);
+}
+.exit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

@@ -142,6 +142,7 @@ export const poolAbi = [
   // Computing an encrypted value is a transaction, not a call: FHE operations mutate
   // coprocessor state. So reading your own balance is refresh-then-decrypt.
   { type: "function", name: "refreshMyBalance", inputs: [], outputs: [], stateMutability: "nonpayable" },
+  { type: "function", name: "exitPool", inputs: [], outputs: [], stateMutability: "nonpayable" },
   { type: "function", name: "refreshMyWeight", inputs: [], outputs: [], stateMutability: "nonpayable" },
   // Balance and odds in one transaction, so revealing your position costs a signature
   // and a single wallet prompt rather than three.

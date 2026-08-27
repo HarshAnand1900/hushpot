@@ -43,7 +43,7 @@ export function DepositSheet({
   const publicClient = usePublicClient();
   const { signTypedDataAsync } = useSignTypedData();
   const { writeContractAsync } = useWriteContract();
-  const { step, error, deposit, depositConfidential, withdraw, reset, busy } = useDeposit();
+  const { step, error, deposit, depositConfidential, withdraw, exitPool, reset, busy } = useDeposit();
 
   /**
    * Which token funds the deposit, and it is a privacy decision rather than a preference.
@@ -490,6 +490,21 @@ export function DepositSheet({
                 </>
               )}
             </div>
+          )}
+
+          {/* Leaving is a different act from withdrawing, and only offered where somebody
+              is already thinking about taking money out. A slot is otherwise permanent:
+              every future sweep pays gas for every address that ever deposited, so a
+              depositor who has gone and cannot say so costs the pool for ever. */}
+          {mode === "withdraw" && (
+            <button
+              className={styles.exit}
+              onClick={() => void exitPool()}
+              disabled={busy}
+              title="Withdraw everything and release your slot"
+            >
+              Or leave the pool entirely — takes the whole balance and gives the slot back
+            </button>
           )}
 
           <button className={styles.submit} onClick={submit} disabled={!canSubmit}>

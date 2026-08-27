@@ -188,6 +188,7 @@ export function useDeposit() {
           const { getFhevm, toHex } = await import("@/lib/fhe");
           const fhevm = await getFhevm();
           const enc = await fhevm.createEncryptedInput(POOL_ADDRESS, address).add64(amount).encrypt();
+
           return { handle: toHex(enc.handles[0]), proof: toHex(enc.inputProof) };
         };
         let encryption: ReturnType<typeof encrypt> | undefined;
@@ -289,12 +290,56 @@ export function useDeposit() {
     [address, config, writeContractAsync],
   );
 
+  /**
+   * Take everything out and give the slot back.
+   *
+   * Distinct from a withdrawal on purpose. `withdraw` clamps to whatever you asked for and
+   * leaves the slot yours; this empties the balance by construction — it requests
+   * `type(uint64).max`, which clamps to the whole of it — and then releases the slot at the
+   * next period roll.
+   *
+   * Worth offering because a slot is otherwise permanent: every sweep pays gas for every
+   * address that ever deposited, so somebody who has left and cannot say so keeps costing
+   * the pool for ever.
+   */
+  const exitPool = useCallback(async () => {
+    if (!address) return false;
+    setError(undefined);
+
+    try {
+      setStep("withdrawing");
+      const tx = await writeContractAsync({
+        address: POOL_ADDRESS,
+        abi: poolAbi,
+        functionName: "exitPool",
+        gas: 3_600_000n,
+      });
+      await waitForTransactionReceipt(config, { hash: tx });
+
+      setStep("done");
+      toast({
+        kind: "success",
+        title: "You have left the pool",
+        detail: "Principal returned in full, still encrypted. The slot is released at the next period roll.",
+        hash: tx,
+      });
+      return true;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not exit.";
+      setError(/user rejected|denied/i.test(message) ? "Transaction declined." : message.slice(0, 160));
+      setStep("error");
+      toast({ kind: "error", title: "Exit failed", detail: describeError(e) });
+      return false;
+    }
+  }, [address, config, writeContractAsync]);
+
   return {
     step,
     error,
     deposit,
     depositConfidential,
     withdraw,
+    exitPool,
     reset,
     busy: step === "approving" || step === "depositing" || step === "withdrawing",
   };
