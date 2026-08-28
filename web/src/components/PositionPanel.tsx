@@ -217,7 +217,7 @@ export function PositionPanel({
           </div>
           {/* Odds divide your weight by a denominator that is only published at a draw.
               On a pool where none has settled there is no such figure, so the number is
-              not merely hidden — it does not exist yet. Saying that beats a mask that
+              not merely hidden. It does not exist yet, and saying so beats a mask that
               looks identical to "you have not revealed", which is what it looked like. */}
           <div className={`num ${styles.value} ${isUnlocked && odds !== undefined ? "" : styles.valueMasked}`}>
             {odds !== undefined && isUnlocked ? `${odds.toFixed(2)}%` : oddsStale && isUnlocked ? "—" : masked}
@@ -226,8 +226,8 @@ export function PositionPanel({
           {!hasDenominator && (
             <div className={styles.oddsPending}>
               No draw has settled yet, so there is no published pool total to divide into. Your odds appear once the
-              first draw closes — the denominator is deliberately frozen at a draw rather than read live, because a live
-              one would let anyone recover every deposit by subtraction.
+              first draw closes. The denominator is frozen at a draw instead of read live, because a live one would let
+              anyone recover every deposit by subtraction.
             </div>
           )}
 
@@ -253,9 +253,9 @@ export function PositionPanel({
             {!hasDenominator
               ? "waiting on the first draw"
               : oddsStale
-                ? `out of date — the pool has grown past the total published at draw #${Math.max(0, drawNumber - 1)}, and the live one is encrypted. Your real share is recalculable only when the next draw publishes a new total.`
+                ? `out of date: the pool has grown past the total published at draw #${Math.max(0, drawNumber - 1)}, and the live one is encrypted. Your real share is recalculable only when the next draw publishes a new total.`
                 : isUnlocked
-                  ? "climbing every minute you stay in — computed here, never transmitted"
+                  ? "climbing every minute you stay in, computed here and never transmitted"
                   : "computed here, never transmitted"}
           </div>
         </div>

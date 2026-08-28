@@ -41,6 +41,22 @@
   color: var(--on-yellow);
 }
 
+/* Which part of the week the pool is in, said before the six cards are read. */
+.phaseLine {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  max-width: 52ch;
+  border-left: 3px solid var(--black);
+  background: rgba(0, 0, 0, 0.07);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--on-yellow);
+}
+
+.phaseLine strong {
+  color: var(--black);
+}
+
 /* The way out of a half-disabled page, so it is built to be seen before the steps are. */
 .sandboxCta {
   display: grid;
@@ -130,6 +146,13 @@
 }
 .reset:hover {
   border-color: var(--yellow);
+}
+
+.resetNote {
+  margin: 0 20px 20px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-4);
 }
 
 /* ---------------------------------------------------------------- steps -- */

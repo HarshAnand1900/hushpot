@@ -158,7 +158,7 @@ export function DrawTimeline({ drawId, isLatest }: { drawId: bigint; isLatest: b
 
       <p className={styles.note}>
         Whether an address opened a draw is public; what it found is not. So this says how many people have looked, and
-        never how many were paid — the winner is somewhere in that count and stays there.
+        never how many were paid. The winner is somewhere in that count and stays there.
       </p>
     </div>
   );

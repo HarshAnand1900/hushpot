@@ -18,6 +18,7 @@ import {
 } from "@/lib/contract";
 import { formatUnits, shortenAddress } from "@/lib/format";
 import { useJudgeSession } from "@/hooks/useJudgeSession";
+import { poolPhase } from "@/hooks/usePoolPhase";
 import { gasLimitFor } from "@/lib/gas";
 import { describeError, toast } from "@/lib/toast";
 import styles from "./judge.module.css";
@@ -47,6 +48,7 @@ export default function JudgeTab() {
   // The same derivation every other tab uses, so the header cannot disagree with itself
   // from one tab to the next. See useWeeklyPot.
   const { pot } = useWeeklyPot(state, lastDraw);
+  const phase = poolPhase(state, lastDraw);
   const { address, isConnected } = useAccount();
   const config = useConfig();
   const publicClient = usePublicClient();
@@ -63,7 +65,7 @@ export default function JudgeTab() {
   const [running, setRunning] = useState<string>();
   // Persisted per pool: switching tabs to look at what a step changed used to wipe the
   // record that it had run. See useJudgeSession.
-  const { log, done, append, complete, clear } = useJudgeSession();
+  const { log, done, append, complete, clear } = useJudgeSession(state.currentPeriod, !state.isLoading);
 
   const drawId = state.drawCount > 0n ? state.drawCount - 1n : 0n;
   const isOwner = !!address && !!owner && address.toLowerCase() === owner.toLowerCase();
@@ -319,7 +321,7 @@ export default function JudgeTab() {
       role: "ANYONE",
       title: "Grow the prize",
       sig: "sponsorPrize(uint256)",
-      note: `Mints 500 test tokens and adds them to the next prize on top of the yield. Takes no odds and creates no position — a sponsorship can never win itself back. It does not move the figure in the header, which is what the last draw paid; banked so far for draw #${state.drawCount}: ${formatUnits(state.sponsoredThisDraw)} cUSDT.`,
+      note: `Mints 500 test tokens and adds them to the next prize on top of the yield. Takes no odds and creates no position, so a sponsorship can never win itself back. It does not move the figure in the header, which is what the last draw paid; banked so far for draw #${state.drawCount}: ${formatUnits(state.sponsoredThisDraw)} cUSDT.`,
       disabled: !isConnected,
       go: () =>
         run("sponsor", "sponsorPrize(500)", async () => {
@@ -334,7 +336,7 @@ export default function JudgeTab() {
       title: "Open the draw",
       sig: onSandbox ? "SandboxOperator.openDraw()" : "openDraw()",
       note: onSandbox
-        ? "Seals the pool total and publishes it for decryption. Sent through the sandbox's owner contract, which forwards this call to anyone — so it works from your wallet, now, without waiting for the period to elapse."
+        ? "Seals the pool total and publishes it for decryption. Sent through the sandbox's owner contract, which forwards this call to any address, so it works from your wallet, now, without waiting for the period to elapse."
         : "Seals the pool total and publishes it for decryption. Anyone may call it once the period has elapsed; the owner may call it early so a week-long cycle fits in a demo.",
       disabled: !isConnected || state.drawPending || (!state.periodEnded && !isOwner && !onSandbox),
       go: () => run("open", onSandbox ? "SandboxOperator.openDraw()" : "openDraw()", open),
@@ -355,7 +357,7 @@ export default function JudgeTab() {
       role: "ANYONE",
       title: "Pay everyone out",
       sig: "sweepRange(uint256, uint16)",
-      note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped rather than paid twice, so this is safe to repeat — ${cursor ?? 0} of ${state.depositors} covered.`,
+      note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped instead of paid twice, so this is safe to repeat. ${cursor ?? 0} of ${state.depositors} covered.`,
       disabled: state.drawCount === 0n || sweptAll,
       go: () =>
         run("sweep", `sweepRange(${drawId}, 4)`, async () => {
@@ -373,7 +375,7 @@ export default function JudgeTab() {
       role: "ANYONE",
       title: "Prove solvency",
       sig: "proveSolvency()",
-      note: "Compares what the pool holds against what it owes — on ciphertext, so neither figure is revealed — and publishes the single bit that falls out. The bit is publicly decryptable, so this console decrypts it through the same open path anyone else can use and reports the answer, rather than reporting that a transaction succeeded.",
+      note: "Compares what the pool holds against what it owes, on ciphertext, so neither figure is revealed, then publishes the single bit that falls out. The bit is publicly decryptable, so this console decrypts it through the same open path anybody else can use and reports the answer, instead of reporting that a transaction succeeded.",
       disabled: !isConnected,
       go: () => run("solvency", "proveSolvency()", solvency),
     },
@@ -387,7 +389,7 @@ export default function JudgeTab() {
         ? onSandbox
           ? "Ends the claim window and opens the next period, through the owner contract so it needs no key and no thirty-day wait. The pool is then back at step 01, ready to run again."
           : "Ends the claim window and opens the next period. Held back thirty days after settlement so a claim is never a race."
-        : `Locked until everyone is swept — ${cursor ?? 0} of ${state.depositors}. Rolling now would end the claim window on anyone still unpaid.`,
+        : `Locked until everyone is swept: ${cursor ?? 0} of ${state.depositors}. Rolling now would end the claim window on anybody still unpaid.`,
       disabled: !isConnected || state.drawCount === 0n || state.drawPending || !sweptAll,
       go: () =>
         run("roll", onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()", async () => {
@@ -421,23 +423,27 @@ export default function JudgeTab() {
               period.{" "}
               <span suppressHydrationWarning>
                 {onSandbox
-                  ? "All six run from any wallet on Sepolia — nothing here is owner-gated."
+                  ? "All six run from any wallet on Sepolia. Nothing here is owner-gated."
                   : "Owner-gated calls are labelled; everything else works from any connected wallet on Sepolia."}
               </span>
             </p>
             {/* Opening a draw and rolling the period are gated only for running them
                 early. A judge arriving before the first period elapses would find two of
-                six steps closed, so there is a throwaway pool that opens all of them —
+                six steps closed, so there is a throwaway pool that opens all of them,
                 and no reason to advertise it to someone already standing in it. */}
             <p className={styles.heroCopy} suppressHydrationWarning>
               {onSandbox
-                ? "You are on the sandbox, a throwaway pool nobody has run a cycle on yet. Every step below works from the wallet you already have — no key to import, and no week to wait."
+                ? "You are on the sandbox, a throwaway pool nobody has run a cycle on yet. Every step below works from the wallet you already have. No key to import, no week to wait."
                 : "Two of the six steps are gated to the owner until the period elapses on 3 September. Run those today on the sandbox instead."}
             </p>
 
             {/* A judge arriving before the period elapses finds two of six steps closed,
                 which reads as a broken page rather than a deliberate gate. This is the way
                 out, so it is a door rather than a sentence with a link in it. */}
+            <p className={styles.phaseLine}>
+              <strong>{phase.headline}</strong> {phase.detail}
+            </p>
+
             {!onSandbox && (
               <a className={styles.sandboxCta} href="/judge?pool=sandbox" suppressHydrationWarning>
                 <span className={styles.sandboxCtaLabel}>OPEN THE SANDBOX</span>
@@ -469,6 +475,7 @@ export default function JudgeTab() {
               }
               accent={isOwner || onSandbox}
             />
+            <Row label="POOL IS" value={phase.tag} accent />
             <Row label="CYCLE PROGRESS" value={`${done.size} / ${steps.length}`} accent={done.size > 0} />
             <Row label="RESERVE" value={`${formatUnits(state.prizeReserve)} cUSDT`} />
             <Row
@@ -489,12 +496,17 @@ export default function JudgeTab() {
                 toast({
                   kind: "success",
                   title: "Console cleared",
-                  detail: "The chain is untouched — only this record.",
+                  detail: "Only this browser's record. Nothing on-chain was touched.",
                 });
               }}
             >
               {done.size >= steps.length ? "Run the cycle again" : "Reset console"}
             </button>
+            {/* It clears a checklist. Saying so stops it reading like a contract call. */}
+            <p className={styles.resetNote}>
+              Clears the checklist and the log in this browser. It sends no transaction and changes nothing on-chain.
+              The marks also clear on their own when the period rolls, since that starts a new cycle.
+            </p>
           </div>
         </section>
 
@@ -569,7 +581,7 @@ export default function JudgeTab() {
           <div className={styles.bCol}>
             <div className={styles.bHead}>WHAT NEEDS OWNER RIGHTS</div>
             <p>
-              Topping up the reserve directly, and the shortcuts that skip waiting — opening a draw before the period
+              Topping up the reserve directly, plus the shortcuts that skip waiting: opening a draw before the period
               ends, rolling before the thirty-day claim window closes. Both exist so a week-long cycle can be shown in a
               minute.
             </p>
@@ -585,7 +597,7 @@ export default function JudgeTab() {
             <div className={styles.bHead}>WHAT NEVER HAPPENS</div>
             <p>
               No call on this page reveals a balance, and none of them writes a winner. Settlement moves the pot without
-              resolving a name — there is no winner field in storage to read.
+              resolving a name. There is no winner field in storage to read.
             </p>
           </div>
         </section>

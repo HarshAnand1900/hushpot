@@ -190,7 +190,7 @@ export function DepositSheet({
       toast({
         kind: "success",
         title: shield ? "10,000 cUSDT minted and shielded" : "10,000 tUSDT minted",
-        detail: shield ? "Your balance is a ciphertext — press Reveal to read it." : undefined,
+        detail: shield ? "Your balance is a ciphertext. Press Reveal to read it." : undefined,
       });
       await refetchWallet();
     } catch (e) {
@@ -254,12 +254,12 @@ export function DepositSheet({
     mode === "deposit"
       ? route === "confidential"
         ? [
-            { key: "approving", label: "Authorise the pool", note: "once ever — skipped if already granted" },
+            { key: "approving", label: "Authorise the pool", note: "once ever, skipped if already granted" },
             { key: "encrypting", label: "Encrypt the amount", note: "client-side, before broadcast" },
             { key: "depositing", label: "Submit ciphertext", note: "the size never appears in the clear" },
           ]
         : [
-            { key: "approving", label: "Approve tUSDT", note: "once ever — skipped if already approved" },
+            { key: "approving", label: "Approve tUSDT", note: "once ever, skipped if already approved" },
             { key: "encrypting", label: "Shield into cUSDT", note: "wrapped by the pool on arrival" },
             { key: "depositing", label: "Credit your slot", note: "the position is encrypted from here on" },
           ]
@@ -357,7 +357,7 @@ export function DepositSheet({
                 disabled={busy || !balanceKnown || available === 0n}
                 title={
                   !balanceKnown
-                    ? "Your confidential balance is a ciphertext — there is no figure to fill in"
+                    ? "Your confidential balance is a ciphertext, so there is no figure to fill in"
                     : undefined
                 }
                 onClick={() => setRaw((Number(available) / Number(SCALE)).toString())}
@@ -385,19 +385,19 @@ export function DepositSheet({
           {tooMuch && (
             <div className={styles.warn}>
               More than you {mode === "deposit" ? "hold" : "have in the pool"}. A confidential transfer that exceeds
-              your balance moves nothing — it would cost gas and do nothing at all.
+              your balance moves nothing. It would cost gas and achieve nothing at all.
             </div>
           )}
 
           {/* The failure this prevents is genuinely silent. ERC-7984 clamps rather than
               reverting, so an oversized deposit moves zero, emits `Deposited` anyway, and
               shows up in the log and your history as though it worked. The contract cannot
-              tell you — the comparison is on ciphertext — so the only place this can be
+              tell you, since the comparison is on ciphertext, so the only place this can be
               caught is here, before the amount is signed. */}
           {mode === "deposit" && route === "confidential" && !balanceKnown && amount > 0n && (
             <div className={styles.warn}>
               Your cUSDT balance is still sealed, so this amount cannot be checked against it. If it turns out to exceed
-              what you hold, the transfer moves <strong>nothing</strong> and still records a deposit — no revert, no
+              what you hold, the transfer moves <strong>nothing</strong> and still records a deposit. No revert, no
               error. Reveal your wallet balance above first.
             </div>
           )}
@@ -410,7 +410,7 @@ export function DepositSheet({
               pool ever wraps it. Encrypting everything downstream cannot unpublish it.
               
               So every deposit here is confidential. Acquiring cUSDT is a separate,
-              openly public step — that is what the mint button below does — and keeping
+              openly public step (that is what the mint button below does), and keeping
               the two apart is also what breaks the timing link between them.
               
               `depositUnderlying` still exists on the contract, and is documented in the
@@ -421,27 +421,27 @@ export function DepositSheet({
             <span className={styles.noteMark} aria-hidden="true" />
             {mode === "deposit" && route === "confidential" ? (
               <span>
-                Nothing but a ciphertext leaves this browser — the chain records that you deposited and when, never how
+                Nothing but a ciphertext leaves this browser. The chain records that you deposited and when, never how
                 much.
                 <details className={styles.more}>
                   <summary>What still leaks</summary>
-                  Asking for more than you hold moves nothing rather than failing, so check the figure: a confidential
-                  transfer cannot revert on a balance it is not allowed to read. And getting cUSDT is public — shield
+                  Asking for more than you hold moves nothing instead of failing, so check the figure: a confidential
+                  transfer cannot revert on a balance it is not allowed to read. And getting cUSDT is public, so shield
                   10,000 then deposit 10,000 a minute later and the two are linked by timing. Shield once, deposit a
                   different amount later, and that link is gone.
                 </details>
               </span>
             ) : mode === "deposit" ? (
               <span>
-                This starts earning odds the moment it lands — no waiting for the draw boundary. Odds are weighted by
-                amount and by how long it sits, so the earlier it arrives the more of
+                This starts earning odds the moment it lands, with no waiting for the draw boundary. Odds are weighted
+                by amount and by how long it sits, so the earlier it arrives the more of
                 {drawNumber !== undefined ? ` draw #${drawNumber}` : " this draw"} it earns. Deposit once and you are in
                 every draw until you withdraw.
               </span>
             ) : (
               <span>
-                Your principal was never at risk and comes back in full, as <strong>cUSDT</strong> — still encrypted.
-                Unwrapping it to plain tUSDT would publish the amount, so that stays your decision rather than ours.
+                Your principal was never at risk and comes back in full, as <strong>cUSDT</strong>, still encrypted.
+                Unwrapping it to plain tUSDT would publish the amount, so that stays your decision, not ours.
                 Withdrawing keeps the odds this money already earned for the current draw; you only stop earning from
                 now on.
               </span>
@@ -483,14 +483,14 @@ export function DepositSheet({
             <div className={styles.minted}>
               {minted === "confidential" ? (
                 <>
-                  <strong>Landed.</strong> 10,000 tUSDT was minted and then wrapped into cUSDT — two transactions, both
+                  <strong>Landed.</strong> 10,000 tUSDT was minted and then wrapped into cUSDT, two transactions, both
                   confirmed. Your cUSDT balance is a ciphertext, so there is no figure to display until you open it with
                   the Reveal button above.
                 </>
               ) : (
                 <>
-                  <strong>Landed.</strong> 10,000 tUSDT is in your wallet — a plain token, so the balance above updated
-                  on its own.
+                  <strong>Landed.</strong> 10,000 tUSDT is in your wallet. It is a plain token, so the balance above
+                  updated on its own.
                 </>
               )}
             </div>
@@ -507,7 +507,7 @@ export function DepositSheet({
               disabled={busy}
               title="Withdraw everything and release your slot"
             >
-              Or leave the pool entirely — takes the whole balance and gives the slot back
+              Or leave the pool entirely, which takes the whole balance and gives the slot back
             </button>
           )}
 

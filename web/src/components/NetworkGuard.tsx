@@ -23,12 +23,12 @@ export function NetworkGuard() {
       <span className={styles.dot} />
       <span className={styles.text}>
         <strong>Wrong network.</strong> Hushpot lives on Sepolia. Nothing below will load until you switch
-        {chainId ? ` — you are on chain ${chainId}` : ""}.
+        {chainId ? `. You are on chain ${chainId}` : ""}.
       </span>
       <button className={styles.action} onClick={() => switchChain({ chainId: CHAIN_ID })} disabled={isPending}>
         {isPending ? "Switching…" : "Switch to Sepolia"}
       </button>
-      {error && <span className={styles.err}>Your wallet declined the switch — change it there instead.</span>}
+      {error && <span className={styles.err}>Your wallet declined the switch. Change it there instead.</span>}
     </div>
   );
 }

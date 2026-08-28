@@ -1,6 +1,6 @@
 # Hushpot
 
-**A no-loss prize pool where nobody — including the contract — learns who won.**
+**A no-loss prize pool. Nobody learns who won, the contract included.**
 
 Deposit a confidential token. Keep your principal, withdrawable in full at any time. The yield the pool generates is
 awarded to one depositor each week, weighted by how much they deposited and how long they left it. Balances, odds and
@@ -11,30 +11,30 @@ Built for the Zama Developer Program, Mainnet Season 4.
 - **Live app:** <https://hushpot-fhevm.vercel.app>
 - **Contract:**
   [`0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69`](https://sepolia.etherscan.io/address/0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69)
-  (Sepolia) — [verified source](https://sepolia.etherscan.io/address/0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69#code).
+  (Sepolia). [Verified source](https://sepolia.etherscan.io/address/0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69#code).
   The address in [`web/src/lib/contract.ts`](web/src/lib/contract.ts) is always the live one
-- **Judge panel:** [`/judge`](https://hushpot-fhevm.vercel.app/judge) — run a whole draw cycle from the browser, no
-  terminal
-- **Token:** Zama's official `cUSDTMock` —
+- **Judge panel:** [`/judge`](https://hushpot-fhevm.vercel.app/judge). Run a whole draw cycle from the browser, no
+  terminal needed
+- **Token:** Zama's official `cUSDTMock`,
   [`0x4E7B…4491`](https://sepolia.etherscan.io/address/0x4E7B06D78965594eB5EF5414c357ca21E1554491)
 - **Faucet:** the underlying
   [`USDTMock`](https://sepolia.etherscan.io/address/0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0) has an open `mint`, so
   anyone can self-serve
-- **Judge sandbox:** [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox) — the same panel
+- **Judge sandbox:** [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox). The same panel
   pointed at a second, expendable pool
   ([`0xecE2…8a2D`](https://sepolia.etherscan.io/address/0xecE290A059cb04237c8E965FC0f39D8A791E8a2D#code)) whose owner is
-  a contract that lets anyone run all six cycle steps. No key to import, no week to wait. See
+  a contract, so all six cycle steps are open to any wallet. No key to import, no week to wait. See
   [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
-- **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) — what leaks, and when
+- **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md), covering what leaks and when
 
 ---
 
 ## The idea in one paragraph
 
-Everyone deposits into a shared pool. The pool earns yield. Rather than dribbling that interest back to each depositor,
+Everyone deposits into a shared pool. The pool earns yield. Instead of dribbling that interest back to each depositor,
 it is bundled into a single weekly prize and awarded at random, with odds proportional to what you contributed and how
-long it sat there. Nobody can lose: a draw never touches principal, only yield. What does not exist yet is a version
-where the amounts stay encrypted — and where the winner is never resolved on-chain at all.
+long it sat there. Nobody can lose, since a draw never touches principal, only yield. What does not exist yet is a
+version where the amounts stay encrypted and the winner is never resolved on-chain at all.
 
 ---
 
@@ -46,8 +46,8 @@ position, in a way that stays verifiable.
 ### Weighting
 
 Odds come from **ticket-minutes**: your balance multiplied by the minutes you held it this period. Deposit halfway
-through the week and you earn half the odds of someone who was there the whole week with the same amount. This closes
-the obvious exploit — depositing a fortune moments before the draw buys almost nothing.
+through the week and you earn half the odds of someone who was there the whole week with the same amount. That closes
+the obvious exploit: depositing a fortune moments before the draw buys almost nothing.
 
 Tracking that naively is unusable on-chain: every user has their own last-changed timestamp, so totalling the pool would
 mean visiting all of them. The fix is algebraic:
@@ -58,16 +58,16 @@ balance × (drawTime − lastChange)  =  balance × drawTime  −  balance × la
 
 The right-hand term carries no draw time, so it can be computed the moment someone deposits and folded into a running
 total. The left multiplies a figure identical for everyone, so it factors out against the sum of balances. The whole
-pool therefore resolves to running totals plus one multiplication — and **no end-of-period sweep ever runs**.
+pool therefore resolves to running totals plus one multiplication, and **no end-of-period sweep ever runs**.
 
 ### Odds are measured against the last published total
 
-Your odds are `yourWeight ÷ poolTotal`, and `poolTotal` is the figure published at the **last settled draw** — never a
+Your odds are `yourWeight ÷ poolTotal`, where `poolTotal` is the figure published at the **last settled draw**, never a
 live reading.
 
-That is not a convenience. A live denominator would let anyone divide their own odds into it to recover the running pool
+That is not a convenience. Given a live denominator, you could divide your own odds into it, recover the running pool
 total, then watch it move by a single deposit and recover that deposit by subtraction. Freezing it at a draw boundary
-means the only total anyone learns is the one the draw already made public.
+means the only total anybody learns is the one the draw already made public.
 
 The cost is that odds go stale between draws. Deposit after a draw and your weight grows while the denominator does not,
 so the ratio drifts upward and can exceed 100%. The app does not paper over that with a capped number: past 100% it
@@ -80,29 +80,29 @@ contains it wins.
 
 1. `openDraw()` seals the pool total and publishes it for decryption.
 2. Off-chain, the total is decrypted and relayed back with a KMS proof. `FHE.checkSignatures` reverts unless the
-   cleartext matches the ciphertext, so the relayer **cannot lie** — only decline.
+   cleartext matches the ciphertext, so the relayer **cannot lie**. It can only decline.
 3. `settleDraw()` rolls `FHE.randEuint64` on-chain and reduces it into the pool's range. **The draw point is never
    decrypted by anyone.**
 
 ### Claiming
 
-There is no announcement, because nothing knows who won. Anyone can call `checkClaim(drawId, account)` for anyone — the
-result is encrypted either way, so the caller learns nothing. It adds `FHE.select(won, prize, 0)` to that depositor's
-balance.
+There is no announcement, because nothing knows who won. `checkClaim(drawId, account)` is callable by any address, for
+any address, since the result is encrypted either way and the caller learns nothing from making the call. It adds
+`FHE.select(won, prize, 0)` to that depositor's balance.
 
 A loser's claim adds an encrypted zero. On-chain it is indistinguishable from a winner's, down to the gas. You find out
 by opening your own balance and seeing whether it moved.
 
 **Checking for yourself is the default**, and it costs you nothing until you want the answer.
-`sweepRange(drawId, count)` is the operator's alternative: it walks slots in order, carrying the running band edge
-rather than rederiving it per person, which makes it about 1.6× cheaper each. Either path credits the same encrypted
-award, and a slot already checked is skipped rather than credited twice.
+`sweepRange(drawId, count)` is the operator's alternative: it walks slots in order and carries the running band edge
+forward instead of rederiving it per person, which makes it about 1.6× cheaper each. Either path credits the same
+encrypted award, and a slot already checked is skipped, never credited twice.
 
 A sweep is worth running before the period rolls, because rolling ends every open claim. That is what stops a winner who
 never came back from losing the prize.
 
 Claims stay open for **30 days** after settlement (`CLAIM_GRACE`). The window costs nothing to provide: weights freeze
-on their own when a period ends, so holding the roll back is the whole mechanism — no snapshots, no per-slot state.
+on their own when a period ends, so holding the roll back is the whole mechanism. No snapshots, no per-slot state.
 
 > ⚠️ **With one exception, and it is a real one.** `startNextPeriod()` enforces the grace against everybody _except_ the
 > owner, and rolling the period is what closes a claim. So the owner can end the window early and strand an unclaimed
@@ -114,8 +114,8 @@ on their own when a period ends, so holding the roll back is the whole mechanism
 
 A claim reads live tree state, so a draw settled against one set of numbers would break if they shifted mid-window. They
 cannot. Once a period elapses, `minuteOfPeriod` saturates, and a deposit adds to both the balance and the shortfall by
-exactly the same amount — they cancel. Withdrawals too. So deposits and withdrawals keep working during the claim window
-without disturbing the draw, with no snapshots and no freezing of the contract.
+the same amount, so the two cancel. Withdrawals behave the same way. Deposits and withdrawals therefore keep working
+right through the claim window without disturbing the draw, with no snapshots and nothing frozen.
 
 ---
 
@@ -132,37 +132,37 @@ without disturbing the draw, with no snapshots and no freezing of the contract.
 Two things worth stating plainly:
 
 - **Acquiring cUSDT publishes that amount.** cUSDT is minted by wrapping plain tUSDT, and a plain ERC-20 transfer cannot
-  hide what it moves. It happens at the faucet, against the token and not the pool, so it says an address holds some
-  cUSDT — never that it deposited, nor how much. Shield at one time and deposit another, and even that bound goes away.
-  The app has no route that publishes a deposit itself.
-- **The pool total is published once per draw.** It has to be — the draw point is reduced modulo it, and encrypted
-  modulo needs a plain divisor. The week-over-week difference is the sum of everyone's activity, never one person's, and
-  it narrows as the pool shrinks.
+  hide what it moves. That happens at the faucet, against the token and not the pool, so all it says is that an address
+  holds some cUSDT. It says nothing about a deposit, or its size. Shield at one time and deposit at another, and even
+  that bound goes away. No route in the app publishes a deposit itself.
+- **The pool total is published once per draw.** It has to be: the draw point is reduced modulo the total, and encrypted
+  modulo needs a plain divisor. The week-over-week difference is the sum of everyone's activity, never one person's,
+  though it does narrow as the pool shrinks.
 
 Full detail, including what we cannot prove, is in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md).
 
-### Proving it rather than saying it
+### Showing it, not claiming it
 
 The **Proof** tab points the same relayer and the same session key at two ciphertext handles read straight off the
 chain: yours, and another depositor's. One opens. One does not.
 
-It also runs an on-chain **solvency proof** — the contract compares what it holds against what it owes on ciphertext and
-publishes the single bit that falls out, revealing neither figure. What it owes is the tree root **plus any prize
+It also runs an on-chain **solvency proof**. The contract compares what it holds against what it owes on ciphertext,
+then publishes the single bit that falls out, revealing neither figure. What it owes is the tree root **plus any prize
 already swept but not yet folded into a leaf**: a winner's award is theirs from the moment it is parked, so leaving it
-out would answer a narrower question than the proof appears to answer. Anyone can trigger it, and anyone can read the
-result without a wallet.
+out would answer a narrower question than the proof appears to answer. Any address can trigger it, and reading the
+result needs no wallet at all.
 
 The **Draws** tab recomputes five things from public state with no wallet at all: the stored record, the committed die,
-the prize formula, a hash of the deployed bytecode, and — the negative the whole design rests on — that the bytecode
-contains no winner-getter selector, so there is no function anyone could call to ask who won.
+the prize formula, a hash of the deployed bytecode, and the negative this whole design rests on, that the bytecode
+contains no winner-getter selector. There is no function to call that would answer the question.
 
 ---
 
 ## The yield source
 
 Yield is currently an **admin-funded prize reserve**, which the bounty explicitly permits. `fundPrizeReserve()` takes
-plain tokens — deliberately, so the pot's size is publicly verifiable — wraps them, and credits a public reserve
-balance. `sponsorPrize()` is the same path open to anyone, and is covered below.
+plain tokens (on purpose, so the pot's size stays publicly verifiable), wraps them, and credits a public reserve
+balance. `sponsorPrize()` is the same path with no owner check on it, covered below.
 
 Each draw's prize is derived, never chosen:
 
@@ -177,19 +177,19 @@ expected return is left **exactly unchanged**. A fixed pot would let latecomers 
 ### Sponsorship
 
 `sponsorPrize()` is callable by anyone and adds the full amount to the **very next** prize, on top of the formula. The
-money never becomes a slot, never earns odds, and can never win itself back, so no depositor's chances move — there is
-simply more to hand out. It is not withdrawable: this is a gift, not a stake.
+money never becomes a slot, never earns odds, and can never win itself back, so no depositor's chances move. There is
+simply more to hand out. It is not withdrawable: a gift, not a stake.
 
 PoolTogether has two shapes of this. `PrizeVault.sponsor` delegates a deposit's odds away, so the sponsor keeps
 withdrawable principal and donates only the yield stream; `PrizePool.contributePrizeTokens` donates prize tokens
-outright. Hushpot does the second. Adding the gift in full beats letting it earn for a week and donating that instead —
-at 5%, a week of yield on a sponsorship is about a thousandth of the sponsorship, which is not worth a second
+outright. Hushpot does the second. Adding the gift in full beats letting it earn for a week and donating that instead:
+at 5%, a week of yield on a sponsorship comes to about a thousandth of the sponsorship, which does not justify a second
 accumulator or a second thing to explain.
 
 **Plugging in real yield** replaces one function and nothing else. `fundPrizeReserve` becomes a harvest step: route idle
 deposits into a lending market or vault, and periodically credit realised yield to the same reserve. The draw, the
 claim, the weighting and the accounting are untouched, because they only ever read `prizeReserve`. What changes is a
-solvency question — deposits would then be lent out rather than held, so `proveSolvency` would need to account for the
+solvency question. Deposits would then be lent out instead of held, so `proveSolvency` would have to account for the
 strategy's position too.
 
 ---
@@ -201,7 +201,7 @@ contracts/
   ConfidentialTimeWeightedTree.sol   encrypted odds accounting
   HushpotPool.sol                    deposits, draws, claims, solvency
   SandboxOperator.sol                owns the judge sandbox, forwards two calls to anyone
-  SegmentTree.sol                    plaintext oracle — proven, then encrypted
+  SegmentTree.sol                    plaintext oracle, proven then encrypted
   TimeWeightedTree.sol               plaintext oracle for the time weighting
   mocks/                             local token pair + test-only tree harness
 test/                                129 tests
@@ -211,8 +211,8 @@ web/                                 the app
 docs/                                threat model, design brief, roadmap
 ```
 
-The plaintext contracts are not dead code. Encrypted arithmetic fails silently — no revert, no wrong number, just an
-opaque handle — so the structures were built and proven in the clear first, then ported. They remain as the correctness
+The plaintext contracts are not dead code. Encrypted arithmetic fails silently: no revert, no wrong number, just an
+opaque handle. So the structures were built and proven in the clear first, then ported. They remain as the correctness
 oracle, and every property proven there is re-asserted against the encrypted version.
 
 ---
@@ -229,9 +229,28 @@ plus automation that calls public functions on a schedule. Almost everything is 
 | `fundPrizeReserve` | tops up the pot with plain tokens       |
 | `setAnnualRateBps` | sets the rate the prize is derived from |
 
-Everything else — `openDraw`, `settleDraw`, `sweepRange`, `startNextPeriod`, `proveSolvency`, `sponsorPrize`,
-`checkClaim` — is callable by anyone, deliberately. A pool whose draw only its operator can start is a pool its operator
-can stall.
+Nothing else has an owner check on it. That is a design decision, not an oversight: a pool whose draw only its operator
+can start is a pool its operator can stall.
+
+"Callable by any address" covers three quite different things, though, and it is worth separating them.
+
+| Call                              | Open to                         | Acting on behalf of     |
+| --------------------------------- | ------------------------------- | ----------------------- |
+| `deposit`, `withdraw`, `exitPool` | any address                     | itself, and only itself |
+| `sponsorPrize`                    | any address, at its own expense | every depositor         |
+| `settleDraw`                      | any address                     | the pool                |
+| `proveSolvency`                   | any address                     | any observer            |
+| `checkClaim(drawId, account)`     | any address                     | **any other address**   |
+| `sweepRange(drawId, count)`       | any address                     | **everybody at once**   |
+| `openDraw`, `startNextPeriod`     | any address once the week is up | the pool                |
+
+The two in bold are the ones that matter. A stranger can pay out your prize, and finish the week for a pool they have
+never deposited into, without learning a thing in the process. Everything they touch stays encrypted, and a loser's
+claim costs the same gas as a winner's, so the act of checking gives nothing away. That is what lets a keeper sweep
+everyone after every draw: nobody has to remember to collect, and being checked says nothing about having won.
+
+The last row is time-gated, not role-gated. Before the week is up only the owner may call those two, which is a shortcut
+for demonstrating a cycle without waiting seven days, and the one place this design asks for trust.
 
 The consequence worth stating: **the operator cannot run the pool on its own terms, and cannot stop anyone else running
 it.** The one exception is the claim window, where the owner may roll a period early; that is a real trust assumption
@@ -239,7 +258,7 @@ and is documented in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner)
 
 ### Running the cycle as a judge, today
 
-Two of the six steps — `openDraw` and `startNextPeriod` — are gated to the pool's owner **only for running them early**.
+Two of the six steps, `openDraw` and `startNextPeriod`, are gated to the pool's owner **only for running them early**.
 Once a period genuinely elapses, anyone may call them. The main pool's first period ends **3 September 2026**, so from
 then every step is open to any wallet.
 
@@ -249,7 +268,7 @@ Before then, use the **sandbox**: a second pool that exists for exactly this and
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Open it   | [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox)                                                         |
 | Pool      | [`0xecE290A059cb04237c8E965FC0f39D8A791E8a2D`](https://sepolia.etherscan.io/address/0xecE290A059cb04237c8E965FC0f39D8A791E8a2D#code) |
-| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xE7Abcac15F445559B397b0f576ea555F649d8F24#code) — a contract, not a person |
+| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xE7Abcac15F445559B397b0f576ea555F649d8F24#code), a contract, not a person  |
 
 **There is no key to import.** All six steps run from whatever wallet you already have, on a pool whose first cycle has
 never been run.
@@ -257,8 +276,8 @@ never been run.
 #### How that works
 
 The obvious way to open a sandbox is to publish its owner's private key, and that was the first attempt. It works, and
-it is bad: it asks a reviewer to import a stranger's key into their wallet before they can look at anything — a thing
-nobody should be in the habit of doing, and which most reviewers will simply decline.
+it is bad. It asks a reviewer to import a stranger's key into their wallet before they can look at anything, which
+nobody should be in the habit of doing and most reviewers will simply decline.
 
 So ownership went to [`contracts/SandboxOperator.sol`](contracts/SandboxOperator.sol) instead. It is thirty lines, and
 it forwards exactly two calls to anybody who asks:
@@ -272,25 +291,25 @@ it forwards exactly two calls to anybody who asks:
 What it deliberately **cannot** do matters more. There is no forwarder for `setAnnualRateBps`, so nobody can set the
 sandbox's yield to zero and make every prize read `0.00`. None for `transferOwnership`, so nobody can take the pool. And
 no generic `call`, which would have been both of those plus every owner-gated function added in future. The owner's
-dangerous powers are not delegated — they are destroyed, and two harmless ones are handed out in their place. Five tests
+dangerous powers are not delegated. They are destroyed, and two harmless ones are handed out in their place. Five tests
 in [`test/SandboxOperator.ts`](test/SandboxOperator.ts) pin that down, including one asserting the ABI holds those three
-functions and the `pool` getter — and nothing else.
+functions and the `pool` getter, and nothing else.
 
 The main pool's owner key is **not** shared, and that is not an oversight. It can set the yield rate to zero and close
-claim windows early — the sharpest trust assumption in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
+claim windows early, the sharpest trust assumption in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
 Publishing it would make that document a lie. The sandbox absorbs the experimentation instead.
 
 #### What you will find there
 
-Four confidential deposits are seeded and **no draw has settled**. The pot therefore reads `—` rather than a figure:
-with nothing published to estimate from there is no pot yet, which is not the same as an empty one. Sponsoring — step 01
-— puts a number on it immediately.
+Four confidential deposits are seeded and **no draw has settled**. The pot therefore reads `—` instead of a figure: with
+nothing published to estimate from there is no pot yet, which is not the same as an empty one. Step 01, sponsoring, puts
+a number on it immediately.
 
 Running the six steps in order takes the pool from that state to a settled draw, a swept claim, a solvency proof, and a
 fresh period. At the end the button that said _Reset console_ says **Run the cycle again**, and it does: the roll leaves
 the pool back at step 01 with a new period open, so the whole thing can be run as many times as you like.
 
-Add `?pool=sandbox` to any page — `/pool`, `/draws`, `/proof`, `/judge` — and the whole site re-points at it. A yellow
+Add `?pool=sandbox` to any page (`/pool`, `/draws`, `/proof`, `/judge`) and the whole site re-points at it. A yellow
 banner across the top says so, because every figure on screen then belongs to a throwaway contract. Every link carries
 the parameter onward, so a refresh or a copied link stays where you are. Drop it to return to the real pool.
 
@@ -303,48 +322,48 @@ is one of each on Sepolia and both are test tokens with an open faucet.
 
 Everything else is separate. Each pool is its own contract with its own depositors, its own prize reserve, and its own
 draws. Depositing into the sandbox does not put a coin into the live pool, cannot win the live pool's prize, and is
-withdrawn from the sandbox. The two never touch — the only thing they share is where the play money is minted.
+withdrawn from the sandbox. The two never touch. All they share is where the play money is minted.
 
 That also means nothing in the sandbox is worth anything. `USDTMock.mint` is open to everyone, so the tokens cost a
 Sepolia gas fee, which is why a pool anyone can freely open draws on is not a problem worth solving.
 
 ### Three ways to call anything
 
-1. **The Judge panel** — [`/judge`](https://hushpot-fhevm.vercel.app/judge) runs the whole cycle from a browser. On the
+1. **The Judge panel.** [`/judge`](https://hushpot-fhevm.vercel.app/judge) runs the whole cycle from a browser. On the
    main pool the two owner-gated steps are labelled and enable only for the owner; on the sandbox all six are live for
    everyone.
-2. **Etherscan** — both contracts are verified, so the _Write Contract_ tab is a working admin UI with no code and no
+2. **Etherscan.** Both contracts are verified, so the _Write Contract_ tab is a working admin UI with no code and no
    local setup. This is how most protocols are actually operated. For the sandbox's gated pair, call the **operator's**
-   Write tab rather than the pool's.
-3. **The CLI** — `tasks/hushpot.ts` covers every operation. `npx hardhat hushpot:status --network sepolia` to see where
-   things stand. Every task takes a `HUSHPOT_POOL` address override, so the sandbox is drivable from the CLI too:
+   Write tab, not the pool's.
+3. **The CLI.** `tasks/hushpot.ts` covers every operation. Run `npx hardhat hushpot:status --network sepolia` to see
+   where things stand. Every task takes a `HUSHPOT_POOL` address override, so the sandbox is drivable from the CLI too:
 
    ```bash
    HUSHPOT_POOL=0xecE290A059cb04237c8E965FC0f39D8A791E8a2D npx hardhat hushpot:status --network sepolia
    ```
 
-   Unset, the tasks use the deployed pool. `hushpot:sandbox` deploys a fresh one — pool, operator, reserve, seeded
-   depositors and the ownership handover — in a single command.
+   Unset, the tasks use the deployed pool. `hushpot:sandbox` deploys a fresh one in a single command: pool, operator,
+   reserve, seeded depositors and the ownership handover.
 
 ### The weekly schedule, in UTC
 
 Periods are seven days long and start whenever the roll is called, so the schedule is set by _when you call it_, not by
 anything in the contract. Held to this cadence it never drifts:
 
-| UTC                         | What happens                                         |
-| --------------------------- | ---------------------------------------------------- |
-| **Monday 06:00**            | `startNextPeriod` — the week opens, deposits accrue  |
-| Monday 06:00 → Monday 00:00 | 162 hours of odds accruing                           |
-| **Monday 00:00**            | `hushpot:draw --force` — seal, roll the die, settle  |
-| Monday 00:00 → 06:00        | `hushpot:sweep --draw N` — prizes land               |
-| **Monday 06:00**            | roll again, and the next week starts exactly on time |
+| UTC                         | What happens                                          |
+| --------------------------- | ----------------------------------------------------- |
+| **Monday 06:00**            | `startNextPeriod`, the week opens and deposits accrue |
+| Monday 06:00 → Monday 00:00 | 162 hours of odds accruing                            |
+| **Monday 00:00**            | `hushpot:draw --force`: seal, roll the die, settle    |
+| Monday 00:00 → 06:00        | `hushpot:sweep --draw N`, and prizes land             |
+| **Monday 06:00**            | roll again, and the next week starts exactly on time  |
 
 The six-hour gap is the maintenance window: the draw is opened six hours before the nominal seven-day boundary, using
 the owner's `--force` exemption, so that settling and sweeping finish before the next period is due to start. Without it
 the roll would slip by however long the sweep took, and the schedule would walk forward every week.
 
-**Sweep before you roll, every time.** Rolling closes the claim window permanently — `checkClaim` reverts once
-`draw.period != currentPeriod` — so a prize that has not been checked by then is stranded: deducted from the reserve,
+**Sweep before you roll, every time.** Rolling closes the claim window permanently, since `checkClaim` reverts once
+`draw.period != currentPeriod`. A prize that has not been checked by then is stranded: deducted from the reserve,
 credited to nobody, unrecoverable by anyone including the owner. This has already happened once on the live pool, to
 draw #0, which is why it is stated twice.
 
@@ -355,18 +374,18 @@ npx hardhat hushpot:keeper --network sepolia
 ```
 
 One tick of the cycle, and only what is due. Run it every few minutes from a scheduler and it works out for itself what
-the pool needs — nothing at all, most of the time:
+the pool needs, which most of the time is nothing at all:
 
 1. **A draw left open** is finished first. The total is published and the prize is not yet assigned, so nothing else
    matters until it settles.
 2. **The week's draw** opens on Monday at `--open-hour` (00:00 UTC by default), or any time after the period has
    genuinely elapsed.
 3. **Sweeping** runs one slot per tick. Small transactions stay well inside the HCU ceiling, and a failure costs one
-   slot rather than a batch.
+   slot instead of a batch.
 4. **The roll** happens on Monday at `--roll-hour` (06:00 UTC), and _only once every slot is swept_.
 
-That last condition is the whole reason the keeper exists. Rolling ends the claim window permanently — `checkClaim`
-reverts once `draw.period != currentPeriod` — so a prize not swept by then is deducted from the reserve and credited to
+That last condition is the whole reason the keeper exists. Rolling ends the claim window for good, because `checkClaim`
+reverts once `draw.period != currentPeriod`. A prize not swept by then is deducted from the reserve and credited to
 nobody, for ever. It has already happened once on the live pool, done by hand. The keeper cannot make that mistake.
 
 Deposits need no attention at the boundary: balances live in the tree across periods, and the period-scoped corrections
@@ -382,7 +401,7 @@ schtasks /create /tn Hushpot /tr "cmd /c cd /d %USERPROFILE%\OneDrive\Desktop\hu
 ```
 
 A VPS with cron, Gelato, Chainlink Automation or OpenZeppelin Defender all work the same way. **Do not put the mnemonic
-in GitHub Actions secrets** — this repository is going public, and a workflow with signing rights is a standing
+in GitHub Actions secrets.** This repository is going public, and a workflow with signing rights is a standing
 invitation. Keep the key on a machine you control.
 
 The keeper wallet holds no power over deposits. The worst it can do is stop showing up, and then anyone else can run the
@@ -393,14 +412,13 @@ cycle by hand.
 There is no proxy. The period is a `constant`, the tree geometry is a `constant`, and the draw logic cannot be swapped.
 Changing any of it means deploying a new pool and letting people move to it voluntarily.
 
-That is the same choice PoolTogether makes — its Prize Pool is immutable with no admin controls at all — and here it is
-load-bearing rather than merely tidy. "There is no winner field" is a much weaker claim if someone can upgrade one in
-tomorrow. The cost is real: parameters nobody thought to expose cannot be changed later, and the seven-day period is one
-of them.
+That is the same choice PoolTogether makes, its Prize Pool being immutable with no admin controls at all, and here it is
+load-bearing, not merely tidy. "There is no winner field" is a much weaker claim if someone can upgrade one in tomorrow.
+The cost is real: parameters nobody thought to expose cannot be changed later, and the seven-day period is one of them.
 
 **For a production deployment**, two things should change before real money is involved, and neither is built here:
 ownership should move to a multisig behind a timelock (`Ownable.transferOwnership` makes that one transaction, no
-redeploy), and the weekly cycle should be a funded keeper rather than a person.
+redeploy), and the weekly cycle should be a funded keeper instead of a person.
 
 ---
 
@@ -421,7 +439,7 @@ npx hardhat hushpot:whoami --network sepolia    # the address to fund
 npx hardhat deploy --network sepolia
 ```
 
-Sepolia needs no API key — it defaults to a public endpoint.
+Sepolia needs no API key, since it defaults to a public endpoint.
 
 Operating it:
 
@@ -460,18 +478,18 @@ On Sepolia, against the live coprocessor:
 | Sweep, per depositor | **287,786**                 | paged, 1.57× cheaper than a claim |
 | Reveal your position | 1 signature + 1 transaction | signature cached for the visit    |
 
-Deploy, deposit and claim figures are from the live Sepolia deployment above — twelve seeded depositors, one settled
+Deploy, deposit and claim figures come from the live Sepolia deployment above: twelve seeded depositors, one settled
 draw, one full sweep. The paged-sweep and depth figures come from `HushpotSweepGas.ts` and `HushpotDepthGas.ts`, which
 print them on every run so they cannot drift silently.
 
 Two measured optimisations, both of which changed the numbers above by more than they look.
 
-**Claims went from 2.4M to 454k — 5.3×.** Crediting a prize used to repair every ancestor sum between the slot and the
-root — three encrypted additions per level, for everyone — and for all but one person the amount being added was an
+**Claims went from 2.4M to 454k, a factor of 5.3.** Crediting a prize used to repair every ancestor sum between the slot
+and the root, three encrypted additions per level, for everyone. For all but one person the amount being added was an
 encrypted zero. Awards are now parked on the slot and folded into the tree on that slot's next deposit or withdrawal,
 which walks that path anyway.
 
-**Deposits scale with the pool rather than the capacity.** The tree walks only as far as the highest node covering the
+**Deposits scale with the pool, not with the capacity.** The tree walks only as far as the highest node covering the
 slots in use, so depth arrives with the crowd:
 
 | Depositors | Deposit gas |
@@ -493,7 +511,7 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 
 129 tests, run against the FHEVM mock. The ones worth naming:
 
-- exactly one depositor is paid, and exactly the prize — verified by decrypting every participant's balance before and
+- exactly one depositor is paid, and exactly the prize, verified by decrypting every participant's balance before and
   after a sweep
 - a self-check followed by a sweep does **not** credit the same slot twice
 - the pool total is published only at a draw boundary, never on demand
@@ -506,7 +524,8 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 - a sponsorship lands in full in the very next prize, and the accumulator is spent, not carried
 - solvency counts prizes that are parked but not yet folded in, and never counts one twice
 - weights freeze when a period ends, so deposits during a claim window cannot move a settled draw
-- odds are proportional to amount _and_ time — a small deposit held all week beats a 5× larger one made at the deadline
+- odds are proportional to amount _and_ time, so a small deposit held all week beats a 5× larger one made at the
+  deadline
 - the sandbox's owner contract forwards a draw and a roll to a stranger, and exposes no third function that could reach
   the yield rate or ownership
 

@@ -14,6 +14,7 @@ import { Pot3D } from "@/components/Pot3D";
 import { useMyPosition } from "@/hooks/useMyPosition";
 import { useDraws } from "@/hooks/useDraws";
 import { usePoolHref } from "@/hooks/usePoolHref";
+import { poolPhase } from "@/hooks/usePoolPhase";
 import { useLastDraw, useNow, usePoolState, useWeeklyPot } from "@/hooks/usePoolState";
 import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { formatCountdown, formatUnits, shortenAddress, splitUnits } from "@/lib/format";
@@ -58,6 +59,7 @@ export default function PoolTab() {
   //
   // Shared with every other tab, so the header never disagrees with itself.
   const { pot, yieldEstimate, lastPaid } = useWeeklyPot(state, lastDraw);
+  const phase = poolPhase(state, lastDraw);
 
   // How much of that pot the week has earned so far. Sponsorship is already banked in
   // full, so only the yield half accrues.
@@ -140,24 +142,39 @@ export default function PoolTab() {
                 Somebody wins.
               </div>
               <div className={styles.taglineNote}>
-                YOU PLAY THE INTEREST — NEVER THE MONEY.
+                YOU PLAY THE INTEREST, NEVER THE MONEY.
                 <br />
                 EVERY DEPOSIT WITHDRAWS IN FULL.
               </div>
             </div>
 
+            {/* Between draws the pool looks stalled from outside: the countdown is spent,
+                the pot does not move, and nothing admits a draw is halfway settled. */}
+            <div className={styles.phase} data-phase={phase.id}>
+              <span className={styles.phaseTag}>
+                <span className={styles.phaseDot} aria-hidden="true" />
+                {phase.tag}
+              </span>
+              <div className={styles.phaseBody}>
+                <div className={styles.phaseHeadline}>{phase.headline}</div>
+                <div className={styles.phaseDetail}>{phase.detail}</div>
+              </div>
+            </div>
+
             <div className={styles.potFooter}>
               <div>
-                <div className={styles.potFootLabel}>CLOSES IN</div>
+                <div className={styles.potFootLabel}>{phase.countdownMeaningful ? "CLOSES IN" : "WEEK ENDED"}</div>
                 <div className={`num ${styles.potCountdown}`} suppressHydrationWarning>
-                  {mounted ? formatCountdown(closesIn) : "—"}
+                  {!mounted ? "—" : phase.countdownMeaningful ? formatCountdown(closesIn) : "0d 0h 0m"}
                 </div>
               </div>
               <div className={styles.week}>
                 <div className={styles.weekTrack}>
-                  <div className={styles.weekFill} style={{ width: `${weekPct}%` }} />
+                  <div className={styles.weekFill} style={{ width: `${phase.countdownMeaningful ? weekPct : 100}%` }} />
                 </div>
-                <div className={styles.potFootLabel}>{weekPct.toFixed(0)}% THROUGH THE WEEK</div>
+                <div className={styles.potFootLabel}>
+                  {phase.countdownMeaningful ? `${weekPct.toFixed(0)}% THROUGH THE WEEK` : "AWAITING THE NEXT PERIOD"}
+                </div>
               </div>
             </div>
           </div>
@@ -241,7 +258,7 @@ export default function PoolTab() {
             </div>
 
             {/* v6 shows STRATEGY / NET APY at the foot of this cell. There is no ERC-4626
-                vault on Sepolia — the reserve is funded directly — so the strategy is named
+                vault on Sepolia, since the reserve is funded directly, so the strategy is named
                 for what it actually is rather than borrowing a label it has not earned. */}
             <div className={styles.yieldStrat}>
               <span>

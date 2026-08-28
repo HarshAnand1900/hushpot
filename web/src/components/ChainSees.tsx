@@ -47,14 +47,14 @@ export function ChainSees() {
       // Your own balance handle. This is a cache the contract fills only when you ask it
       // to, which is itself the point: nobody publishes a handle on your behalf, so an
       // untouched slot has nothing at all for an observer to fetch.
-      let mine = "empty — you have not asked the contract to compute it";
+      let mine = "empty, since you have not asked the contract to compute it";
       if (address) {
         try {
           const has = (await read("hasSlot", [address])) as boolean;
           if (has) {
             const slot = Number((await read("slotOf", [address])) as number);
             const h = (await read("balanceHandle", [slot])) as string;
-            mine = isEmpty(h) ? "empty until you reveal — nothing is published for you" : short(h);
+            mine = isEmpty(h) ? "empty until you reveal, with nothing published for you" : short(h);
           }
         } catch {
           /* no slot is an ordinary state */
@@ -100,7 +100,7 @@ export function ChainSees() {
 
       <div className={styles.foot}>
         One number and one ciphertext, from the same three calls anyone can make. The die decided a whole draw and is
-        still unreadable — by you, by us, and by the contract that rolled it. Your own balance handle is not even
+        still unreadable by you, by us, and by the contract that rolled it. Your own balance handle is not even
         published until you ask for it, so an untouched slot gives an observer nothing to fetch at all.
       </div>
     </section>

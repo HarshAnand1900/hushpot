@@ -611,3 +611,93 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* --------------------------------------------------------------- phase -- */
+
+/* Sits on the yellow band above the countdown, so the first thing read after the
+   figure is what part of the week produced it. */
+.phase {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  align-items: start;
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(0, 0, 0, 0.22);
+}
+
+.phaseTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  font-weight: 700;
+  color: var(--black);
+  white-space: nowrap;
+}
+
+.phaseDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--black);
+}
+
+/* Only a running week pulses. A pool mid-settlement is busy, not live. */
+.phase[data-phase="accruing"] .phaseDot {
+  animation: phasePulse 2.4s ease-in-out infinite;
+}
+
+.phase[data-phase="sealed"] .phaseTag,
+.phase[data-phase="due"] .phaseTag {
+  background: var(--black);
+  color: var(--yellow);
+}
+
+.phase[data-phase="sealed"] .phaseDot,
+.phase[data-phase="due"] .phaseDot {
+  background: var(--yellow);
+}
+
+@keyframes phasePulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.phaseBody {
+  min-width: 0;
+}
+
+.phaseHeadline {
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--black);
+}
+
+.phaseDetail {
+  margin-top: 5px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--on-yellow);
+  max-width: 62ch;
+}
+
+@media (max-width: 700px) {
+  .phase {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .phaseTag {
+    justify-self: start;
+  }
+}

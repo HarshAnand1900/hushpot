@@ -30,7 +30,7 @@ export type LogEntry = {
 const KEY = `hushpot.judge.${POOL_ADDRESS.slice(2, 10)}`;
 const LIMIT = 40;
 
-type Stored = { log: LogEntry[]; done: string[] };
+type Stored = { log: LogEntry[]; done: string[]; cycle?: number };
 
 function read(): Stored {
   if (typeof window === "undefined") return { log: [], done: [] };
@@ -38,15 +38,22 @@ function read(): Stored {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return { log: [], done: [] };
     const parsed = JSON.parse(raw) as Stored;
-    return { log: parsed.log ?? [], done: parsed.done ?? [] };
+    return { log: parsed.log ?? [], done: parsed.done ?? [], cycle: parsed.cycle };
   } catch {
     return { log: [], done: [] };
   }
 }
 
-export function useJudgeSession() {
+/**
+ * @param cycle the pool's `currentPeriod`. Completion marks belong to one turn of the
+ *   cycle, so when the period rolls they have to go; the log is history and stays.
+ * @param settled whether pool state has actually loaded. Before it has, `cycle` reads 0,
+ *   which would look like a roll back to the first period and wipe a live cycle's marks.
+ */
+export function useJudgeSession(cycle: number, settled: boolean) {
   const [log, setLog] = useState<LogEntry[]>([]);
   const [done, setDone] = useState<Set<string>>(new Set());
+  const [storedCycle, setStoredCycle] = useState<number>();
   // Restored after mount, never during SSR — the server has no localStorage, and a first
   // client render that disagreed with it would be a hydration mismatch.
   const [ready, setReady] = useState(false);
@@ -55,17 +62,33 @@ export function useJudgeSession() {
     const stored = read();
     setLog(stored.log);
     setDone(new Set(stored.done));
+    setStoredCycle(stored.cycle);
     setReady(true);
   }, []);
+
+  /**
+   * Rolling the period starts the cycle over, so the console has to as well.
+   *
+   * Without this every step still read DONE on a pool that had just opened a fresh week,
+   * with a progress counter stuck at 6/6 and Run buttons that were in fact live. The
+   * console was describing the cycle you had finished, not the one you were in, which is
+   * indistinguishable from a page that has failed to update.
+   */
+  useEffect(() => {
+    if (!ready || !settled) return;
+    if (storedCycle === cycle) return;
+    if (storedCycle !== undefined) setDone(new Set());
+    setStoredCycle(cycle);
+  }, [ready, settled, cycle, storedCycle]);
 
   useEffect(() => {
     if (!ready || typeof window === "undefined") return;
     try {
-      window.localStorage.setItem(KEY, JSON.stringify({ log, done: [...done] }));
+      window.localStorage.setItem(KEY, JSON.stringify({ log, done: [...done], cycle: storedCycle }));
     } catch {
       /* a full or disabled store costs the history, not the console */
     }
-  }, [ready, log, done]);
+  }, [ready, log, done, storedCycle]);
 
   const append = useCallback((entry: Omit<LogEntry, "at">) => {
     setLog((l) => [{ ...entry, at: Date.now() }, ...l].slice(0, LIMIT));

@@ -219,7 +219,7 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
 
       <div className={styles.foot}>
         Every row is public and always was. Note what is absent: no amount on a confidential deposit, and no winner on
-        any settlement — there is no winner field in storage for a log to carry.
+        any settlement, because there is no winner field in storage for a log to carry.
       </div>
     </section>
   );

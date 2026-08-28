@@ -49,7 +49,7 @@ export function PrivacyDemo() {
       });
 
       if (!joined) {
-        setNote("Deposit first — this compares your own ciphertext against another depositor's.");
+        setNote("Deposit first. This compares your own ciphertext against another depositor's.");
         return;
       }
 
@@ -71,7 +71,7 @@ export function PrivacyDemo() {
       // revealing and it is still zero — and decrypting nothing would report "opened"
       // with no value, making the demo look broken while the contract is perfectly fine.
       if (!myHandle || /^0x0+$/.test(myHandle)) {
-        setNote("Reveal your position on the Pool tab first — there is no ciphertext of yours cached yet.");
+        setNote("Reveal your position on the Pool tab first, since no ciphertext of yours is cached yet.");
         return;
       }
 
@@ -105,7 +105,7 @@ export function PrivacyDemo() {
 
       if (otherSlot === undefined) {
         setNote(
-          "You are currently the only depositor, so there is no second balance to try. The check below runs against a slot that has never been used — a handle you equally cannot open.",
+          "You are currently the only depositor, so there is no second balance to try. The check below runs against a slot that has never been used, giving a handle you equally cannot open.",
         );
         otherSlot = Number(mySlot) + 1;
       }
@@ -151,7 +151,7 @@ export function PrivacyDemo() {
       <div className={styles.body}>
         <p className={styles.copy}>
           Every balance in this pool sits on-chain as a ciphertext handle that anyone can read. Reading the handle is
-          not the same as reading the number. Below, the same relayer and the same key are pointed at two of them —
+          not the same as reading the number. Below, the same relayer and the same key are pointed at two of them:
           yours, and somebody else&apos;s.
         </p>
 
@@ -171,7 +171,7 @@ export function PrivacyDemo() {
         {mine && theirs && (
           <div className={styles.verdict}>
             {mine.opened && !theirs.opened
-              ? "Same request, same key, same relayer. One opened, one did not — and nothing about the second one is recoverable, by us or by anyone else."
+              ? "Same request, same key, same relayer. One opened, one did not, and nothing about the second is recoverable by us or by anybody else."
               : "Unexpected result. Both handles should not behave the same way; if they do, something is wrong and we would want to know."}
           </div>
         )}
@@ -195,7 +195,7 @@ function Result({ title, outcome }: { title: string; outcome?: Outcome }) {
 
       <div className={styles.cellNote}>
         {outcome.opened
-          ? "opened locally with your key — it never crossed the wire in the clear"
+          ? "opened locally with your key, never crossing the wire in the clear"
           : "no decryption right. The relayer will not serve it, and the ciphertext is useless without one."}
       </div>
     </div>

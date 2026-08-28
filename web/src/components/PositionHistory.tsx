@@ -158,7 +158,7 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
         ...(plain as unknown as Raw[]).map((l) => ({
           block: l.blockNumber ?? 0n,
           kind: "ADDED" as const,
-          what: "deposited — plain route, so the size is public",
+          what: "deposited via the plain route, so the size is public",
           amount: formatUnits(l.args.amount as bigint),
           tx: l.transactionHash,
           clear: true,
@@ -168,7 +168,7 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
           tx: l.transactionHash,
           cipher: cipherByTx.get(l.transactionHash),
           kind: "ADDED" as const,
-          what: "deposited — confidential, the amount was never written down",
+          what: "deposited confidentially, the amount never written down",
           amount: "••••••",
           clear: false,
         })),
@@ -198,8 +198,8 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
           block: 0n,
           kind: checkedDraws.has(String(i)) ? ("CHECKED" as const) : ("DRAW" as const),
           what: checkedDraws.has(String(i))
-            ? `draw #${i} was checked for you — the result went into your balance, unread by anyone`
-            : `draw #${i} settled — you have not checked it`,
+            ? `draw #${i} was checked for you, and the result went into your balance unread by anybody`
+            : `draw #${i} settled, and you have not checked it`,
           amount: formatUnits(d[1]),
           clear: true,
         })),
@@ -243,7 +243,7 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
       </div>
 
       <div className={styles.intro}>
-        The observer&apos;s view — assembled from public logs, exactly what somebody watching your address could build
+        The observer&apos;s view, assembled from public logs: exactly what somebody watching your address could build
         without asking you. It is here so you can see how much of your activity is legible, and see that the amounts are
         not part of it.
       </div>
@@ -342,7 +342,7 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
 
                 <div className={styles.detailNote}>
                   That ciphertext is the amount, exactly as the token recorded it. The ACL has kept you permitted on it
-                  since the day it was written and nobody else — not the pool, not us — was ever added. Opening it uses
+                  since the day it was written, and nobody else (not the pool, not us) was ever added. Opening it uses
                   the session you already signed; it costs no transaction and reveals nothing to anyone else.
                 </div>
               </div>
@@ -359,7 +359,7 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
 
       <div className={styles.foot}>
         Every confidential row opens: the amount is stored as a ciphertext only you are permitted to read, so click one
-        and reveal it. What stays missing everywhere, including here, is whether a draw paid you — the contract never
+        and reveal it. What stays missing everywhere, including here, is whether a draw paid you. The contract never
         wrote that down for anyone.
       </div>
     </section>

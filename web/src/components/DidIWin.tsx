@@ -108,7 +108,7 @@ export function DidIWin({
       });
 
       if (!joined) {
-        setError("You were not in this draw — deposit before the next one closes.");
+        setError("You were not in this draw. Deposit before the next one closes.");
         setPhase("error");
         return;
       }
@@ -170,7 +170,7 @@ export function DidIWin({
           : {
               kind: "success",
               title: "Not this draw",
-              detail: "Your balance is unchanged — nothing was ever at risk.",
+              detail: "Your balance is unchanged. Nothing was ever at risk.",
               hash: tx,
             },
       );
@@ -235,13 +235,13 @@ export function DidIWin({
             </p>
             <p className={styles.cipher}>
               This draw paid {draw ? formatUnits(draw.prize) : "—"} cUSDT to exactly one depositor. Nobody — not the
-              other players, not the contract, not us — can say which.
+              other players, not the contract, not us, can say which.
             </p>
 
             {!claimable && draw && (
               <div className={styles.expired}>
                 The claim window for this draw closed when period #{draw.period} rolled over. A claim recomputes your
-                band from the live tree, and those numbers moved on — so this one can no longer be answered, by anyone.
+                band from the live tree, and those numbers moved on, so this one can no longer be answered by anybody.
                 Draws are swept before the roll for exactly this reason.
               </div>
             )}
@@ -293,7 +293,7 @@ export function DidIWin({
           <div className={styles.result}>
             <div className={`num ${styles.lostHead}`}>Not this time.</div>
             <p className={styles.copy}>
-              Your balance is unchanged — exactly what you put in. Nothing was ever at risk, and you are already entered
+              Your balance is unchanged: exactly what you put in. Nothing was ever at risk, and you are already entered
               in the next draw.
             </p>
             <button className="btnQuiet" onClick={() => setPhase("idle")}>

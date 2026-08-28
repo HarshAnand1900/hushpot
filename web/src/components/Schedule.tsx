@@ -31,12 +31,12 @@ const MOMENTS = [
     what: "The week opens",
     who: "Anyone, once the previous week has been swept",
     detail:
-      "Balances carry over untouched — nobody re-deposits. A deposit made from this minute earns odds for every minute it stays; one made on Friday earns only the minutes that are left.",
+      "Balances carry over untouched, so nobody re-deposits. A deposit made from this minute earns odds for every minute it stays; one made on Friday earns only the minutes that are left.",
     reveals: "Nothing",
   },
   {
     when: "THE NEXT 162 HOURS",
-    call: "— nothing is called",
+    call: "nothing is called",
     what: "Odds accrue, silently",
     who: "No keeper, no cron, no transactions",
     detail:
@@ -165,7 +165,7 @@ export function Schedule({ drawNumber }: { drawNumber: number }) {
         </p>
         <p className={styles.copy}>
           Where the two disagree, <strong>the countdown is the truth</strong> and this table is the intention. Both are
-          on this site rather than one quietly overriding the other.
+          on this site, instead of one quietly overriding the other.
         </p>
       </div>
     </section>

@@ -41,7 +41,7 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Hushpot — confidential prize pool",
+  title: "Hushpot · confidential prize pool",
   description:
     "A no-loss prize pool where deposits, balances and odds stay encrypted, and the winner is never resolved on-chain.",
 };

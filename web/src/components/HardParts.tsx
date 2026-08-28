@@ -17,7 +17,7 @@ const CONSTRAINTS = [
   },
   {
     title: "You cannot branch on a ciphertext",
-    limit: "`if (winner == you)` does not exist — and a branch would leak which way it went through gas and state.",
+    limit: "`if (winner == you)` does not exist, and a branch would leak which way it went through gas and state.",
     fix: "Settlement is a branchless FHE.select over every depositor: each slot receives select(won, prize, 0). A loser's credit is an encrypted zero, identical on-chain to the winner's, down to the gas.",
   },
   {
@@ -28,7 +28,7 @@ const CONSTRAINTS = [
   {
     title: "ACL hygiene is load-bearing",
     limit:
-      "A wrong grant means the next operation reverts, or the relayer refuses to decrypt at all — and the error looks like a permission bug when it is a propagation race.",
+      "A wrong grant means the next operation reverts, or the relayer refuses to decrypt at all, and the error looks like a permission bug when it is really a propagation race.",
     fix: "Every stored handle gets allowThis plus allow(owner); the prize transfer uses allowTransient. You are the only address ever granted rights over your own balance, and decryption retries through the lag.",
   },
   {

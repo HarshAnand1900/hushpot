@@ -38,7 +38,7 @@ const FLOW: { tag: string; title: string; body: string; cols: number; gap: strin
   {
     tag: "02",
     title: "Yield builds the pot",
-    body: "Pooled principal earns yield, and all of that yield — only ever the yield — becomes the prize. On Sepolia it comes from a funded reserve rather than a live lending market; in production the same reserve would be fed by a strategy.",
+    body: "Pooled principal earns yield, and all of that yield (only ever the yield) becomes the prize. On Sepolia it comes from a funded reserve instead of a live lending market; in production the same reserve would be fed by a strategy.",
     cols: 6,
     gap: "8px",
     cells: Array.from({ length: 18 }, (_, i) => (i % 5 === 0 ? CELL.gold : i % 3 === 0 ? CELL.mid : CELL.dark)),
@@ -60,7 +60,7 @@ const TERMS: { label: string; body: string; value: string; accent?: boolean }[] 
     value: "100%",
   },
   {
-    label: "LEGIBLE ON—CHAIN",
+    label: "LEGIBLE ON-CHAIN",
     body: "balances, to anyone, at any block. Ciphertext all the way down.",
     value: "0",
   },
@@ -75,11 +75,11 @@ const TERMS: { label: string; body: string; value: string; accent?: boolean }[] 
 const FAQ: [string, string][] = [
   [
     "Can I lose my deposit?",
-    "No. Principal sits in the pool and is withdrawable in full at any time. Only the yield is ever put up as a prize, so a losing week costs you the interest you would have earned — nothing more.",
+    "No. Principal sits in the pool and is withdrawable in full at any time. Only the yield is ever put up as a prize, so a losing week costs you the interest you would have earned, and nothing beyond that.",
   ],
   [
     "If nobody can see the winner, how is it fair?",
-    "The die is rolled by the network's own encrypted random number generator, on-chain, in a single transaction. Nobody can steer it — including us — and nobody can read it, including the contract. The commitment, the deposit state and the contract code are all public, so anyone can check the draw ran correctly without learning the outcome.",
+    "The die is rolled by the network's own encrypted random number generator, on-chain, in a single transaction. Nobody can steer it, us included, and nobody can read it, the contract included. The commitment, the deposit state and the contract code are all public, so the draw can be checked for correctness without the outcome being learned.",
   ],
   [
     "What can my wallet provider or a block explorer see?",
@@ -91,7 +91,7 @@ const FAQ: [string, string][] = [
   ],
   [
     "What happens if a winner never claims?",
-    "Thirty days. The window is the gap between a draw settling and the next period opening, and the contract holds that roll back for a month — so a claim is never a race. In practice a keeper sweeps every depositor before the roll, and the prize simply appears in the winner's balance without anyone having to remember.",
+    "Thirty days. The window is the gap between a draw settling and the next period opening, and the contract holds that roll back for a month, so a claim is never a race. In practice a keeper checks every depositor before the roll, and the prize simply appears in the winner's balance with nobody having to remember.",
   ],
 ];
 
@@ -137,7 +137,7 @@ const SEE = [
   },
   {
     who: "NOBODY’S",
-    what: "Anyone else’s balance, and who won. Not withheld by policy — never computed, by us or by the contract.",
+    what: "Anyone else’s balance, and who won. Not withheld by policy. Never computed at all, by us or by the contract.",
     gold: false,
   },
 ];
@@ -253,7 +253,7 @@ export function LandingSections() {
             </h2>
             <p className={styles.flowNote}>
               FHEVM lets Solidity add, compare and select over ciphertext. Your balance is an encrypted handle from the
-              moment you sign — the node running the transaction holds no key that could open it.
+              moment you sign. The node running the transaction holds no key that could open it.
             </p>
           </div>
 
@@ -447,7 +447,7 @@ function ExplorerTable() {
       ))}
 
       <div className={styles.expFoot}>
-        Real logs from the deployed pool. The confidential rows carry no value at all — there is no field for one, so an
+        Real logs from the deployed pool. The confidential rows carry no value at all. There is no field for one, so an
         explorer has nothing to render.
       </div>
     </div>

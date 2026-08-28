@@ -111,7 +111,7 @@ export default function Landing() {
         <section className={styles.bottomBlock}>
           <span className={`${styles.scrim} ${styles.scrimBottom}`} />
           <h1 className={`editorial ${styles.headline}`}>
-            One depositor takes all of it. Nobody finds out who — <em>unless they say so.</em>
+            One depositor takes all of it. Nobody finds out who, <em>unless they say so.</em>
           </h1>
 
           <div className={styles.ctas}>

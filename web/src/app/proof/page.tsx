@@ -34,7 +34,7 @@ const CONTRACTS = [
   // The pool address is read from the URL on the client — `?pool=sandbox` swaps it — so it
   // is a function of mount, not a constant. The other two never move.
   { name: "HushpotPool", address: () => POOL_ADDRESS, purpose: "the pool, the draw, and the claim" },
-  { name: "cUSDTMock", address: () => TOKEN_ADDRESS, purpose: "Zama's confidential USDT — ERC-7984" },
+  { name: "cUSDTMock", address: () => TOKEN_ADDRESS, purpose: "Zama's confidential USDT, an ERC-7984" },
   { name: "USDTMock", address: () => UNDERLYING_ADDRESS, purpose: "the plain token behind it, with an open faucet" },
 ];
 
@@ -48,7 +48,7 @@ const LIMITS = [
     next: "Week-over-week it moves by the sum of everyone's activity, never one person's.",
   },
   {
-    now: "Yield is funded from a reserve rather than a live strategy.",
+    now: "Yield is funded from a reserve, not a live strategy.",
     next: "The same reserve would be fed by real yield in production.",
   },
   {
@@ -91,7 +91,7 @@ export default function ProofTab() {
         {/* boundary ------------------------------------------------------- */}
         <section className={`${styles.boundary} yellowBand`}>
           <div className={styles.col}>
-            <div className={styles.colHead}>ENCRYPTED — euint64, PER DEPOSITOR</div>
+            <div className={styles.colHead}>ENCRYPTED · euint64, PER DEPOSITOR</div>
             {ENCRYPTED.map((row) => (
               <div key={row} className={styles.row}>
                 {row}
@@ -99,7 +99,7 @@ export default function ProofTab() {
             ))}
           </div>
           <div className={styles.col}>
-            <div className={styles.colHead}>PUBLIC — ANYONE WITH AN RPC</div>
+            <div className={styles.colHead}>PUBLIC · READABLE WITH ANY RPC</div>
             {PUBLIC.map((row) => (
               <div key={row} className={styles.row}>
                 {row}
@@ -108,7 +108,7 @@ export default function ProofTab() {
           </div>
           <div className={styles.boundaryNote}>
             We state the boundary instead of hiding it. Addresses and timing are public by Ethereum&apos;s nature. What
-            matters — amounts, odds, winnings — is ciphertext.
+            matters (amounts, odds, winnings) is ciphertext.
           </div>
         </section>
 

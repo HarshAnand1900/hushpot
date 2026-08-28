@@ -100,7 +100,7 @@ export default function DrawsTab() {
                 </button>
               ))}
               <div className={styles.sidebarNote}>
-                No winner column. The draw never resolves a name on-chain — the missing data is the product working.
+                No winner column. The draw never resolves a name on-chain, and the missing data is the product working.
               </div>
             </aside>
 
@@ -120,7 +120,7 @@ export default function DrawsTab() {
               <p className={styles.intro}>
                 No randomness oracle. The network rolled an encrypted die on-chain, in the settling transaction, and
                 combined it with the committed state of every depositor. The pool total below is the only figure this
-                draw made public — and it is an aggregate, not anybody&apos;s balance.
+                draw made public, and it is an aggregate, not anybody&apos;s balance.
               </p>
 
               <DrawTimeline drawId={draw.id} isLatest={selected === 0} />
@@ -132,11 +132,11 @@ export default function DrawsTab() {
                     ? error
                     : done
                       ? allPassed
-                        ? "Five of five recomputed against the chain. The stored record, the committed die, the prize formula and the deployed code all agree — and the code holds no winner to ask for."
+                        ? "Five of five recomputed against the chain. The stored record, the committed die, the prize formula and the deployed code all agree, and the code holds no winner to ask for."
                         : "One or more checks disagreed with the chain. Details below."
                       : verifying
                         ? `Reading the chain… ${step + 1} of 4`
-                        : "Nothing here is taken on trust. These are plain read-only calls to a public node — run them yourself with cast if you prefer."}
+                        : "Nothing here is taken on trust. These are plain read-only calls to a public node, so run them yourself with cast if you prefer."}
                 </div>
                 <button
                   className="btnOutlineYellow"
@@ -200,9 +200,9 @@ export default function DrawsTab() {
                 <span>2</span>
               </div>
               <div className={styles.limits}>
-                <strong>Who won</strong> — not hidden, but never computed by anything, so there is nothing to recompute.
+                <strong>Who won.</strong> Not hidden, but never computed by anything, so there is nothing to recompute.
                 <br />
-                <strong>Whether the die was unbiased</strong> — that rests on the network&apos;s own generator and the
+                <strong>Whether the die was unbiased.</strong> That rests on the network&apos;s own generator and the
                 published source, not on any figure in this receipt.
               </div>
 
