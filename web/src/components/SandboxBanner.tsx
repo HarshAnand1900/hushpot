@@ -29,7 +29,9 @@ export function SandboxBanner() {
       <span className={styles.tag}>SANDBOX</span>
       <span className={styles.copy}>
         Pointed at <strong>{shortenAddress(POOL_ADDRESS)}</strong> — a throwaway pool whose owner is a contract that
-        lets anyone run every step of the cycle, right now. Nothing on screen is the real deployment.
+        lets anyone run every step of the cycle, right now. Same test tokens as the live pool,{" "}
+        <strong>separate balances</strong>: nothing you do here touches the real deployment, and nothing on screen is
+        its figures.
       </span>
       <a className={styles.link} href="/pool">
         Back to the live pool →

@@ -269,8 +269,17 @@
 }
 
 .logCall {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   color: var(--white);
   overflow-wrap: anywhere;
+}
+
+.logTime {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--text-4);
 }
 
 .logNote {
@@ -281,6 +290,10 @@
 .logOk {
   color: var(--yellow);
   text-align: right;
+}
+a.logOk:hover,
+a.logBad:hover {
+  text-decoration: underline;
 }
 
 .logBad {

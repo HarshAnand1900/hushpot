@@ -5,7 +5,7 @@ import { useAccount, useConfig, usePublicClient, useWriteContract } from "wagmi"
 import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { AppHeader } from "@/components/AppHeader";
-import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
+import { useLastDraw, usePoolState, useWeeklyPot } from "@/hooks/usePoolState";
 import {
   IS_SANDBOX,
   POOL_ADDRESS,
@@ -17,8 +17,9 @@ import {
   sandboxOperatorAbi,
 } from "@/lib/contract";
 import { formatUnits, shortenAddress } from "@/lib/format";
+import { useJudgeSession } from "@/hooks/useJudgeSession";
 import { gasLimitFor } from "@/lib/gas";
-import { describeError } from "@/lib/toast";
+import { describeError, toast } from "@/lib/toast";
 import styles from "./judge.module.css";
 
 const SCALE = 10n ** BigInt(TOKEN_DECIMALS);
@@ -37,9 +38,15 @@ type StepState = "ready" | "running" | "done" | "blocked" | "failed";
  * anyone once the period has elapsed. Only the shortcuts that skip waiting are the
  * owner's, and pretending otherwise would misrepresent the contract.
  */
+/** What a step reports when it finishes: what changed, and where to check it. */
+type Outcome = { note: string; hash?: string };
+
 export default function JudgeTab() {
   const state = usePoolState();
   const lastDraw = useLastDraw(state.drawCount);
+  // The same derivation every other tab uses, so the header cannot disagree with itself
+  // from one tab to the next. See useWeeklyPot.
+  const { pot } = useWeeklyPot(state, lastDraw);
   const { address, isConnected } = useAccount();
   const config = useConfig();
   const publicClient = usePublicClient();
@@ -54,12 +61,29 @@ export default function JudgeTab() {
   const [owner, setOwner] = useState<string>();
   const [cursor, setCursor] = useState<number>();
   const [running, setRunning] = useState<string>();
-  const [log, setLog] = useState<{ call: string; note: string; ok: boolean }[]>([]);
-  const [done, setDone] = useState<Set<string>>(new Set());
+  // Persisted per pool: switching tabs to look at what a step changed used to wipe the
+  // record that it had run. See useJudgeSession.
+  const { log, done, append, complete, clear } = useJudgeSession();
 
   const drawId = state.drawCount > 0n ? state.drawCount - 1n : 0n;
   const isOwner = !!address && !!owner && address.toLowerCase() === owner.toLowerCase();
   const sweptAll = cursor !== undefined && cursor >= state.depositors && state.depositors > 0;
+
+  /** How many slots carry the checked flag for the current draw. */
+  const countChecked = useCallback(async () => {
+    if (!publicClient || state.drawCount === 0n) return 0;
+    const flags = await Promise.all(
+      Array.from({ length: state.depositors }, (_, slot) =>
+        publicClient.readContract({
+          address: POOL_ADDRESS,
+          abi: poolAbi,
+          functionName: "claimChecked",
+          args: [state.drawCount - 1n, slot],
+        }),
+      ),
+    );
+    return flags.filter(Boolean).length;
+  }, [publicClient, state.drawCount, state.depositors]);
 
   const refresh = useCallback(async () => {
     if (!publicClient) return;
@@ -95,18 +119,28 @@ export default function JudgeTab() {
     void refresh();
   }, [refresh]);
 
-  const say = (call: string, note: string, ok: boolean) => setLog((l) => [{ call, note, ok }, ...l].slice(0, 12));
-
-  const run = async (id: string, call: string, fn: () => Promise<string>) => {
+  /**
+   * Run a step and say so, loudly.
+   *
+   * The log at the foot of the page was the only feedback a step gave, which meant a call
+   * that took thirty seconds and then quietly succeeded looked, from the top of the page,
+   * exactly like a call that had done nothing at all. Every step now also raises the same
+   * toast the rest of the app uses, and reports what actually changed on-chain rather than
+   * only the gas it burned.
+   */
+  const run = async (id: string, call: string, fn: () => Promise<Outcome>) => {
     setRunning(id);
     try {
-      const note = await fn();
-      say(call, note, true);
-      setDone((d) => new Set(d).add(id));
+      const { note, hash } = await fn();
+      append({ call, note, ok: true, hash });
+      complete(id);
+      toast({ kind: "success", title: call, detail: note, hash });
       state.refetch();
       await refresh();
     } catch (e) {
-      say(call, describeError(e), false);
+      const detail = describeError(e);
+      append({ call, note: detail, ok: false });
+      toast({ kind: "error", title: `${call} failed`, detail });
     } finally {
       setRunning(undefined);
     }
@@ -132,7 +166,7 @@ export default function JudgeTab() {
       ...(gas ? { gas } : {}),
     } as never);
     const receipt = await waitForTransactionReceipt(config, { hash: tx });
-    return `gas ${receipt.gasUsed}`;
+    return { note: `gas ${receipt.gasUsed}`, hash: tx };
   };
 
   /**
@@ -143,7 +177,7 @@ export default function JudgeTab() {
    * instead — which is what makes every step on this page runnable from a stranger's
    * wallet without a key changing hands.
    */
-  const sendGated = async (functionName: "openDraw" | "startNextPeriod") => {
+  const sendGated = async (functionName: "openDraw" | "startNextPeriod"): Promise<Outcome> => {
     if (!IS_SANDBOX) return send(functionName);
     const tx = await writeContractAsync({
       address: SANDBOX_OPERATOR,
@@ -151,7 +185,7 @@ export default function JudgeTab() {
       functionName,
     });
     const receipt = await waitForTransactionReceipt(config, { hash: tx });
-    return `gas ${receipt.gasUsed}`;
+    return { note: `gas ${receipt.gasUsed}`, hash: tx };
   };
 
   /** Sponsorship rather than the owner-only reserve top-up, so any wallet can do it. */
@@ -201,7 +235,7 @@ export default function JudgeTab() {
   };
 
   /** The half of settlement that cannot happen on-chain. */
-  const settle = async () => {
+  const settle = async (): Promise<Outcome> => {
     const handle = (await publicClient!.readContract({
       address: POOL_ADDRESS,
       abi: poolAbi,
@@ -211,10 +245,71 @@ export default function JudgeTab() {
     const { publicDecryptRetry } = await import("@/lib/fhe");
     const res = await publicDecryptRetry([handle]);
 
-    return send("settleDraw", [
+    const out = await send("settleDraw", [
       (res as unknown as { abiEncodedClearValues: string }).abiEncodedClearValues,
       (res as unknown as { decryptionProof: string }).decryptionProof,
     ]);
+
+    // The one moment in the week that publishes anything. Say what it published.
+    const draw = (await publicClient!.readContract({
+      address: POOL_ADDRESS,
+      abi: poolAbi,
+      functionName: "draws",
+      args: [drawId],
+    })) as readonly [bigint, bigint, string, number, boolean];
+    return {
+      ...out,
+      note: `total ${formatUnits(draw[0] / 10080n)} pooled · prize ${formatUnits(draw[1])} cUSDT · winner unresolved`,
+    };
+  };
+
+  /**
+   * Seal the draw, then say what became readable.
+   *
+   * "gas 214817" is true and tells a judge nothing. What matters is that a handle now
+   * exists which anybody — not just this app — can decrypt, and that until this moment it
+   * could not be decrypted by anyone at all.
+   */
+  const open = async (): Promise<Outcome> => {
+    const out = await sendGated("openDraw");
+    const handle = (await publicClient!.readContract({
+      address: POOL_ADDRESS,
+      abi: poolAbi,
+      functionName: "pendingTotalHandle",
+    })) as string;
+    return { ...out, note: `sealed · total now publicly decryptable as ${handle.slice(0, 12)}…` };
+  };
+
+  /**
+   * Prove solvency, and report the bit the chain published rather than the fact a
+   * transaction succeeded.
+   *
+   * The step's whole claim is that the pool holds at least what it owes, compared on
+   * ciphertext so neither figure is revealed. A judge who only sees "OK · gas 189204" is
+   * being asked to take that on trust, which is precisely the thing this project argues
+   * nobody should have to do. So the published `ebool` is decrypted here through the same
+   * public path anyone else can use, and the answer — with the handle it came from — is
+   * what gets reported.
+   */
+  const solvency = async (): Promise<Outcome> => {
+    const out = await send("proveSolvency");
+
+    const handle = (await publicClient!.readContract({
+      address: POOL_ADDRESS,
+      abi: poolAbi,
+      functionName: "solvencyHandle",
+    })) as string;
+
+    const { publicDecryptRetry } = await import("@/lib/fhe");
+    const res = await publicDecryptRetry([handle]);
+    const value = Object.values((res as { clearValues?: Record<string, unknown> }).clearValues ?? {})[0];
+
+    return {
+      ...out,
+      note: value
+        ? `BACKED · every deposit still covered · bit ${handle.slice(0, 12)}… decrypts to true`
+        : `SHORTFALL · the pool holds less than it owes · bit ${handle.slice(0, 12)}… decrypts to false`,
+    };
   };
 
   const steps = [
@@ -226,7 +321,11 @@ export default function JudgeTab() {
       sig: "sponsorPrize(uint256)",
       note: `Mints 500 test tokens and adds them to the next prize on top of the yield. Takes no odds and creates no position — a sponsorship can never win itself back. It does not move the figure in the header, which is what the last draw paid; banked so far for draw #${state.drawCount}: ${formatUnits(state.sponsoredThisDraw)} cUSDT.`,
       disabled: !isConnected,
-      go: () => run("sponsor", "sponsorPrize(500)", sponsor),
+      go: () =>
+        run("sponsor", "sponsorPrize(500)", async () => {
+          const out = await sponsor();
+          return { ...out, note: `+500.00 cUSDT banked for draw #${state.drawCount}` };
+        }),
     },
     {
       id: "open",
@@ -238,7 +337,7 @@ export default function JudgeTab() {
         ? "Seals the pool total and publishes it for decryption. Sent through the sandbox's owner contract, which forwards this call to anyone — so it works from your wallet, now, without waiting for the period to elapse."
         : "Seals the pool total and publishes it for decryption. Anyone may call it once the period has elapsed; the owner may call it early so a week-long cycle fits in a demo.",
       disabled: !isConnected || state.drawPending || (!state.periodEnded && !isOwner && !onSandbox),
-      go: () => run("open", onSandbox ? "SandboxOperator.openDraw()" : "openDraw()", () => sendGated("openDraw")),
+      go: () => run("open", onSandbox ? "SandboxOperator.openDraw()" : "openDraw()", open),
     },
     {
       id: "settle",
@@ -258,7 +357,15 @@ export default function JudgeTab() {
       sig: "sweepRange(uint256, uint16)",
       note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped rather than paid twice, so this is safe to repeat — ${cursor ?? 0} of ${state.depositors} covered.`,
       disabled: state.drawCount === 0n || sweptAll,
-      go: () => run("sweep", `sweepRange(${drawId}, 4)`, () => send("sweepRange", [drawId, 4], 3_600_000n)),
+      go: () =>
+        run("sweep", `sweepRange(${drawId}, 4)`, async () => {
+          const out = await send("sweepRange", [drawId, 4], 3_600_000n);
+          const covered = await countChecked();
+          return {
+            ...out,
+            note: `${covered} of ${state.depositors} checked · each credited the prize or an encrypted zero`,
+          };
+        }),
     },
     {
       id: "solvency",
@@ -266,9 +373,9 @@ export default function JudgeTab() {
       role: "ANYONE",
       title: "Prove solvency",
       sig: "proveSolvency()",
-      note: "Compares what the pool holds against what it owes, on ciphertext, and publishes the single bit that falls out. Neither figure is revealed.",
+      note: "Compares what the pool holds against what it owes — on ciphertext, so neither figure is revealed — and publishes the single bit that falls out. The bit is publicly decryptable, so this console decrypts it through the same open path anyone else can use and reports the answer, rather than reporting that a transaction succeeded.",
       disabled: !isConnected,
-      go: () => run("solvency", "proveSolvency()", () => send("proveSolvency")),
+      go: () => run("solvency", "proveSolvency()", solvency),
     },
     {
       id: "roll",
@@ -283,9 +390,15 @@ export default function JudgeTab() {
         : `Locked until everyone is swept — ${cursor ?? 0} of ${state.depositors}. Rolling now would end the claim window on anyone still unpaid.`,
       disabled: !isConnected || state.drawCount === 0n || state.drawPending || !sweptAll,
       go: () =>
-        run("roll", onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()", () =>
-          sendGated("startNextPeriod"),
-        ),
+        run("roll", onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()", async () => {
+          const out = await sendGated("startNextPeriod");
+          const period = (await publicClient!.readContract({
+            address: POOL_ADDRESS,
+            abi: poolAbi,
+            functionName: "currentPeriod",
+          })) as number;
+          return { ...out, note: `claim window closed · period #${period} now open · back to step 01` };
+        }),
     },
   ];
 
@@ -295,7 +408,7 @@ export default function JudgeTab() {
   return (
     <>
       <div className="warmGlow" aria-hidden="true" />
-      <AppHeader pot={lastDraw ? lastDraw.prize : 0n} />
+      <AppHeader pot={pot} />
 
       <main className={`${styles.page} rise`}>
         {/* hero ------------------------------------------------------------ */}
@@ -372,8 +485,12 @@ export default function JudgeTab() {
             <button
               className={styles.reset}
               onClick={() => {
-                setDone(new Set());
-                setLog([]);
+                clear();
+                toast({
+                  kind: "success",
+                  title: "Console cleared",
+                  detail: "The chain is untouched — only this record.",
+                });
               }}
             >
               {done.size >= steps.length ? "Run the cycle again" : "Reset console"}
@@ -412,18 +529,35 @@ export default function JudgeTab() {
         {/* session log ------------------------------------------------------ */}
         <section className="panel">
           <div className="panelHead">
-            <span>SESSION LOG</span>
-            <span>{log.length} CALLS</span>
+            <span>SESSION LOG · KEPT ACROSS TABS</span>
+            <span suppressHydrationWarning>{log.length} CALLS</span>
           </div>
           <div className={styles.log}>
             {log.length === 0 ? (
               <div className={styles.logEmpty}>NO CALLS YET · RUN A STEP ABOVE</div>
             ) : (
               log.map((l, i) => (
-                <div key={i} className={styles.logRow}>
-                  <span className={styles.logCall}>{l.call}</span>
+                <div key={`${l.at}-${i}`} className={styles.logRow}>
+                  <span className={styles.logCall}>
+                    {l.call}
+                    <span className={styles.logTime} suppressHydrationWarning>
+                      {new Date(l.at).toLocaleTimeString()}
+                    </span>
+                  </span>
                   <span className={styles.logNote}>{l.note}</span>
-                  <span className={l.ok ? styles.logOk : styles.logBad}>{l.ok ? "OK" : "FAILED"}</span>
+                  {/* A row nobody can check is a row asking to be believed. */}
+                  {l.hash ? (
+                    <a
+                      className={l.ok ? styles.logOk : styles.logBad}
+                      href={`https://sepolia.etherscan.io/tx/${l.hash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {l.ok ? "OK ↗" : "FAILED ↗"}
+                    </a>
+                  ) : (
+                    <span className={l.ok ? styles.logOk : styles.logBad}>{l.ok ? "OK" : "FAILED"}</span>
+                  )}
                 </div>
               ))
             )}

@@ -294,6 +294,20 @@ Add `?pool=sandbox` to any page — `/pool`, `/draws`, `/proof`, `/judge` — an
 banner across the top says so, because every figure on screen then belongs to a throwaway contract. Every link carries
 the parameter onward, so a refresh or a copied link stays where you are. Drop it to return to the real pool.
 
+#### Is it the same money?
+
+The same **tokens**, in separate **balances**. Both pools use Zama's official
+[`cUSDTMock`](https://sepolia.etherscan.io/address/0x4E7B06D78965594eB5EF5414c357ca21E1554491) and the plain
+[`USDTMock`](https://sepolia.etherscan.io/address/0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0) behind it, because there
+is one of each on Sepolia and both are test tokens with an open faucet.
+
+Everything else is separate. Each pool is its own contract with its own depositors, its own prize reserve, and its own
+draws. Depositing into the sandbox does not put a coin into the live pool, cannot win the live pool's prize, and is
+withdrawn from the sandbox. The two never touch — the only thing they share is where the play money is minted.
+
+That also means nothing in the sandbox is worth anything. `USDTMock.mint` is open to everyone, so the tokens cost a
+Sepolia gas fee, which is why a pool anyone can freely open draws on is not a problem worth solving.
+
 ### Three ways to call anything
 
 1. **The Judge panel** — [`/judge`](https://hushpot-fhevm.vercel.app/judge) runs the whole cycle from a browser. On the
