@@ -11,7 +11,36 @@
 
 export const CHAIN_ID = 11155111;
 
-export const POOL_ADDRESS = "0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69" as const;
+/** The pool this app talks to. */
+const MAIN_POOL = "0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69";
+
+/**
+ * A second, expendable pool whose owner key is published with the submission.
+ *
+ * Two of the six cycle steps are owner-gated *for early use only* — anyone may call them
+ * once a period has genuinely elapsed, but that is a week away, and a judge should not
+ * have to wait a week to press a button. Rather than publish the real owner key, which can
+ * set the yield rate to zero and close claim windows early, there is a throwaway pool that
+ * absorbs the experimentation.
+ *
+ * Reached with `?pool=sandbox` on any tab. Resolved once, at module load, so every hook
+ * and component sees the same address without threading it through twenty-three files.
+ */
+export const SANDBOX_POOL = "0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE";
+
+function resolvePool(): string {
+  if (typeof window === "undefined") return MAIN_POOL;
+  try {
+    return new URLSearchParams(window.location.search).get("pool") === "sandbox" ? SANDBOX_POOL : MAIN_POOL;
+  } catch {
+    return MAIN_POOL;
+  }
+}
+
+export const POOL_ADDRESS = resolvePool() as `0x${string}`;
+
+/** True when this tab is pointed at the sandbox rather than the real pool. */
+export const IS_SANDBOX = POOL_ADDRESS.toLowerCase() === SANDBOX_POOL.toLowerCase();
 
 /**
  * Block the pool was deployed in. Log scans start here rather than at genesis — public

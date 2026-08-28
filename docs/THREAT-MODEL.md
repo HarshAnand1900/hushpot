@@ -47,7 +47,13 @@ would shift every subsequent band and pick the wrong winner.
 **The confidential deposit route was unreachable — fixed.** The contract has always had
 `deposit(externalEuint64, proof)`, but the app only ever called `depositUnderlying`, whose amount is public. The faucet
 handed out plain tokens only, so a newcomer could not use the private path at all. The faucet now shields on request,
-and the confidential route is the default.
+and the confidential route is the only one the app has — the public route was removed from the frontend rather than
+left as an option, because an option to publish your own deposit is one somebody takes by accident.
+
+**The seeding tasks were still publishing amounts — fixed.** Removing the public route from the frontend did not remove
+it from `tasks/hushpot.ts`, which seeded demo depositors with `depositUnderlying` and put 58 amounts in the clear on a
+pool advertised as confidential. Every task now uses the encrypted path. The lesson generalises: the leak was not in the
+contract or the interface but in the tooling that filled them, which no amount of reading the app would have caught.
 
 ---
 
@@ -91,17 +97,24 @@ it.
 
 ## 3. Known leaks
 
-### 3.1 Depositing plain tokens publishes that deposit's size
+### 3.1 Acquiring cUSDT publishes that amount
 
-`depositUnderlying()` accepts an ordinary ERC-20, which means the amount travels in a public `transferFrom`. **That
-deposit's size is visible to anyone.** Everything afterwards — your position, your odds, your winnings — is encrypted,
-but the entry itself is not.
+cUSDT is minted by wrapping plain tUSDT, and a plain ERC-20 transfer cannot hide its amount. **Whatever you shield is
+visible to anyone**, in the token's own `Transfer` event, before any deposit happens.
 
-- **Severity:** high for that single deposit, none thereafter.
-- **Avoid it:** hold cUSDT and use `deposit()`, where the amount is encrypted before it leaves your wallet.
-- **Or decouple it:** shield tokens at one time and deposit at another. The two are then unlinkable by size or timing.
-- **Why we ship it anyway:** requiring users to wrap manually before depositing is a real barrier, and Zama's own
-  Steakhouse vault makes the same trade. The interface says so plainly rather than burying it.
+What it does *not* reveal is a position. Shielding is a separate transaction against the token, not the pool: it says an
+address now holds some cUSDT, not that it deposited, nor how much, nor when. Everything from the deposit onward — your
+balance, your odds, your winnings — is encrypted.
+
+- **Severity:** medium. It bounds your position from above, and only if you shield and deposit in one sitting.
+- **Decouple it:** shield at one time and deposit at another, in a different amount. The two are then unlinkable by
+  size or by timing, and the bound goes away.
+- **Or skip it:** any cUSDT works. Tokens acquired elsewhere carry no wrapping event of yours at all.
+
+`depositUnderlying()` — which takes plain tUSDT and wraps it inside the pool — collapses those two steps into one and so
+publishes the deposit's size directly. **Nothing in the app calls it.** It remains on the contract because removing a
+deployed function is not possible and because it is the honest baseline the confidential route is measured against; the
+frontend offers no route to it, and the CLI tasks use the encrypted path.
 
 ### 3.2 The pool total is published at each draw
 

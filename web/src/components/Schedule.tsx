@@ -68,13 +68,28 @@ export function Schedule({ drawNumber }: { drawNumber: number }) {
           and the difference is that depositor&apos;s amount in the clear.
         </p>
         <p className={styles.copy}>
-          So the yield half is computed from the total the <strong>last draw published</strong>, using the contract&apos;s
-          own formula, run in your browser. Both inputs are already public. The sponsored half is not estimated at all —
-          sponsorships are plain transfers and the figure is exact.
+          So the yield half is computed from the total the <strong>last draw published</strong>, using the
+          contract&apos;s own formula, run in your browser. Both inputs are already public. The sponsored half is not
+          estimated at all — sponsorships are plain transfers and the figure is exact.
         </p>
         <p className={styles.copy}>
           Nothing about the current week is disclosed to produce it, and nothing here is invented: every number on this
           site is read from the chain or derived from figures the chain has already made public.
+        </p>
+      </div>
+
+      <div className={styles.basis}>
+        <div className={styles.basisHead}>WHY THE COUNTDOWN MAY NOT LAND ON A MONDAY</div>
+        <p className={styles.copy}>
+          The contract has no calendar. A period is seven days measured from{" "}
+          <strong>whenever the roll was last called</strong>, so this cadence is a promise about when the keeper acts,
+          not a rule the chain enforces. The first period started when the pool was deployed, which was not a Monday —
+          so the countdown above the pot runs to that deployment anniversary until the first Monday roll cuts it short
+          and locks the boundary in place.
+        </p>
+        <p className={styles.copy}>
+          Where the two disagree, <strong>the countdown is the truth</strong> and this table is the intention. Both are
+          on this page rather than one quietly overriding the other.
         </p>
       </div>
     </section>

@@ -41,6 +41,18 @@
   color: var(--on-yellow);
 }
 
+/* Sits on the yellow band, so it borrows the band's ink rather than the link colour. */
+.heroLink {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+}
+
+.heroLink:hover {
+  text-decoration-thickness: 2px;
+}
+
 .heroSide {
   background: var(--near-black);
   border-left: 1px solid var(--rule);

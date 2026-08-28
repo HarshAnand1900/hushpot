@@ -14,6 +14,7 @@ import { PositionPanel } from "@/components/PositionPanel";
 import { Pot3D } from "@/components/Pot3D";
 import { useMyPosition } from "@/hooks/useMyPosition";
 import { useDraws } from "@/hooks/useDraws";
+import { usePoolHref } from "@/hooks/usePoolHref";
 import { useLastDraw, useNow, usePoolState, useWeeklyPot } from "@/hooks/usePoolState";
 import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { formatCountdown, formatUnits, shortenAddress, splitUnits } from "@/lib/format";
@@ -92,7 +93,12 @@ export default function PoolTab() {
           <span className={styles.chip}>MINUTE {String(state.minuteOfPeriod)} / 10080</span>
           <span className={styles.chip}>FHEVM · EUINT64</span>
           <span className={styles.statusRule} />
-          <span className={styles.chip}>HUSHPOT {shortenAddress(POOL_ADDRESS)}</span>
+          {/* Which pool this tab points at is a client-side reading of the URL, and React
+              does not patch text it hydrated from the server. Held back until mounted, so
+              the chip never names one pool while the rest of the page reads another. */}
+          <span className={styles.chip} suppressHydrationWarning>
+            HUSHPOT {mounted ? shortenAddress(POOL_ADDRESS) : "…"}
+          </span>
         </div>
 
         {/* hero band ------------------------------------------------------ */}
@@ -107,14 +113,25 @@ export default function PoolTab() {
                 ? `THIS WEEK'S POT · DRAW #${drawNumber} · ESTIMATED FROM PUBLIC FIGURES`
                 : "THE POT · DRAW #0 · PUBLIC BY DESIGN"}
             </div>
+            {/* An em dash, not 0.00: with no settled draw and nothing sponsored there is
+                no published total to estimate from, so there is no pot yet rather than an
+                empty one. See useWeeklyPot. */}
             <div className={`num ${styles.potNumber}`}>
-              {potParts.whole}
-              <span className={styles.potFrac}>.{potParts.frac}</span>
+              {pot > 0n ? (
+                <>
+                  {potParts.whole}
+                  <span className={styles.potFrac}>.{potParts.frac}</span>
+                </>
+              ) : (
+                "—"
+              )}
             </div>
             <div className={styles.potUnit}>
               {drawNumber > 0
                 ? `cUSDT · YIELD + ${formatUnits(state.sponsoredThisDraw)} SPONSORED · DRAW #${drawNumber - 1} PAID ${formatUnits(lastPaid)}`
-                : "cUSDT · YIELD LANDS EVERY BLOCK"}
+                : pot > 0n
+                  ? `cUSDT · ${formatUnits(state.sponsoredThisDraw)} SPONSORED · NO YIELD BASIS UNTIL DRAW #0 SETTLES`
+                  : "cUSDT · NO DRAW HAS SETTLED YET, SO THERE IS NOTHING TO ESTIMATE FROM"}
             </div>
 
             <div className={styles.tagline}>
@@ -404,6 +421,7 @@ function CloseDraw({
 }) {
   const { isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const withPool = usePoolHref();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -428,7 +446,7 @@ function CloseDraw({
       </span>
 
       {drawPending ? (
-        <Link className="btnOutlineYellow" href="/judge">
+        <Link className="btnOutlineYellow" href={withPool("/judge")}>
           Sealed · settle it on Judge
         </Link>
       ) : (

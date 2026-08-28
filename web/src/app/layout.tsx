@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { NetworkGuard } from "@/components/NetworkGuard";
 
+import { SandboxBanner } from "@/components/SandboxBanner";
 import { Toast } from "@/components/Toast";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -64,6 +65,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Toast />
 
         <div className="content">
+          <SandboxBanner />
           <Providers>
             {/* Sits above everything: connecting on the wrong chain otherwise just
                 looks like the app is broken, with nothing to explain why. */}

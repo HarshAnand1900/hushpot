@@ -115,6 +115,11 @@ export function useNow(intervalMs = 1000) {
  * `prizeFor(lastTotal)` rather than last week's *prize*: the prize included last week's
  * sponsorship, which is a one-off, and carrying it forward would promise a pot that never
  * arrives. This week's sponsorships are added separately, and those are exact.
+ *
+ * Before any draw has settled there is no published total to estimate from and nothing
+ * sponsored, so this returns exactly zero. Callers render that as an em dash rather than
+ * `0.00`, because there is no pot yet — not a pot that happens to be empty. The judge
+ * sandbox is deliberately left in that state, with its first cycle still to run.
  */
 const RATE_DIVISOR = 10_000n * 525_600n;
 

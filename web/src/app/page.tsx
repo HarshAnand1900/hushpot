@@ -3,6 +3,7 @@
 import { ConnectButton } from "@/components/ConnectButton";
 import { LandingSections } from "@/components/LandingSections";
 import { Pot3D } from "@/components/Pot3D";
+import { usePoolHref } from "@/hooks/usePoolHref";
 import { useLastDraw, useNow, usePoolState, useWeeklyPot } from "@/hooks/usePoolState";
 import { POOL_ADDRESS } from "@/lib/contract";
 import { formatCountdown, formatUnits, splitUnits } from "@/lib/format";
@@ -12,6 +13,8 @@ export default function Landing() {
   const now = useNow();
   const state = usePoolState();
   const lastDraw = useLastDraw(state.drawCount);
+
+  const withPool = usePoolHref();
 
   const drawNumber = Number(state.drawCount);
   const mounted = now > 0;
@@ -32,8 +35,12 @@ export default function Landing() {
           whole scrolling page. */}
       <div className={styles.hero}>
         <div className={`${styles.frame} brackets bracketsLower`}>
-          <div className={styles.serial}>
-            SER. {POOL_ADDRESS.slice(0, 6)}—{POOL_ADDRESS.slice(-4)} · FHEVM SEPOLIA · NON—TRANSFERABLE RECORD
+          {/* `?pool=sandbox` swaps the pool, and that is read from the URL on the client.
+              React does not patch text it hydrated from the server, so the serial waits
+              for mount rather than naming a pool this page is not talking to. */}
+          <div className={styles.serial} suppressHydrationWarning>
+            SER. {mounted ? `${POOL_ADDRESS.slice(0, 6)}—${POOL_ADDRESS.slice(-4)}` : "————"} · FHEVM SEPOLIA ·
+            NON—TRANSFERABLE RECORD
           </div>
         </div>
 
@@ -81,9 +88,17 @@ export default function Landing() {
           <span className={`${styles.scrim} ${styles.scrimTop}`} />
           <div className={styles.potRow}>
             <span className={styles.potTick}>POT</span>
+            {/* No settled draw and nothing sponsored means there is no pot to estimate,
+                which is not the same as an empty one. See useWeeklyPot. */}
             <span className={`num ${styles.potNumber}`}>
-              {pot.whole}
-              <span className={styles.potFrac}>.{pot.frac}</span>
+              {projectedPot > 0n ? (
+                <>
+                  {pot.whole}
+                  <span className={styles.potFrac}>.{pot.frac}</span>
+                </>
+              ) : (
+                "—"
+              )}
             </span>
           </div>
           <div className={styles.potStrap}>
@@ -100,7 +115,9 @@ export default function Landing() {
           </h1>
 
           <div className={styles.ctas}>
-            <a className={styles.ctaPrimary} href="/pool">
+            {/* A full page load, so the sandbox parameter has to travel with it or the
+                click silently lands on the real pool. */}
+            <a className={styles.ctaPrimary} href={withPool("/pool")}>
               Enter the pool
             </a>
           </div>

@@ -7,15 +7,6 @@ import { waitForTransactionReceipt } from "wagmi/actions";
 import { describeError, toast } from "@/lib/toast";
 
 /**
- * Approve once, deposit many times.
- *
- * A per-deposit allowance costs an extra transaction and an extra block of waiting on
- * every single deposit. The allowance is a public number either way; a fixed maximum
- * actually leaks less than one that tracks the size of each deposit.
- */
-const MAX_ALLOWANCE = (1n << 256n) - 1n;
-
-/**
  * Let the browser paint before something blocking runs.
  *
  * FHE encryption is WebAssembly on the main thread: for the second or two it runs, nothing
@@ -29,14 +20,7 @@ const MAX_ALLOWANCE = (1n << 256n) - 1n;
  */
 const paint = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
-import {
-  POOL_ADDRESS,
-  TOKEN_ADDRESS,
-  UNDERLYING_ADDRESS,
-  confidentialTokenAbi,
-  erc20Abi,
-  poolAbi,
-} from "@/lib/contract";
+import { POOL_ADDRESS, TOKEN_ADDRESS, confidentialTokenAbi, poolAbi } from "@/lib/contract";
 
 export type FlowStep = "idle" | "approving" | "depositing" | "withdrawing" | "done" | "error";
 
@@ -67,103 +51,15 @@ export function useDeposit() {
     setError(undefined);
   }, []);
 
-  const deposit = useCallback(
-    async (amount: bigint) => {
-      if (!address || !publicClient || amount <= 0n) return false;
-      setError(undefined);
-
-      try {
-        const balance = await publicClient.readContract({
-          address: UNDERLYING_ADDRESS,
-          abi: erc20Abi,
-          functionName: "balanceOf",
-          args: [address],
-        });
-
-        if ((balance as bigint) < amount) {
-          setError("You don't hold that many tokens. Use the faucet first.");
-          setStep("error");
-          return false;
-        }
-
-        const allowance = (await publicClient.readContract({
-          address: UNDERLYING_ADDRESS,
-          abi: erc20Abi,
-          functionName: "allowance",
-          args: [address, POOL_ADDRESS],
-        })) as bigint;
-
-        if (allowance < amount) {
-          setStep("approving");
-
-          // Tether semantics: clear a stale allowance before setting a new one.
-          if (allowance > 0n) {
-            const zeroTx = await writeContractAsync({
-              address: UNDERLYING_ADDRESS,
-              abi: erc20Abi,
-              functionName: "approve",
-              args: [POOL_ADDRESS, 0n],
-            });
-            await waitForTransactionReceipt(config, { hash: zeroTx });
-          }
-
-          // Approved once, not once per deposit. Sizing the allowance to the amount meant
-          // every single deposit cost an extra transaction and an extra block of waiting,
-          // which is most of what made this flow feel slow. The allowance is public either
-          // way, and a fixed maximum leaks less than a figure that tracks each deposit.
-          const approveTx = await writeContractAsync({
-            address: UNDERLYING_ADDRESS,
-            abi: erc20Abi,
-            functionName: "approve",
-            args: [POOL_ADDRESS, MAX_ALLOWANCE],
-          });
-          // One confirmation is enough: the deposit below states its gas rather than
-          // estimating, so it does not matter whether the estimating node has caught up.
-          await waitForTransactionReceipt(config, { hash: approveTx });
-        }
-
-        // One transaction shields the tokens and credits an encrypted position.
-        setStep("depositing");
-        const depositTx = await writeContractAsync({
-          address: POOL_ADDRESS,
-          abi: poolAbi,
-          functionName: "depositUnderlying",
-          args: [amount],
-          // Stated, not estimated. If the approval has not reached the estimating node,
-          // `eth_estimateGas` reverts and the wallet falls back to an enormous limit that
-          // the RPC rejects as over its cap — a confusing "gas limit too high" for a
-          // transaction that was never going to be large. Measured at ~2.5M on Sepolia;
-          // unused gas is refunded.
-          gas: 3_600_000n,
-        });
-        await waitForTransactionReceipt(config, { hash: depositTx });
-
-        setStep("done");
-        toast({
-          kind: "success",
-          title: "Deposit confirmed",
-          detail: "Your position is earning odds from this minute — the amount was public on this route.",
-          hash: depositTx,
-        });
-        return true;
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "The deposit failed.";
-        setError(/user rejected|denied/i.test(message) ? "Transaction declined." : message.slice(0, 160));
-        setStep("error");
-        toast({ kind: "error", title: "Deposit failed", detail: describeError(e) });
-        return false;
-      }
-    },
-    [address, config, publicClient, writeContractAsync],
-  );
-
   /**
    * Deposit confidential tokens, with the amount encrypted before it is broadcast.
    *
-   * This is the route that actually keeps the promise. `depositUnderlying` is convenient
-   * but its `amount` is a plain number in a plain ERC-20 transfer, so the size of every
-   * deposit made that way is public forever. Here nothing but a ciphertext leaves the
-   * browser, and the chain records that an address deposited without recording how much.
+   * The only deposit route this app has. The contract also exposes `depositUnderlying`,
+   * which takes plain tUSDT — but its `amount` rides in a plain ERC-20 transfer, so the
+   * size of any deposit made that way is public forever, and no amount of encryption
+   * downstream can unpublish it. It is not wired to anything here. On this route nothing
+   * but a ciphertext leaves the browser, and the chain records that an address deposited
+   * without recording how much.
    *
    * The cost is one extra step: the pool has to be an operator on your confidential
    * balance before it can pull anything, which is ERC-7984's equivalent of an approval.
@@ -336,7 +232,6 @@ export function useDeposit() {
   return {
     step,
     error,
-    deposit,
     depositConfidential,
     withdraw,
     exitPool,

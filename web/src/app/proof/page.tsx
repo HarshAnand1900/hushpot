@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { AppHeader } from "@/components/AppHeader";
 import { Pot3D } from "@/components/Pot3D";
 import { PrivacyDemo } from "@/components/PrivacyDemo";
@@ -29,15 +31,17 @@ const PUBLIC = [
 ];
 
 const CONTRACTS = [
-  { name: "HushpotPool", address: POOL_ADDRESS, purpose: "the pool, the draw, and the claim" },
-  { name: "cUSDTMock", address: TOKEN_ADDRESS, purpose: "Zama's confidential USDT — ERC-7984" },
-  { name: "USDTMock", address: UNDERLYING_ADDRESS, purpose: "the plain token behind it, with an open faucet" },
+  // The pool address is read from the URL on the client — `?pool=sandbox` swaps it — so it
+  // is a function of mount, not a constant. The other two never move.
+  { name: "HushpotPool", address: () => POOL_ADDRESS, purpose: "the pool, the draw, and the claim" },
+  { name: "cUSDTMock", address: () => TOKEN_ADDRESS, purpose: "Zama's confidential USDT — ERC-7984" },
+  { name: "USDTMock", address: () => UNDERLYING_ADDRESS, purpose: "the plain token behind it, with an open faucet" },
 ];
 
 const LIMITS = [
   {
-    now: "The plain-token route publishes the deposit's size. It is offered as a quick demo.",
-    next: "The cUSDT route is the default and leaves nothing in the clear — the faucet shields for you.",
+    now: "Shielding plain tUSDT into cUSDT publishes that amount, because a plain ERC-20 transfer cannot hide it.",
+    next: "It happens at the faucet, before any deposit, so what reaches the pool is already encrypted and unlinked to a position.",
   },
   {
     now: "The pool total is published once per draw.",
@@ -69,6 +73,8 @@ export default function ProofTab() {
   const lastDraw = useLastDraw(state.drawCount);
   // The same estimate the other tabs show, so the header is consistent everywhere.
   const { pot } = useWeeklyPot(state, lastDraw);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   return (
     <>
@@ -128,15 +134,16 @@ export default function ProofTab() {
             <span>{CONTRACTS.length} CONTRACTS</span>
           </div>
           {CONTRACTS.map((c) => (
-            <div key={c.address} className={styles.contract}>
+            <div key={c.name} className={styles.contract}>
               <span className={styles.cName}>{c.name}</span>
               <a
                 className={styles.cAddress}
-                href={`https://sepolia.etherscan.io/address/${c.address}`}
+                href={`https://sepolia.etherscan.io/address/${c.address()}`}
                 target="_blank"
                 rel="noreferrer"
+                suppressHydrationWarning
               >
-                {c.address}
+                {mounted ? c.address() : "…"}
               </a>
               <span className={styles.cPurpose}>{c.purpose}</span>
             </div>

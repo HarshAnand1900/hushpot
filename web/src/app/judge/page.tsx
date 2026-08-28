@@ -6,7 +6,7 @@ import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { AppHeader } from "@/components/AppHeader";
 import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
-import { POOL_ADDRESS, TOKEN_DECIMALS, UNDERLYING_ADDRESS, erc20Abi, poolAbi } from "@/lib/contract";
+import { IS_SANDBOX, POOL_ADDRESS, TOKEN_DECIMALS, UNDERLYING_ADDRESS, erc20Abi, poolAbi } from "@/lib/contract";
 import { formatUnits, shortenAddress } from "@/lib/format";
 import styles from "./judge.module.css";
 
@@ -33,6 +33,12 @@ export default function JudgeTab() {
   const config = useConfig();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+
+  // Which pool this tab points at is read from the URL on the client, so it waits for
+  // mount — the server renders the main pool's copy and React does not patch text it
+  // hydrated.
+  const [onSandbox, setOnSandbox] = useState(false);
+  useEffect(() => setOnSandbox(IS_SANDBOX), []);
 
   const [owner, setOwner] = useState<string>();
   const [cursor, setCursor] = useState<number>();
@@ -253,6 +259,28 @@ export default function JudgeTab() {
             <p className={styles.heroCopy}>
               Grow the prize, open a draw, relay and settle it, pay every depositor out, prove solvency, roll the
               period. Owner-gated calls are labelled; everything else works from any connected wallet on Sepolia.
+            </p>
+            {/* Opening a draw and rolling the period are gated only for running them
+                early. A judge arriving before the first period elapses would find two of
+                six steps closed, so there is a throwaway pool that opens all of them —
+                and no reason to advertise it to someone already standing in it. */}
+            <p className={styles.heroCopy} suppressHydrationWarning>
+              Opening a draw and rolling the period are gated <em>only for running them early</em> — once a period has
+              elapsed, anyone may call them.{" "}
+              {onSandbox ? (
+                <>
+                  This is the sandbox: connect the wallet whose key ships with the submission and all six steps are
+                  live, starting from a pool nobody has run a cycle on yet.
+                </>
+              ) : (
+                <>
+                  To exercise those two right now, use{" "}
+                  <a className={styles.heroLink} href="/judge?pool=sandbox">
+                    the sandbox pool
+                  </a>
+                  : a throwaway deployment whose owner key ships with the submission.
+                </>
+              )}
             </p>
           </div>
 

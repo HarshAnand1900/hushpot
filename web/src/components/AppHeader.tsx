@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
+import { usePoolHref } from "@/hooks/usePoolHref";
 import { formatUnits } from "@/lib/format";
 import { ConnectButton } from "./ConnectButton";
 import styles from "./AppHeader.module.css";
@@ -23,10 +24,12 @@ export function AppHeader({ pot }: { pot: bigint }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  const withPool = usePoolHref();
+
   return (
     <header className={styles.header}>
       <div className={styles.inner}>
-        <Link href="/" className={styles.logo}>
+        <Link href={withPool("/")} className={styles.logo}>
           <span className={styles.mark}>
             <span className={styles.markDot} />
           </span>
@@ -37,7 +40,7 @@ export function AppHeader({ pot }: { pot: bigint }) {
           {TABS.map((tab) => (
             <Link
               key={tab.href}
-              href={tab.href}
+              href={withPool(tab.href)}
               className={pathname === tab.href ? `${styles.tab} ${styles.tabActive}` : styles.tab}
             >
               {tab.label}
@@ -51,7 +54,9 @@ export function AppHeader({ pot }: { pot: bigint }) {
         <div className={styles.potRead}>
           <span className={styles.hair} />
           <span className={styles.potLabel}>POT</span>
-          <span className={`num ${styles.potValue}`}>{formatUnits(pot)}</span>
+          {/* Zero means no draw has settled and nothing is sponsored, so there is no pot
+              to estimate — not a pot that happens to be empty. See useWeeklyPot. */}
+          <span className={`num ${styles.potValue}`}>{pot > 0n ? formatUnits(pot) : "—"}</span>
           <span className="liveDot" />
           <span className={styles.potLive}>THIS WEEK</span>
 
@@ -68,7 +73,7 @@ export function AppHeader({ pot }: { pot: bigint }) {
           className={styles.faucet}
           onClick={() => {
             if (pathname === "/pool") window.dispatchEvent(new Event(FAUCET_EVENT));
-            else router.push("/pool?faucet=1");
+            else router.push(withPool("/pool?faucet=1"));
           }}
         >
           Faucet

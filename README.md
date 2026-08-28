@@ -20,9 +20,11 @@ Built for the Zama Developer Program, Mainnet Season 4.
 - **Faucet:** the underlying
   [`USDTMock`](https://sepolia.etherscan.io/address/0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0) has an open `mint`, so
   anyone can self-serve
-- **Judge sandbox:** a second, expendable pool at
-  [`0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE`](https://sepolia.etherscan.io/address/0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE#code)
-  — see [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
+- **Judge sandbox:** [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox) — the same panel
+  pointed at a second, expendable pool
+  ([`0xA1A4…B9BE`](https://sepolia.etherscan.io/address/0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE#code)) whose owner key
+  ships with the submission, so every step runs immediately. See
+  [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) — what leaks, and when
 
 ---
@@ -129,9 +131,10 @@ without disturbing the draw, with no snapshots and no freezing of the contract.
 
 Two things worth stating plainly:
 
-- **Depositing plain tokens publishes that deposit's size.** `depositUnderlying()` accepts an ordinary ERC-20 for
-  convenience, and that transfer is public. Everything after it is encrypted. Hold cUSDT and use `deposit()` if you want
-  the amount sealed too.
+- **Acquiring cUSDT publishes that amount.** cUSDT is minted by wrapping plain tUSDT, and a plain ERC-20 transfer
+  cannot hide what it moves. It happens at the faucet, against the token and not the pool, so it says an address holds
+  some cUSDT — never that it deposited, nor how much. Shield at one time and deposit another, and even that bound goes
+  away. The app has no route that publishes a deposit itself.
 - **The pool total is published once per draw.** It has to be — the draw point is reduced modulo it, and encrypted
   modulo needs a plain divisor. The week-over-week difference is the sum of everyone's activity, never one person's, and
   it narrows as the pool shrinks.
@@ -241,14 +244,24 @@ is open to any wallet.
 
 Before then there is a **sandbox pool**, which exists for exactly this and is expendable by design:
 
-|       |                                                                                                                                      |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------ |
+|       |                                                                                                                                     |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Panel | [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox)                                                         |
 | Pool  | [`0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE`](https://sepolia.etherscan.io/address/0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE#code) |
-| Owner | `0xc2A389C7C5B2adA578e90e0F4731399598301824`                                                                                         |
+| Owner | `0xc2A389C7C5B2adA578e90e0F4731399598301824`                                                                                        |
+
+Add `?pool=sandbox` to any page — `/pool`, `/draws`, `/proof`, `/judge` — and the whole site re-points at it. A yellow
+banner across the top says so, because every figure on screen then belongs to a throwaway contract. Drop the parameter
+to return to the real pool.
 
 Its owner key is distributed with the submission rather than committed here. The key was generated for this and nothing
 else, holds 0.05 test ETH, and owns one testnet pool with 10,000 test cUSDT in its reserve — so it is worthless, and
 losing control of it costs nothing.
+
+**It is deliberately left with its first cycle unrun.** Four confidential deposits are seeded, no draw has settled, and
+the pot therefore reads `—` rather than a figure: with nothing published to estimate from, there is no pot yet, which is
+not the same as an empty one. Sponsoring (step 01) puts a number on it immediately. Running all six steps in order takes
+the pool from that state to a settled draw, a swept claim, a solvency proof, and a fresh period.
 
 The main pool's owner key is **not** shared, and that is not an oversight. It can set the yield rate to zero and close
 claim windows early — the sharpest trust assumption in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
@@ -257,11 +270,18 @@ Publishing it would make that document a lie. The sandbox absorbs the experiment
 ### Three ways to call anything
 
 1. **The Judge panel** — [`/judge`](https://hushpot-fhevm.vercel.app/judge) runs the whole cycle from a browser.
-   Owner-gated steps are labelled and enable only for the owner.
+   Owner-gated steps are labelled and enable only for the owner; add `?pool=sandbox` and, with the distributed key
+   loaded, all six are live.
 2. **Etherscan** — the contract is verified, so the _Write Contract_ tab is a working admin UI with no code and no local
    setup. This is how most protocols are actually operated.
 3. **The CLI** — `tasks/hushpot.ts` covers every operation. `npx hardhat hushpot:status --network sepolia` to see where
-   things stand.
+   things stand. Every task takes a `HUSHPOT_POOL` address override, so the sandbox is drivable from the CLI too:
+
+   ```bash
+   HUSHPOT_POOL=0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE npx hardhat hushpot:status --network sepolia
+   ```
+
+   Unset, the tasks use the deployed pool. The owner-gated steps still need the sandbox key in `PRIVATE_KEY`.
 
 ### The weekly schedule, in UTC
 

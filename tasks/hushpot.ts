@@ -66,6 +66,14 @@ async function depositConfidentially(
  * initialized" without it. Cheap and idempotent, so it lives in the shared path. */
 async function getPool(hre: HardhatRuntimeEnvironment) {
   await hre.fhevm.initializeCLIApi();
+  // `HUSHPOT_POOL` points every task at a different deployment of the same contract —
+  // the judge sandbox, mainly, which is deployed outside the registry precisely so it
+  // cannot be confused with the real pool. Unset, this is the deployed one.
+  const override = process.env.HUSHPOT_POOL;
+  if (override) {
+    if (!hre.ethers.isAddress(override)) throw new Error(`HUSHPOT_POOL is not an address: ${override}`);
+    return hre.ethers.getContractAt(POOL, override);
+  }
   const deployment = await hre.deployments.get(POOL);
   return hre.ethers.getContractAt(POOL, deployment.address);
 }
@@ -163,7 +171,7 @@ task("hushpot:faucet", "Mint yourself test tokens from the underlying's open fau
     console.log(`balance ${balance / 1_000_000n} tokens (${balance} base units)`);
   });
 
-task("hushpot:deposit", "Deposit plain tokens, shielded automatically by the pool")
+task("hushpot:deposit", "Deposit with the amount encrypted in the browser-equivalent flow")
   .addParam("amount", "Amount in base units (6 decimals)", undefined, types.string)
   .setAction(async (args, hre) => {
     const pool = await getPool(hre);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePublicClient } from "wagmi";
 
 import { POOL_ADDRESS, TOKEN_ADDRESS, poolAbi } from "@/lib/contract";
@@ -20,6 +20,10 @@ export function VerifyHandle() {
   const [raw, setRaw] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result>();
+  // The contract address is read from the URL on the client (`?pool=sandbox`), and React
+  // will not patch text it hydrated from the server, so it waits for mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const verify = async () => {
     if (!publicClient) return;
@@ -123,9 +127,10 @@ export function VerifyHandle() {
           </div>
         )}
 
-        <div className={styles.note}>
+        <div className={styles.note} suppressHydrationWarning>
           Handles are public by design. Reading one is not the same as reading the number inside it, and the difference
-          is the entire product. Contract {POOL_ADDRESS.slice(0, 10)}… · token {TOKEN_ADDRESS.slice(0, 10)}…
+          is the entire product. Contract {mounted ? `${POOL_ADDRESS.slice(0, 10)}…` : "…"} · token{" "}
+          {TOKEN_ADDRESS.slice(0, 10)}…
         </div>
       </div>
     </section>

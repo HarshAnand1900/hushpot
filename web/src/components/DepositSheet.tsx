@@ -411,9 +411,10 @@ export function DepositSheet({
               
               So every deposit here is confidential. Acquiring cUSDT is a separate,
               openly public step — that is what the mint button below does — and keeping
-              the two apart is also what breaks the timing link between them. The
-              contract keeps `depositUnderlying` for the Judge page, where showing the
-              trade-off is the point. */}
+              the two apart is also what breaks the timing link between them.
+              
+              `depositUnderlying` still exists on the contract, and is documented in the
+              threat model as a public route, but nothing in this app calls it. */}
 
           {/* what this actually does -------------------------------------- */}
           <div className={styles.note}>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { parseAbiItem } from "viem";
 import { usePublicClient } from "wagmi";
 
+import { usePoolHref } from "@/hooks/usePoolHref";
 import { DEPLOY_BLOCK, POOL_ADDRESS } from "@/lib/contract";
 import { formatUnits } from "@/lib/format";
 
@@ -153,6 +154,7 @@ function SectionRule({ n, label }: { n: string; label: string }) {
 
 export function LandingSections() {
   const [open, setOpen] = useState(0);
+  const withPool = usePoolHref();
 
   return (
     <>
@@ -328,10 +330,10 @@ export function LandingSections() {
             tokens, so it costs nothing to see it work.
           </p>
           <div className={styles.closingCtas}>
-            <a className={styles.ctaPrimary} href="/pool">
+            <a className={styles.ctaPrimary} href={withPool("/pool")}>
               Enter the pool
             </a>
-            <a className={styles.ctaGhost} href="/proof">
+            <a className={styles.ctaGhost} href={withPool("/proof")}>
               See what leaks
             </a>
           </div>
