@@ -234,23 +234,27 @@ can start is a pool its operator can stall.
 
 "Callable by any address" covers three quite different things, though, and it is worth separating them.
 
-| Call                              | Open to                         | Acting on behalf of     |
-| --------------------------------- | ------------------------------- | ----------------------- |
-| `deposit`, `withdraw`, `exitPool` | any address                     | itself, and only itself |
-| `sponsorPrize`                    | any address, at its own expense | every depositor         |
-| `settleDraw`                      | any address                     | the pool                |
-| `proveSolvency`                   | any address                     | any observer            |
-| `checkClaim(drawId, account)`     | any address                     | **any other address**   |
-| `sweepRange(drawId, count)`       | any address                     | **everybody at once**   |
-| `openDraw`, `startNextPeriod`     | any address once the week is up | the pool                |
+| Call                              | Open to                          | Acting on behalf of     |
+| --------------------------------- | -------------------------------- | ----------------------- |
+| `deposit`, `withdraw`, `exitPool` | any address                      | itself, and only itself |
+| `sponsorPrize`                    | any address, at its own expense  | every depositor         |
+| `settleDraw`                      | any address                      | the pool                |
+| `proveSolvency`                   | any address                      | any observer            |
+| `checkClaim(drawId, account)`     | any address                      | **any other address**   |
+| `sweepRange(drawId, count)`       | any address                      | **everybody at once**   |
+| `openDraw`                        | any address once the week is up  | the pool                |
+| `startNextPeriod`                 | the owner; anybody after 30 days | the pool                |
 
-The two in bold are the ones that matter. A stranger can pay out your prize, and finish the week for a pool they have
-never deposited into, without learning a thing in the process. Everything they touch stays encrypted, and a loser's
-claim costs the same gas as a winner's, so the act of checking gives nothing away. That is what lets a keeper sweep
-everyone after every draw: nobody has to remember to collect, and being checked says nothing about having won.
+The two in bold are the ones that matter. A stranger can pay out your prize, for a pool they have never deposited into,
+without learning a thing in the process. Everything they touch stays encrypted, and a loser's claim costs the same gas
+as a winner's, so the act of checking gives nothing away. That is what lets a keeper sweep everyone after every draw:
+nobody has to remember to collect, and being checked says nothing about having won.
 
-The last row is time-gated, not role-gated. Before the week is up only the owner may call those two, which is a shortcut
-for demonstrating a cycle without waiting seven days, and the one place this design asks for trust.
+The last two rows are time-gated, not role-gated, and they are gated differently. `openDraw` opens to everybody the
+moment the seven days are up. `startNextPeriod` also has to wait out the full thirty-day claim window, and thirty days
+is longer than a week, so **a pool on a weekly cadence never reaches that point**. In normal operation the roll is the
+operator's, run by a keeper on schedule. That is the one place this design asks for trust, and
+[`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner) treats it as one.
 
 The consequence worth stating: **the operator cannot run the pool on its own terms, and cannot stop anyone else running
 it.** The one exception is the claim window, where the owner may roll a period early; that is a real trust assumption
@@ -258,9 +262,14 @@ and is documented in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner)
 
 ### Running the cycle as a judge, today
 
-Two of the six steps, `openDraw` and `startNextPeriod`, are gated to the pool's owner **only for running them early**.
-Once a period genuinely elapses, anyone may call them. The main pool's first period ends **3 September 2026**, so from
-then every step is open to any wallet.
+Two of the six steps are gated to the pool's owner, and not in the same way.
+
+`openDraw` opens to everybody the moment the seven-day period elapses. The main pool's first period ends **3 September
+2026**, so from that date any wallet can seal a draw.
+
+`startNextPeriod` is stricter: a non-owner also has to wait out the thirty-day claim window, so on a weekly cadence it
+stays the operator's call, run by a keeper on schedule. The owner exemption exists so a demonstration does not have to
+wait a month to show a second cycle.
 
 Before then, use the **sandbox**: a second pool that exists for exactly this and is expendable by design.
 

@@ -14,7 +14,7 @@ import styles from "./DrawTimeline.module.css";
  * a draw — it just will not say what you found. That distinction is the product, so the
  * copy states it rather than leaving it to be assumed.
  */
-export function DrawTimeline({ drawId, isLatest }: { drawId: bigint; isLatest: boolean }) {
+export function DrawTimeline({ drawId, claimable }: { drawId: bigint; claimable: boolean }) {
   const { address } = useAccount();
   const publicClient = usePublicClient();
 
@@ -108,7 +108,11 @@ export function DrawTimeline({ drawId, isLatest }: { drawId: bigint; isLatest: b
   // closes, and a rolled period ends every claim behind it.
   const closesAt = settledAt && grace ? settledAt + grace : undefined;
   const remaining = closesAt && now ? closesAt - now : undefined;
-  const open = isLatest && remaining !== undefined && remaining > 0;
+  // Being the newest draw is not the same as being claimable. A roll closes every claim
+  // behind it whether or not the thirty days have run, and the owner may roll early — so
+  // the newest draw read "CLAIMABLE NOW · 29 days left" on a window that was already shut.
+  // The contract's own test is whether the draw's period is still the current one.
+  const open = claimable && remaining !== undefined && remaining > 0;
 
   const left = (() => {
     if (remaining === undefined || remaining <= 0) return "closed";
@@ -132,13 +136,15 @@ export function DrawTimeline({ drawId, isLatest }: { drawId: bigint; isLatest: b
         <li className={open ? styles.stepLive : styles.stepDone}>
           <span className={styles.dot} />
           <span className={styles.stepLabel}>{open ? "CLAIMABLE NOW" : "CLAIM WINDOW"}</span>
-          <span className={styles.stepValue}>{open ? left : "closed"}</span>
+          <span className={styles.stepValue}>{open ? left : claimable ? "closed" : "closed by the roll"}</span>
         </li>
 
+        {/* `closesAt` is settlement plus the grace, so on a draw whose period has already
+            rolled it names a date in the future for something that has happened. */}
         <li className={open ? styles.step : styles.stepDone}>
           <span className={styles.dot} />
-          <span className={styles.stepLabel}>PERIOD ROLLS</span>
-          <span className={styles.stepValue}>{stamp(closesAt)}</span>
+          <span className={styles.stepLabel}>{claimable ? "PERIOD ROLLS" : "PERIOD ROLLED"}</span>
+          <span className={styles.stepValue}>{claimable ? stamp(closesAt) : "before the grace ran out"}</span>
         </li>
       </ol>
 

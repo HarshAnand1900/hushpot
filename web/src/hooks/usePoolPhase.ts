@@ -51,7 +51,7 @@ export function poolPhase(state: ReturnType<typeof usePoolState>, lastDraw: Retu
       tag: "PAYING OUT",
       headline: `Draw #${drawNumber - 1} has settled. Everyone is being checked.`,
       detail:
-        "Winner or not, every depositor is checked in turn, and a loser's check costs the same gas as a winner's. The next week opens once the sweep finishes and someone rolls the period. Deposits and withdrawals stay open throughout.",
+        "Winner or not, every depositor is checked in turn, and a loser's check costs the same gas as a winner's. The next week opens once the sweep finishes and the keeper rolls the period. On a weekly cadence that roll is always the keeper's: anybody else has to wait out the full thirty-day claim window first. Deposits and withdrawals stay open throughout.",
       countdownMeaningful: false,
     };
   }
@@ -62,7 +62,7 @@ export function poolPhase(state: ReturnType<typeof usePoolState>, lastDraw: Retu
       tag: "DRAW DUE",
       headline: "The week is up and the total has not been sealed yet.",
       detail:
-        "Opening the draw is open to any wallet now that the period has elapsed. Nothing is stuck: the pool is waiting for someone to press the button.",
+        "Opening the draw needs no permission now that the period has elapsed, so any wallet can do it. Nothing is stuck; the pool is waiting for somebody to press the button.",
       countdownMeaningful: false,
     };
   }

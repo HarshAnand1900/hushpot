@@ -29,7 +29,7 @@ const MOMENTS = [
     when: "MONDAY 06:00",
     call: "startNextPeriod()",
     what: "The week opens",
-    who: "Anyone, once the previous week has been swept",
+    who: "The keeper. Open to anybody only once the 30-day claim window has expired",
     detail:
       "Balances carry over untouched, so nobody re-deposits. A deposit made from this minute earns odds for every minute it stays; one made on Friday earns only the minutes that are left.",
     reveals: "Nothing",
@@ -47,7 +47,7 @@ const MOMENTS = [
     when: "MONDAY 00:00",
     call: "openDraw() → settleDraw()",
     what: "The draw is sealed, then settled",
-    who: "Anyone — permissionless once the period has elapsed",
+    who: "Any wallet. openDraw needs no permission once the week is up, and settleDraw never did",
     detail:
       "The pool total is decrypted and published, for the first and only time that week. An encrypted die is then rolled against it on-chain: a random point inside the total, landing in exactly one depositor's band.",
     reveals: "The pool total, and the prize",
@@ -56,7 +56,7 @@ const MOMENTS = [
     when: "THE SIX HOURS AFTER",
     call: "sweepRange() → proveSolvency()",
     what: "Everyone is checked, then the books are proved",
-    who: "The keeper, or anyone who wants to",
+    who: "The keeper, or any wallet that wants to",
     detail:
       "Every depositor is checked in turn, winner or not. A loser receives an encrypted zero, which costs the same gas and looks identical on-chain to a win — so being checked tells an observer nothing. The solvency proof then shows every deposit is still fully backed.",
     reveals: "That everyone was checked. Not who won",
@@ -65,9 +65,9 @@ const MOMENTS = [
     when: "MONDAY 06:00",
     call: "startNextPeriod()",
     what: "And the week opens again",
-    who: "Anyone",
+    who: "The keeper again",
     detail:
-      "The claim window closes and the next period begins. Anyone left unswept would be stranded, so the roll is deliberately blocked until the sweep is complete.",
+      "The claim window closes and the next period begins. This is the one step a weekly cadence keeps in the operator's hands: the contract only opens it to everybody else after the full thirty days, which a seven-day week never reaches. Anyone left unswept would be stranded, so the call is blocked until the sweep is complete.",
     reveals: "Nothing",
   },
 ];

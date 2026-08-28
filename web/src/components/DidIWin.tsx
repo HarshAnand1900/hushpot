@@ -194,14 +194,31 @@ export function DidIWin({
         </span>
       </div>
 
-      {claimLeft !== undefined && claimLeft > 0 && (
+      {/* `lastDrawSettledAt` is one global figure describing the newest draw, so this bar
+          belongs only to a draw that is still claimable. Beside an older one it read
+          "CLAIM CLOSES 29d" directly under the words "WINDOW CLOSED". */}
+      {claimable && claimLeft !== undefined && claimLeft > 0 && (
         <div className={styles.claimBar}>
           <span className={styles.claimK}>CLAIM CLOSES</span>
           <span className={`num ${styles.claimV}`} suppressHydrationWarning>
             {formatCountdown(claimLeft)}
           </span>
           <span className={styles.claimNote}>
-            The next period cannot open until this runs out, so a claim is never a race against anyone.
+            Thirty days is how long the roll is held back from everybody else, so a claim is never a race. The pool
+            owner is exempt and can roll sooner, which is why a sweep runs before every roll.
+          </span>
+        </div>
+      )}
+
+      {/* A window that closed early closed because somebody rolled, not because a month
+          passed. Left unsaid, the countdown above makes it look like a clock ran out. */}
+      {!claimable && draw && (
+        <div className={styles.claimBar}>
+          <span className={styles.claimK}>CLOSED BY</span>
+          <span className={`num ${styles.claimV}`}>THE ROLL</span>
+          <span className={styles.claimNote}>
+            Not by the clock. Period #{draw.period} rolling is what ended this one, whether or not the thirty days had
+            run. Every depositor was checked before that happened.
           </span>
         </div>
       )}
@@ -240,9 +257,10 @@ export function DidIWin({
 
             {!claimable && draw && (
               <div className={styles.expired}>
-                The claim window for this draw closed when period #{draw.period} rolled over. A claim recomputes your
-                band from the live tree, and those numbers moved on, so this one can no longer be answered by anybody.
-                Draws are swept before the roll for exactly this reason.
+                Period #{draw.period} has rolled, and that is what closes a claim, not the thirty-day countdown. A claim
+                recomputes your band from the live tree; those numbers have moved on, so this draw can no longer be
+                answered by anybody. Nothing is lost by it: every depositor is checked before a roll, so any prize here
+                was already credited to whoever won it.
               </div>
             )}
 

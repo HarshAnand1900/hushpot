@@ -583,7 +583,8 @@ export default function JudgeTab() {
             <p>
               Topping up the reserve directly, plus the shortcuts that skip waiting: opening a draw before the period
               ends, rolling before the thirty-day claim window closes. Both exist so a week-long cycle can be shown in a
-              minute.
+              minute. Worth being plain about the second one: thirty days outlasts a seven-day week, so on the weekly
+              cadence the roll never becomes permissionless and stays the operator&apos;s job.
             </p>
           </div>
           <div className={styles.bCol}>

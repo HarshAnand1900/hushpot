@@ -123,7 +123,7 @@ export default function DrawsTab() {
                 draw made public, and it is an aggregate, not anybody&apos;s balance.
               </p>
 
-              <DrawTimeline drawId={draw.id} isLatest={selected === 0} />
+              <DrawTimeline drawId={draw.id} claimable={draw.period === state.currentPeriod} />
 
               {/* local verification — real read-only calls, no wallet involved */}
               <div className={styles.verify}>
