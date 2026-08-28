@@ -681,10 +681,11 @@ task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.
  * the experimentation, and it holds nothing that matters — test tokens, a little test ETH,
  * and a key generated for no other purpose.
  */
-task("hushpot:sandbox", "Deploy a judge-operated pool whose owner key is public")
-  .addParam("owner", "Address to hand ownership to", undefined, types.string)
+task("hushpot:sandbox", "Deploy a judge sandbox anyone can run the whole cycle on")
   .addOptionalParam("reserve", "Prize reserve in base units", "10000000000", types.string)
+  .addOptionalParam("count", "How many depositors to seed", "4", types.string)
   .setAction(async (args, hre) => {
+    await hre.fhevm.initializeCLIApi();
     const [deployer] = await hre.ethers.getSigners();
     const known = (await import("../config/addresses")).addressesFor(Number(await hre.getChainId()));
     if (!known) throw new Error("No known token addresses for this chain");
@@ -696,8 +697,8 @@ task("hushpot:sandbox", "Deploy a judge-operated pool whose owner key is public"
     const address = await pool.getAddress();
     console.log(`  at ${address}`);
 
-    // Fund the reserve while we still own it — `fundPrizeReserve` is owner-gated, and the
-    // whole point is to hand ownership away afterwards.
+    // Fund the reserve while we still own it — `fundPrizeReserve` is owner-gated, and
+    // ownership is about to go somewhere that will not give it back.
     const underlying = await hre.ethers.getContractAt("TestERC20", known.underlyingToken);
     const reserve = BigInt(args.reserve);
     await (await underlying.mint(deployer.address, reserve)).wait();
@@ -705,15 +706,36 @@ task("hushpot:sandbox", "Deploy a judge-operated pool whose owner key is public"
     console.log(`  funding reserve with ${reserve / 1_000_000n}...`);
     await (await pool.fundPrizeReserve(reserve)).wait();
 
-    // Gas for whoever picks up the key.
-    console.log(`  sending 0.05 ETH to ${args.owner}...`);
-    await (await deployer.sendTransaction({ to: args.owner, value: hre.ethers.parseEther("0.05") })).wait();
+    // The owner is a contract that says yes to everyone, for two calls and no others.
+    // The earlier design published a private key instead; this one asks a reviewer to
+    // import nothing, and leaves no key in existence worth stealing.
+    console.log(`deploying the operator...`);
+    const operatorFactory = await hre.ethers.getContractFactory("SandboxOperator");
+    const operator = await operatorFactory.deploy(address);
+    await operator.waitForDeployment();
+    const operatorAddress = await operator.getAddress();
+    console.log(`  at ${operatorAddress}`);
 
-    console.log(`  transferring ownership...`);
-    await (await pool.transferOwnership(args.owner)).wait();
+    console.log(`  transferring ownership to it...`);
+    await (await pool.transferOwnership(operatorAddress)).wait();
 
-    console.log(`\nsandbox ready`);
-    console.log(`  pool   ${address}`);
-    console.log(`  owner  ${args.owner}`);
-    console.log(`  owner is now the published key — this pool is expendable by design`);
+    // Seed after the handover: depositing was never owner-gated.
+    const count = Number(args.count);
+    if (count > 0) {
+      console.log(`
+seeding ${count} depositors, confidentially...`);
+      // Every task resolves its pool through `HUSHPOT_POOL`, so this is how one task
+      // points another at a deployment that is not in the registry.
+      process.env.HUSHPOT_POOL = address;
+      await hre.run("hushpot:seed", { count: String(count), scale: "1", topUp: false });
+    }
+
+    console.log(`
+sandbox ready`);
+    console.log(`  pool      ${address}`);
+    console.log(`  operator  ${operatorAddress}   (owns the pool; anyone may call it)`);
+    console.log(`
+verify both, then point the frontend at them:`);
+    console.log(`  npx hardhat verify --network ${hre.network.name} ${address} ${known.confidentialToken}`);
+    console.log(`  npx hardhat verify --network ${hre.network.name} ${operatorAddress} ${address}`);
   });

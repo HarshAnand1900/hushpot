@@ -41,16 +41,52 @@
   color: var(--on-yellow);
 }
 
-/* Sits on the yellow band, so it borrows the band's ink rather than the link colour. */
-.heroLink {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  font-weight: 600;
+/* The way out of a half-disabled page, so it is built to be seen before the steps are. */
+.sandboxCta {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 18px;
+  margin-top: 22px;
+  padding: 16px 18px;
+  max-width: 52ch;
+  border: 1.5px solid var(--black);
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--black);
+  transition:
+    background 0.16s,
+    transform 0.16s;
 }
 
-.heroLink:hover {
-  text-decoration-thickness: 2px;
+.sandboxCta:hover {
+  background: var(--black);
+  color: var(--yellow);
+}
+
+.sandboxCta:hover .sandboxCtaNote {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.sandboxCtaLabel {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+}
+
+.sandboxCtaNote {
+  grid-column: 1;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--on-yellow);
+}
+
+.sandboxCtaArrow {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  font-size: 22px;
+  line-height: 1;
 }
 
 .heroSide {

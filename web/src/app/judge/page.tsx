@@ -6,7 +6,16 @@ import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { AppHeader } from "@/components/AppHeader";
 import { useLastDraw, usePoolState } from "@/hooks/usePoolState";
-import { IS_SANDBOX, POOL_ADDRESS, TOKEN_DECIMALS, UNDERLYING_ADDRESS, erc20Abi, poolAbi } from "@/lib/contract";
+import {
+  IS_SANDBOX,
+  POOL_ADDRESS,
+  SANDBOX_OPERATOR,
+  TOKEN_DECIMALS,
+  UNDERLYING_ADDRESS,
+  erc20Abi,
+  poolAbi,
+  sandboxOperatorAbi,
+} from "@/lib/contract";
 import { formatUnits, shortenAddress } from "@/lib/format";
 import styles from "./judge.module.css";
 
@@ -114,6 +123,25 @@ export default function JudgeTab() {
     return `gas ${receipt.gasUsed}`;
   };
 
+  /**
+   * The two owner-gated calls, sent wherever they will actually go through.
+   *
+   * On the real pool that is the pool itself, and early callers must be the owner. On the
+   * sandbox the owner is a contract that forwards these two to anyone, so they go there
+   * instead — which is what makes every step on this page runnable from a stranger's
+   * wallet without a key changing hands.
+   */
+  const sendGated = async (functionName: "openDraw" | "startNextPeriod") => {
+    if (!IS_SANDBOX) return send(functionName);
+    const tx = await writeContractAsync({
+      address: SANDBOX_OPERATOR,
+      abi: sandboxOperatorAbi,
+      functionName,
+    });
+    const receipt = await waitForTransactionReceipt(config, { hash: tx });
+    return `gas ${receipt.gasUsed}`;
+  };
+
   /** Sponsorship rather than the owner-only reserve top-up, so any wallet can do it. */
   const sponsor = async () => {
     if (!address) throw new Error("Connect a wallet first.");
@@ -191,12 +219,14 @@ export default function JudgeTab() {
     {
       id: "open",
       n: "02",
-      role: "OWNER EARLY · ANYONE AFTER CLOSE",
+      role: onSandbox ? "ANYONE" : "OWNER EARLY · ANYONE AFTER CLOSE",
       title: "Open the draw",
-      sig: "openDraw()",
-      note: "Seals the pool total and publishes it for decryption. Anyone may call it once the period has elapsed; the owner may call it early so a week-long cycle fits in a demo.",
-      disabled: state.drawPending || (!state.periodEnded && !isOwner),
-      go: () => run("open", "openDraw()", () => send("openDraw")),
+      sig: onSandbox ? "SandboxOperator.openDraw()" : "openDraw()",
+      note: onSandbox
+        ? "Seals the pool total and publishes it for decryption. Sent through the sandbox's owner contract, which forwards this call to anyone — so it works from your wallet, now, without waiting for the period to elapse."
+        : "Seals the pool total and publishes it for decryption. Anyone may call it once the period has elapsed; the owner may call it early so a week-long cycle fits in a demo.",
+      disabled: !isConnected || state.drawPending || (!state.periodEnded && !isOwner && !onSandbox),
+      go: () => run("open", onSandbox ? "SandboxOperator.openDraw()" : "openDraw()", () => sendGated("openDraw")),
     },
     {
       id: "settle",
@@ -231,14 +261,19 @@ export default function JudgeTab() {
     {
       id: "roll",
       n: "06",
-      role: "OWNER EARLY · ANYONE AFTER 30 DAYS",
+      role: onSandbox ? "ANYONE" : "OWNER EARLY · ANYONE AFTER 30 DAYS",
       title: "Roll the period",
-      sig: "startNextPeriod()",
+      sig: onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()",
       note: sweptAll
-        ? "Ends the claim window and opens the next period. Held back thirty days after settlement so a claim is never a race."
+        ? onSandbox
+          ? "Ends the claim window and opens the next period, through the owner contract so it needs no key and no thirty-day wait. The pool is then back at step 01, ready to run again."
+          : "Ends the claim window and opens the next period. Held back thirty days after settlement so a claim is never a race."
         : `Locked until everyone is swept — ${cursor ?? 0} of ${state.depositors}. Rolling now would end the claim window on anyone still unpaid.`,
-      disabled: state.drawCount === 0n || state.drawPending || !sweptAll,
-      go: () => run("roll", "startNextPeriod()", () => send("startNextPeriod")),
+      disabled: !isConnected || state.drawCount === 0n || state.drawPending || !sweptAll,
+      go: () =>
+        run("roll", onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()", () =>
+          sendGated("startNextPeriod"),
+        ),
     },
   ];
 
@@ -258,38 +293,56 @@ export default function JudgeTab() {
             <h1 className={`editorial ${styles.heroTitle}`}>Run the whole cycle yourself.</h1>
             <p className={styles.heroCopy}>
               Grow the prize, open a draw, relay and settle it, pay every depositor out, prove solvency, roll the
-              period. Owner-gated calls are labelled; everything else works from any connected wallet on Sepolia.
+              period.{" "}
+              <span suppressHydrationWarning>
+                {onSandbox
+                  ? "All six run from any wallet on Sepolia — nothing here is owner-gated."
+                  : "Owner-gated calls are labelled; everything else works from any connected wallet on Sepolia."}
+              </span>
             </p>
             {/* Opening a draw and rolling the period are gated only for running them
                 early. A judge arriving before the first period elapses would find two of
                 six steps closed, so there is a throwaway pool that opens all of them —
                 and no reason to advertise it to someone already standing in it. */}
             <p className={styles.heroCopy} suppressHydrationWarning>
-              Opening a draw and rolling the period are gated <em>only for running them early</em> — once a period has
-              elapsed, anyone may call them.{" "}
-              {onSandbox ? (
-                <>
-                  This is the sandbox: connect the wallet whose key ships with the submission and all six steps are
-                  live, starting from a pool nobody has run a cycle on yet.
-                </>
-              ) : (
-                <>
-                  To exercise those two right now, use{" "}
-                  <a className={styles.heroLink} href="/judge?pool=sandbox">
-                    the sandbox pool
-                  </a>
-                  : a throwaway deployment whose owner key ships with the submission.
-                </>
-              )}
+              {onSandbox
+                ? "You are on the sandbox, a throwaway pool nobody has run a cycle on yet. Every step below works from the wallet you already have — no key to import, and no week to wait."
+                : "Two of the six steps are gated to the owner until the period elapses on 3 September. Run those today on the sandbox instead."}
             </p>
+
+            {/* A judge arriving before the period elapses finds two of six steps closed,
+                which reads as a broken page rather than a deliberate gate. This is the way
+                out, so it is a door rather than a sentence with a link in it. */}
+            {!onSandbox && (
+              <a className={styles.sandboxCta} href="/judge?pool=sandbox" suppressHydrationWarning>
+                <span className={styles.sandboxCtaLabel}>OPEN THE SANDBOX</span>
+                <span className={styles.sandboxCtaNote}>
+                  A second pool whose owner is a contract that forwards those two calls to anyone. All six steps, your
+                  own wallet, right now.
+                </span>
+                <span className={styles.sandboxCtaArrow} aria-hidden="true">
+                  →
+                </span>
+              </a>
+            )}
           </div>
 
           <div className={styles.heroSide}>
             <Row label="CONNECTED" value={address ? shortenAddress(address) : "not connected"} />
+            {/* On the sandbox the owner is a contract that forwards the gated calls to
+                everyone, so there is no role to be in: every wallet has all six. */}
             <Row
               label="ROLE"
-              value={!isConnected ? "—" : isOwner ? "DEPOSITOR + OWNER (testnet)" : "DEPOSITOR"}
-              accent={isOwner}
+              value={
+                onSandbox
+                  ? "ANY WALLET · ALL SIX STEPS"
+                  : !isConnected
+                    ? "—"
+                    : isOwner
+                      ? "DEPOSITOR + OWNER (testnet)"
+                      : "DEPOSITOR"
+              }
+              accent={isOwner || onSandbox}
             />
             <Row label="CYCLE PROGRESS" value={`${done.size} / ${steps.length}`} accent={done.size > 0} />
             <Row label="RESERVE" value={`${formatUnits(state.prizeReserve)} cUSDT`} />
@@ -311,7 +364,7 @@ export default function JudgeTab() {
                 setLog([]);
               }}
             >
-              Reset console
+              {done.size >= steps.length ? "Run the cycle again" : "Reset console"}
             </button>
           </div>
         </section>

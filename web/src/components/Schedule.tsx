@@ -5,30 +5,71 @@ import { useEffect, useState } from "react";
 import styles from "./Schedule.module.css";
 
 /**
- * When the week turns, and what the pot figure is actually made of.
+ * What the week actually does, hour by hour.
  *
- * Both halves are here for the same reason: the headline number is an estimate, and a
- * number presented without its basis is a number somebody has to take on trust. This is a
- * product whose entire argument is that you should not have to.
+ * The first version of this was a five-row table whose second row read "MON → MON", which
+ * is not a time — it is two times with an arrow between them, and it left the reader to
+ * work out that the pool spends most of the week deliberately doing nothing visible. So
+ * this is a bar rather than a list: one week wide, with the long quiet stretch and the
+ * short loud one drawn to scale, because the whole point is that they are not the same
+ * size.
  *
  * The times are fixed in UTC rather than derived from `periodStart`, because the schedule
- * is a promise about when the keeper acts, not a reading of contract state. If the two
- * ever disagree, the contract is the truth and this is the intention.
+ * is a promise about when the keeper acts, not a reading of contract state. Where the two
+ * disagree — as they do until the first Monday roll — the contract is the truth, and the
+ * last panel here says so rather than letting the table quietly imply otherwise.
  */
-const STEPS = [
-  { when: "MON 06:00 UTC", what: "The week opens", detail: "Deposits start earning from the minute they land." },
-  { when: "MON → MON", what: "Odds accrue", detail: "Balance × minutes held. Nothing is published while it runs." },
+
+/** The accrual stretch runs 162 of the week's 168 hours; settlement takes the other six. */
+const ACCRUAL_HOURS = 162;
+const SETTLE_HOURS = 6;
+
+const MOMENTS = [
   {
-    when: "MON 06:00 UTC",
-    what: "The draw settles",
-    detail: "The pool total is published for the first time, and an encrypted die is rolled on-chain.",
+    when: "MONDAY 06:00",
+    call: "startNextPeriod()",
+    what: "The week opens",
+    who: "Anyone, once the previous week has been swept",
+    detail:
+      "Balances carry over untouched — nobody re-deposits. A deposit made from this minute earns odds for every minute it stays; one made on Friday earns only the minutes that are left.",
+    reveals: "Nothing",
   },
   {
-    when: "THE HOURS AFTER",
-    what: "Everyone is checked",
-    detail: "One transaction per depositor. A loser receives an encrypted zero, identical on-chain to a win.",
+    when: "THE NEXT 162 HOURS",
+    call: "— nothing is called",
+    what: "Odds accrue, silently",
+    who: "No keeper, no cron, no transactions",
+    detail:
+      "Your weight is balance × minutes held, kept as a ciphertext in a segment tree and adjusted as deposits and withdrawals happen. This part has to stay quiet: publishing anything here, even a running total, would give up individual deposits by subtraction.",
+    reveals: "Nothing",
   },
-  { when: "THEN", what: "The week turns", detail: "Claims close, the next period opens, and balances carry over." },
+  {
+    when: "MONDAY 00:00",
+    call: "openDraw() → settleDraw()",
+    what: "The draw is sealed, then settled",
+    who: "Anyone — permissionless once the period has elapsed",
+    detail:
+      "The pool total is decrypted and published, for the first and only time that week. An encrypted die is then rolled against it on-chain: a random point inside the total, landing in exactly one depositor's band.",
+    reveals: "The pool total, and the prize",
+  },
+  {
+    when: "THE SIX HOURS AFTER",
+    call: "sweepRange() → proveSolvency()",
+    what: "Everyone is checked, then the books are proved",
+    who: "The keeper, or anyone who wants to",
+    detail:
+      "Every depositor is checked in turn, winner or not. A loser receives an encrypted zero, which costs the same gas and looks identical on-chain to a win — so being checked tells an observer nothing. The solvency proof then shows every deposit is still fully backed.",
+    reveals: "That everyone was checked. Not who won",
+  },
+  {
+    when: "MONDAY 06:00",
+    call: "startNextPeriod()",
+    what: "And the week opens again",
+    who: "Anyone",
+    detail:
+      "The claim window closes and the next period begins. Anyone left unswept would be stranded, so the roll is deliberately blocked until the sweep is complete.",
+    reveals: "Nothing",
+  },
 ];
 
 export function Schedule({ drawNumber }: { drawNumber: number }) {
@@ -45,16 +86,51 @@ export function Schedule({ drawNumber }: { drawNumber: number }) {
   return (
     <section className="panel">
       <div className="panelHead">
-        <span>THE WEEK · UTC</span>
+        <span>THE WEEK · ALL TIMES UTC</span>
         <span suppressHydrationWarning>{nextTurn ? `NEXT TURN ${nextTurn}` : "—"}</span>
       </div>
 
-      <div className={styles.steps}>
-        {STEPS.map((s, i) => (
-          <div key={s.when + i} className={styles.step}>
-            <span className={styles.when}>{s.when}</span>
-            <span className={styles.what}>{s.what}</span>
-            <span className={styles.detail}>{s.detail}</span>
+      {/* One week, drawn to scale, so the shape is legible before the words are. */}
+      <div className={styles.barWrap}>
+        <div className={styles.bar}>
+          <div className={styles.accrual} style={{ flexGrow: ACCRUAL_HOURS }}>
+            <span className={styles.segLabel}>{ACCRUAL_HOURS}h · ODDS ACCRUING · NOTHING PUBLISHED</span>
+          </div>
+          <div className={styles.settle} style={{ flexGrow: SETTLE_HOURS }}>
+            <span className={styles.segLabelSmall}>{SETTLE_HOURS}h</span>
+          </div>
+        </div>
+
+        <div className={styles.barAxis}>
+          <span>MON 06:00 · opens</span>
+          <span className={styles.axisRight}>MON 00:00 · draw → 06:00 · opens again</span>
+        </div>
+
+        <p className={styles.barNote}>
+          Six days and eighteen hours of accrual, then a six-hour window to settle the draw, pay whoever won and prove
+          the books. That window is when the <strong>keeper</strong> works — not when you can. Deposits and withdrawals
+          stay open every minute of the week, those six hours included.
+        </p>
+      </div>
+
+      <div className={styles.moments}>
+        {MOMENTS.map((m, i) => (
+          <div key={m.when + i} className={styles.moment}>
+            <div className={styles.mHead}>
+              <span className={styles.mWhen}>{m.when}</span>
+              <span className={styles.mCall}>{m.call}</span>
+            </div>
+
+            <div className={styles.mBody}>
+              <div className={styles.mWhat}>{m.what}</div>
+              <div className={styles.mWho}>{m.who}</div>
+              <p className={styles.mDetail}>{m.detail}</p>
+            </div>
+
+            <div className={styles.mReveals}>
+              <span className={styles.mRevealsLabel}>BECOMES PUBLIC</span>
+              <span className={m.reveals === "Nothing" ? styles.mRevealsNone : styles.mRevealsSome}>{m.reveals}</span>
+            </div>
           </div>
         ))}
       </div>
@@ -79,17 +155,17 @@ export function Schedule({ drawNumber }: { drawNumber: number }) {
       </div>
 
       <div className={styles.basis}>
-        <div className={styles.basisHead}>WHY THE COUNTDOWN MAY NOT LAND ON A MONDAY</div>
+        <div className={styles.basisHead}>WHY A COUNTDOWN MAY NOT LAND ON A MONDAY</div>
         <p className={styles.copy}>
           The contract has no calendar. A period is seven days measured from{" "}
-          <strong>whenever the roll was last called</strong>, so this cadence is a promise about when the keeper acts,
-          not a rule the chain enforces. The first period started when the pool was deployed, which was not a Monday —
-          so the countdown above the pot runs to that deployment anniversary until the first Monday roll cuts it short
+          <strong>whenever the roll was last called</strong>, so the table above is a promise about when the keeper
+          acts, not a rule the chain enforces. The first period started when the pool was deployed, which was not a
+          Monday — so the countdown on the pool page runs to that anniversary until the first Monday roll cuts it short
           and locks the boundary in place.
         </p>
         <p className={styles.copy}>
           Where the two disagree, <strong>the countdown is the truth</strong> and this table is the intention. Both are
-          on this page rather than one quietly overriding the other.
+          on this site rather than one quietly overriding the other.
         </p>
       </div>
     </section>

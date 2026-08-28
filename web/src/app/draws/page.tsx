@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { AppHeader } from "@/components/AppHeader";
 import { DrawTimeline } from "@/components/DrawTimeline";
+import { Schedule } from "@/components/Schedule";
 import { TreeWalk } from "@/components/TreeWalk";
 import { Pot3D } from "@/components/Pot3D";
 import { useDraws } from "@/hooks/useDraws";
@@ -221,6 +222,11 @@ export default function DrawsTab() {
             </div>
           </section>
         )}
+
+        {/* Moved here from the pool page: this describes when draws happen, so it reads
+            as context for the history above it rather than as an aside beside a deposit
+            form. */}
+        <Schedule drawNumber={Number(state.drawCount)} />
       </main>
     </>
   );

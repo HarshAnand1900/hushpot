@@ -22,8 +22,8 @@ Built for the Zama Developer Program, Mainnet Season 4.
   anyone can self-serve
 - **Judge sandbox:** [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox) — the same panel
   pointed at a second, expendable pool
-  ([`0xA1A4…B9BE`](https://sepolia.etherscan.io/address/0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE#code)) whose owner key
-  ships with the submission, so every step runs immediately. See
+  ([`0xecE2…8a2D`](https://sepolia.etherscan.io/address/0xecE290A059cb04237c8E965FC0f39D8A791E8a2D#code)) whose owner is
+  a contract that lets anyone run all six cycle steps. No key to import, no week to wait. See
   [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) — what leaks, and when
 
@@ -131,10 +131,10 @@ without disturbing the draw, with no snapshots and no freezing of the contract.
 
 Two things worth stating plainly:
 
-- **Acquiring cUSDT publishes that amount.** cUSDT is minted by wrapping plain tUSDT, and a plain ERC-20 transfer
-  cannot hide what it moves. It happens at the faucet, against the token and not the pool, so it says an address holds
-  some cUSDT — never that it deposited, nor how much. Shield at one time and deposit another, and even that bound goes
-  away. The app has no route that publishes a deposit itself.
+- **Acquiring cUSDT publishes that amount.** cUSDT is minted by wrapping plain tUSDT, and a plain ERC-20 transfer cannot
+  hide what it moves. It happens at the faucet, against the token and not the pool, so it says an address holds some
+  cUSDT — never that it deposited, nor how much. Shield at one time and deposit another, and even that bound goes away.
+  The app has no route that publishes a deposit itself.
 - **The pool total is published once per draw.** It has to be — the draw point is reduced modulo it, and encrypted
   modulo needs a plain divisor. The week-over-week difference is the sum of everyone's activity, never one person's, and
   it narrows as the pool shrinks.
@@ -200,10 +200,11 @@ strategy's position too.
 contracts/
   ConfidentialTimeWeightedTree.sol   encrypted odds accounting
   HushpotPool.sol                    deposits, draws, claims, solvency
+  SandboxOperator.sol                owns the judge sandbox, forwards two calls to anyone
   SegmentTree.sol                    plaintext oracle — proven, then encrypted
   TimeWeightedTree.sol               plaintext oracle for the time weighting
   mocks/                             local token pair + test-only tree harness
-test/                                124 tests
+test/                                129 tests
 tasks/hushpot.ts                     the operator + keeper flow
 deploy/01_hushpot.ts                 deployment
 web/                                 the app
@@ -238,50 +239,78 @@ and is documented in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner)
 
 ### Running the cycle as a judge, today
 
-Two of the six steps — `openDraw` and `startNextPeriod` — are owner-gated **only for running them early**. Once a period
-genuinely elapses, anyone may call them. The main pool's first period ends **3 September 2026**, so from then every step
-is open to any wallet.
+Two of the six steps — `openDraw` and `startNextPeriod` — are gated to the pool's owner **only for running them early**.
+Once a period genuinely elapses, anyone may call them. The main pool's first period ends **3 September 2026**, so from
+then every step is open to any wallet.
 
-Before then there is a **sandbox pool**, which exists for exactly this and is expendable by design:
+Before then, use the **sandbox**: a second pool that exists for exactly this and is expendable by design.
 
-|       |                                                                                                                                     |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Panel | [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox)                                                         |
-| Pool  | [`0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE`](https://sepolia.etherscan.io/address/0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE#code) |
-| Owner | `0xc2A389C7C5B2adA578e90e0F4731399598301824`                                                                                        |
+|           |                                                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Open it   | [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox)                                                         |
+| Pool      | [`0xecE290A059cb04237c8E965FC0f39D8A791E8a2D`](https://sepolia.etherscan.io/address/0xecE290A059cb04237c8E965FC0f39D8A791E8a2D#code) |
+| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xE7Abcac15F445559B397b0f576ea555F649d8F24#code) — a contract, not a person |
 
-Add `?pool=sandbox` to any page — `/pool`, `/draws`, `/proof`, `/judge` — and the whole site re-points at it. A yellow
-banner across the top says so, because every figure on screen then belongs to a throwaway contract. Drop the parameter
-to return to the real pool.
+**There is no key to import.** All six steps run from whatever wallet you already have, on a pool whose first cycle has
+never been run.
 
-Its owner key is distributed with the submission rather than committed here. The key was generated for this and nothing
-else, holds 0.05 test ETH, and owns one testnet pool with 10,000 test cUSDT in its reserve — so it is worthless, and
-losing control of it costs nothing.
+#### How that works
 
-**It is deliberately left with its first cycle unrun.** Four confidential deposits are seeded, no draw has settled, and
-the pot therefore reads `—` rather than a figure: with nothing published to estimate from, there is no pot yet, which is
-not the same as an empty one. Sponsoring (step 01) puts a number on it immediately. Running all six steps in order takes
-the pool from that state to a settled draw, a swept claim, a solvency proof, and a fresh period.
+The obvious way to open a sandbox is to publish its owner's private key, and that was the first attempt. It works, and
+it is bad: it asks a reviewer to import a stranger's key into their wallet before they can look at anything — a thing
+nobody should be in the habit of doing, and which most reviewers will simply decline.
+
+So ownership went to [`contracts/SandboxOperator.sol`](contracts/SandboxOperator.sol) instead. It is thirty lines, and
+it forwards exactly two calls to anybody who asks:
+
+| Forwarded            | Why it is safe                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------- |
+| `openDraw()`         | Seals and publishes the pool total. One draw per period is enforced by the pool regardless. |
+| `startNextPeriod()`  | Rolls the week. The pool already blocks it until every depositor is swept.                  |
+| `fundPrizeReserve()` | Only ever adds money, and the money is the caller's.                                        |
+
+What it deliberately **cannot** do matters more. There is no forwarder for `setAnnualRateBps`, so nobody can set the
+sandbox's yield to zero and make every prize read `0.00`. None for `transferOwnership`, so nobody can take the pool. And
+no generic `call`, which would have been both of those plus every owner-gated function added in future. The owner's
+dangerous powers are not delegated — they are destroyed, and two harmless ones are handed out in their place. Five tests
+in [`test/SandboxOperator.ts`](test/SandboxOperator.ts) pin that down, including one asserting the ABI holds those three
+functions and the `pool` getter — and nothing else.
 
 The main pool's owner key is **not** shared, and that is not an oversight. It can set the yield rate to zero and close
 claim windows early — the sharpest trust assumption in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
 Publishing it would make that document a lie. The sandbox absorbs the experimentation instead.
 
+#### What you will find there
+
+Four confidential deposits are seeded and **no draw has settled**. The pot therefore reads `—` rather than a figure:
+with nothing published to estimate from there is no pot yet, which is not the same as an empty one. Sponsoring — step 01
+— puts a number on it immediately.
+
+Running the six steps in order takes the pool from that state to a settled draw, a swept claim, a solvency proof, and a
+fresh period. At the end the button that said _Reset console_ says **Run the cycle again**, and it does: the roll leaves
+the pool back at step 01 with a new period open, so the whole thing can be run as many times as you like.
+
+Add `?pool=sandbox` to any page — `/pool`, `/draws`, `/proof`, `/judge` — and the whole site re-points at it. A yellow
+banner across the top says so, because every figure on screen then belongs to a throwaway contract. Every link carries
+the parameter onward, so a refresh or a copied link stays where you are. Drop it to return to the real pool.
+
 ### Three ways to call anything
 
-1. **The Judge panel** — [`/judge`](https://hushpot-fhevm.vercel.app/judge) runs the whole cycle from a browser.
-   Owner-gated steps are labelled and enable only for the owner; add `?pool=sandbox` and, with the distributed key
-   loaded, all six are live.
-2. **Etherscan** — the contract is verified, so the _Write Contract_ tab is a working admin UI with no code and no local
-   setup. This is how most protocols are actually operated.
+1. **The Judge panel** — [`/judge`](https://hushpot-fhevm.vercel.app/judge) runs the whole cycle from a browser. On the
+   main pool the two owner-gated steps are labelled and enable only for the owner; on the sandbox all six are live for
+   everyone.
+2. **Etherscan** — both contracts are verified, so the _Write Contract_ tab is a working admin UI with no code and no
+   local setup. This is how most protocols are actually operated. For the sandbox's gated pair, call the **operator's**
+   Write tab rather than the pool's.
 3. **The CLI** — `tasks/hushpot.ts` covers every operation. `npx hardhat hushpot:status --network sepolia` to see where
    things stand. Every task takes a `HUSHPOT_POOL` address override, so the sandbox is drivable from the CLI too:
 
    ```bash
-   HUSHPOT_POOL=0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE npx hardhat hushpot:status --network sepolia
+   HUSHPOT_POOL=0xecE290A059cb04237c8E965FC0f39D8A791E8a2D npx hardhat hushpot:status --network sepolia
    ```
 
-   Unset, the tasks use the deployed pool. The owner-gated steps still need the sandbox key in `PRIVATE_KEY`.
+   Unset, the tasks use the deployed pool. `hushpot:sandbox` deploys a fresh one — pool, operator, reserve, seeded
+   depositors and the ownership handover — in a single command.
 
 ### The weekly schedule, in UTC
 
@@ -367,7 +396,7 @@ redeploy), and the weekly cycle should be a funded keeper rather than a person.
 
 ```bash
 npm install
-npx hardhat test                 # 124 tests, no network needed
+npx hardhat test                 # 129 tests, no network needed
 ```
 
 Deploying:
@@ -448,7 +477,7 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 
 ## Invariants under test
 
-124 tests, run against the FHEVM mock. The ones worth naming:
+129 tests, run against the FHEVM mock. The ones worth naming:
 
 - exactly one depositor is paid, and exactly the prize — verified by decrypting every participant's balance before and
   after a sweep
@@ -464,6 +493,8 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 - solvency counts prizes that are parked but not yet folded in, and never counts one twice
 - weights freeze when a period ends, so deposits during a claim window cannot move a settled draw
 - odds are proportional to amount _and_ time — a small deposit held all week beats a 5× larger one made at the deadline
+- the sandbox's owner contract forwards a draw and a roll to a stranger, and exposes no third function that could reach
+  the yield rate or ownership
 
 ---
 

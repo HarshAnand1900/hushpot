@@ -15,18 +15,33 @@ export const CHAIN_ID = 11155111;
 const MAIN_POOL = "0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69";
 
 /**
- * A second, expendable pool whose owner key is published with the submission.
+ * A second, expendable pool that anyone can run the whole cycle on.
  *
  * Two of the six cycle steps are owner-gated *for early use only* — anyone may call them
  * once a period has genuinely elapsed, but that is a week away, and a judge should not
- * have to wait a week to press a button. Rather than publish the real owner key, which can
- * set the yield rate to zero and close claim windows early, there is a throwaway pool that
- * absorbs the experimentation.
+ * have to wait a week to press a button. The real owner key cannot be handed out: it can
+ * set the yield rate to zero and close claim windows early. So this pool absorbs the
+ * experimentation, and its owner is {@link SANDBOX_OPERATOR} rather than anybody's key.
  *
  * Reached with `?pool=sandbox` on any tab. Resolved once, at module load, so every hook
  * and component sees the same address without threading it through twenty-three files.
  */
-export const SANDBOX_POOL = "0xA1A4A2f768fe6e660EC12D8C377833a3E735B9BE";
+export const SANDBOX_POOL = "0xecE290A059cb04237c8E965FC0f39D8A791E8a2D";
+
+/**
+ * The sandbox's owner, which is a contract rather than a person.
+ *
+ * `openDraw` and `startNextPeriod` are gated to the pool's owner until a period elapses.
+ * On the sandbox that owner is {@link SANDBOX_OPERATOR}, which forwards exactly those two
+ * calls to anybody who asks and nothing else — so a judge runs all six steps from their
+ * own wallet, with no key to import and no week to wait.
+ */
+export const SANDBOX_OPERATOR = "0xE7Abcac15F445559B397b0f576ea555F649d8F24" as const;
+
+export const sandboxOperatorAbi = [
+  { type: "function", name: "openDraw", inputs: [], outputs: [], stateMutability: "nonpayable" },
+  { type: "function", name: "startNextPeriod", inputs: [], outputs: [], stateMutability: "nonpayable" },
+] as const;
 
 function resolvePool(): string {
   if (typeof window === "undefined") return MAIN_POOL;
