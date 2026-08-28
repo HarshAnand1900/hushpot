@@ -17,6 +17,8 @@ import {
   sandboxOperatorAbi,
 } from "@/lib/contract";
 import { formatUnits, shortenAddress } from "@/lib/format";
+import { gasLimitFor } from "@/lib/gas";
+import { describeError } from "@/lib/toast";
 import styles from "./judge.module.css";
 
 const SCALE = 10n ** BigInt(TOKEN_DECIMALS);
@@ -104,14 +106,24 @@ export default function JudgeTab() {
       state.refetch();
       await refresh();
     } catch (e) {
-      const m = e instanceof Error ? e.message : String(e);
-      say(call, /user rejected|denied/i.test(m) ? "declined in wallet" : m.slice(0, 110), false);
+      say(call, describeError(e), false);
     } finally {
       setRunning(undefined);
     }
   };
 
-  const send = async (functionName: string, args: unknown[] = [], gas?: bigint) => {
+  const send = async (functionName: string, args: unknown[] = [], gasFallback?: bigint) => {
+    // Estimated, not stated. A stated ceiling has to be affordable up front — see
+    // `gasLimitFor`, where a flat limit was pricing modest wallets out of a call they
+    // could easily pay for.
+    const gas = gasFallback
+      ? await gasLimitFor(
+          publicClient,
+          address,
+          { address: POOL_ADDRESS, abi: poolAbi, functionName, args },
+          gasFallback,
+        )
+      : undefined;
     const tx = await writeContractAsync({
       address: POOL_ADDRESS,
       abi: poolAbi,

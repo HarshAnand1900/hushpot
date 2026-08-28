@@ -21,6 +21,7 @@ import { describeError, toast } from "@/lib/toast";
 const paint = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
 import { POOL_ADDRESS, TOKEN_ADDRESS, confidentialTokenAbi, poolAbi } from "@/lib/contract";
+import { gasLimitFor } from "@/lib/gas";
 
 export type FlowStep = "idle" | "approving" | "depositing" | "withdrawing" | "done" | "error";
 
@@ -114,7 +115,21 @@ export function useDeposit() {
           abi: poolAbi,
           functionName: "deposit",
           args: [encrypted.handle, encrypted.proof],
-          gas: 3_600_000n,
+          // Estimated where possible, with the flat ceiling as the fallback it was always
+          // meant to be. A stated limit is money the wallet has to hold before it will
+          // submit, and 3.6M priced out wallets that could afford the call — see
+          // `gasLimitFor`.
+          gas: await gasLimitFor(
+            publicClient,
+            address,
+            {
+              address: POOL_ADDRESS,
+              abi: poolAbi,
+              functionName: "deposit",
+              args: [encrypted.handle, encrypted.proof],
+            },
+            3_600_000n,
+          ),
         });
         await waitForTransactionReceipt(config, { hash: tx });
 
@@ -208,7 +223,12 @@ export function useDeposit() {
         address: POOL_ADDRESS,
         abi: poolAbi,
         functionName: "exitPool",
-        gas: 3_600_000n,
+        gas: await gasLimitFor(
+          publicClient,
+          address,
+          { address: POOL_ADDRESS, abi: poolAbi, functionName: "exitPool" },
+          3_600_000n,
+        ),
       });
       await waitForTransactionReceipt(config, { hash: tx });
 
@@ -227,7 +247,7 @@ export function useDeposit() {
       toast({ kind: "error", title: "Exit failed", detail: describeError(e) });
       return false;
     }
-  }, [address, config, writeContractAsync]);
+  }, [address, config, publicClient, writeContractAsync]);
 
   return {
     step,
