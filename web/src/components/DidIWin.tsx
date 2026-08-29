@@ -4,12 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useAccount, useConfig, usePublicClient, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
-import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
+import { DEPLOY_BLOCK, POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { useReceipts } from "@/hooks/useReceipts";
 import { decryptHandle } from "@/lib/fhe";
 import { describeError, toast } from "@/lib/toast";
 import { formatCountdown, formatUnits } from "@/lib/format";
 import styles from "./DidIWin.module.css";
+
+/** Addresses and hashes, trimmed to something a line can carry. */
+const shorten = (v: string) => (v.length > 14 ? `${v.slice(0, 8)}…${v.slice(-6)}` : v);
 
 type Phase = "idle" | "checking" | "reading" | "won" | "lost" | "settled" | "error";
 
@@ -113,6 +116,16 @@ export function DidIWin({
    * does not.
    */
   const [receipt, setReceipt] = useState<string>();
+  /**
+   * When the prize actually landed, and in whose transaction.
+   *
+   * A balance that silently grows is the correct protocol behaviour and a poor experience:
+   * the money arrives while you are not looking and nothing marks the moment. `ClaimChecked`
+   * is public and indexed by draw and slot, so the app can name the block, the time and the
+   * caller without asking anyone to decrypt anything. It turns "your balance is bigger now"
+   * into "it arrived at 04:12 UTC, in this transaction, put there by this keeper".
+   */
+  const [arrival, setArrival] = useState<{ at: number; hash: string; by: string }>();
   // Bumped after a check writes one, so the panel picks up a receipt it did not have when
   // the draw was selected.
   const [receiptNonce, setReceiptNonce] = useState(0);
@@ -159,7 +172,35 @@ export function DidIWin({
         // An unset handle is thirty-two zero bytes, which is also a legitimate encrypted
         // zero — but an unchecked slot has never been written, so the two cannot collide.
         const handle = award as string;
-        setReceipt(handle && /[1-9a-f]/i.test(handle.slice(2)) ? handle : undefined);
+        const has = !!handle && /[1-9a-f]/i.test(handle.slice(2));
+        setReceipt(has ? handle : undefined);
+
+        setArrival(undefined);
+        if (has) {
+          const logs = await publicClient.getLogs({
+            address: POOL_ADDRESS,
+            event: {
+              type: "event",
+              name: "ClaimChecked",
+              inputs: [
+                { name: "drawId", type: "uint256", indexed: true },
+                { name: "slot", type: "uint16", indexed: true },
+                { name: "checkedBy", type: "address", indexed: true },
+              ],
+            },
+            args: { drawId: draw.id, slot: Number(slot) },
+            fromBlock: DEPLOY_BLOCK,
+          });
+          const hit = logs[logs.length - 1];
+          if (hit && live) {
+            const block = await publicClient.getBlock({ blockNumber: hit.blockNumber });
+            setArrival({
+              at: Number(block.timestamp),
+              hash: hit.transactionHash,
+              by: (hit.args as { checkedBy?: string }).checkedBy ?? "",
+            });
+          }
+        }
       } catch {
         /* the panel reads fine without it */
       }
@@ -410,15 +451,49 @@ export function DidIWin({
             )}
 
             {receipt && opened !== undefined && (
-              <div className={styles.receipt}>
-                <div className={styles.receiptHead}>{opened > 0n ? "YOU WON THIS DRAW" : "NOT THIS DRAW"}</div>
+              <div className={opened > 0n ? `${styles.receipt} ${styles.receiptWon}` : styles.receipt}>
+                <div className={styles.receiptHead}>{opened > 0n ? "PRIZE ARRIVED" : "NOT THIS DRAW"}</div>
                 <div className={`num ${styles.receiptValue}`}>
                   {opened > 0n ? `+${formatUnits(opened)}` : formatUnits(0n)} cUSDT
                 </div>
+
+                {/* A silent balance change is the protocol working and a bad experience.
+                    Naming the moment, the transaction and the caller turns it into
+                    something that happened rather than something that is merely true. */}
+                {arrival && (
+                  <div className={styles.arrival}>
+                    {/* Shown for a zero as well as a prize, and deliberately: these three
+                        facts are public and identical either way, so a losing panel that
+                        omitted them would imply they meant something. */}
+                    <div className={styles.arrivalRow}>
+                      <span>CHECKED AT</span>
+                      <span suppressHydrationWarning>
+                        {new Date(arrival.at * 1000).toUTCString().replace("GMT", "UTC")}
+                      </span>
+                    </div>
+                    <div className={styles.arrivalRow}>
+                      <span>CHECKED BY</span>
+                      <span>{shorten(arrival.by)}</span>
+                    </div>
+                    <div className={styles.arrivalRow}>
+                      <span>IN</span>
+                      <a href={`https://sepolia.etherscan.io/tx/${arrival.hash}`} target="_blank" rel="noreferrer">
+                        {shorten(arrival.hash)} ↗
+                      </a>
+                    </div>
+                  </div>
+                )}
+
                 <p className={styles.copy}>
                   {opened > 0n
-                    ? "Already in your pool balance, and legible to nobody but you. The chain recorded that a claim happened, never what it found."
+                    ? "It is already in your pool balance — added the moment you were checked, which is why nothing announced it at the time. Withdraw it whenever you like; it is principal now."
                     : "Your receipt decrypts to zero. It cost the same gas as a winner's and looks identical on-chain, which is what stops anybody reading the result off the ledger."}
+                </p>
+                <p className={styles.fine}>
+                  The amount above came from decrypting your own receipt in this browser and is visible to nobody else.
+                  The three lines under it are public: the chain records that your slot was checked, when, and by whom,
+                  for every depositor alike. That is what makes them safe to show — a losing panel says exactly the same
+                  three things.
                 </p>
                 <button className="btnQuiet" onClick={() => setOpened(undefined)}>
                   Close
@@ -426,11 +501,29 @@ export function DidIWin({
               </div>
             )}
 
+            {claimable && draw && !receipt && (
+              <div className={styles.receipt}>
+                <div className={styles.receiptHead}>NOBODY HAS CHECKED THIS DRAW FOR YOU</div>
+                <p className={styles.copy}>
+                  No keeper has swept your slot yet, so the prize for this draw has not been decided against your band.
+                  Claiming it is a transaction, and it does both halves at once: it checks the draw and opens the
+                  answer, crediting you the prize or an encrypted zero. Either way a receipt is written that you can
+                  reopen for free afterwards.
+                </p>
+                <p className={styles.copy}>
+                  There is no hurry and no race. The claim window runs thirty days, a keeper will almost certainly get
+                  there first, and being swept costs you nothing — it credits the same amount to the same balance.
+                </p>
+              </div>
+            )}
+
             {!claimable && draw && !receipt && (
               <div className={styles.expired}>
                 Period #{draw.period} has rolled, and that is what closes a claim, not the thirty-day countdown. A claim
                 recomputes your band from the live tree; those numbers have moved on, so this draw can no longer be
-                answered by anybody.
+                answered by anybody. <strong>Nobody checked your slot before that happened</strong>, so there is no
+                receipt to open either. This is the one outcome the sweep exists to prevent, and it is why the panel
+                above refuses to roll a period until every depositor has been covered.
                 {checkedForYou === true ? (
                   <>
                     {" "}

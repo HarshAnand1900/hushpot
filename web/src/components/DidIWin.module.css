@@ -233,3 +233,46 @@
   line-height: 1.5;
   color: var(--text-1);
 }
+
+/* A win should look like an event, not a row in a table. */
+.receiptWon {
+  border-color: var(--yellow);
+  background: rgba(255, 210, 8, 0.09);
+}
+
+/* Where the money came from, so a silent credit becomes a traceable one. */
+.arrival {
+  margin: 12px 0 4px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.arrivalRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+
+.arrivalRow > span:first-child {
+  letter-spacing: 0.16em;
+  color: var(--text-4);
+}
+
+.arrivalRow a {
+  color: var(--yellow);
+}
+.arrivalRow a:hover {
+  text-decoration: underline;
+}
+
+.fine {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-4);
+  max-width: 62ch;
+}
