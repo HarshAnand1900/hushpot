@@ -65,11 +65,20 @@ export default function JudgeTab() {
   const [running, setRunning] = useState<string>();
   // Persisted per pool: switching tabs to look at what a step changed used to wipe the
   // record that it had run. See useJudgeSession.
-  const { log, done, append, complete, clear } = useJudgeSession(state.currentPeriod, !state.isLoading);
+  const { log, done, append, complete, clear } = useJudgeSession(state.currentPeriod, state.loaded);
 
   const drawId = state.drawCount > 0n ? state.drawCount - 1n : 0n;
   const isOwner = !!address && !!owner && address.toLowerCase() === owner.toLowerCase();
   const sweptAll = cursor !== undefined && cursor >= state.depositors && state.depositors > 0;
+  /**
+   * Whether the last settled draw still belongs to the current period.
+   *
+   * Both `sweepRange` and `startNextPeriod` test this on-chain, and once a period rolls
+   * they revert — `AlreadyChecked` and `DrawNotSettled` respectively. Without it here, a
+   * pool that had just rolled showed both steps live and both failed on click, which
+   * reads as a broken console rather than a finished cycle.
+   */
+  const claimOpen = lastDraw !== undefined && lastDraw.period === state.currentPeriod;
 
   /** How many slots carry the checked flag for the current draw. */
   const countChecked = useCallback(async () => {
@@ -137,7 +146,10 @@ export default function JudgeTab() {
       append({ call, note, ok: true, hash });
       complete(id);
       toast({ kind: "success", title: call, detail: note, hash });
-      state.refetch();
+      // Awaited: `drawId` is derived from `drawCount`, and settling increments it. Left
+      // unawaited, a judge clicking straight from settle to sweep could send the previous
+      // draw's id, which reverts on the period check and reads as a broken step.
+      await state.refetch();
       await refresh();
     } catch (e) {
       const detail = describeError(e);
@@ -253,11 +265,21 @@ export default function JudgeTab() {
     ]);
 
     // The one moment in the week that publishes anything. Say what it published.
+    //
+    // Read the count back rather than reusing `drawId`. `settleDraw` writes `draws[
+    // drawCount]` and *then* increments, so the draw just settled is the one this page's
+    // `drawId` was pointing one behind — reporting it would print the previous draw's
+    // prize under the new draw's name.
+    const settledCount = (await publicClient!.readContract({
+      address: POOL_ADDRESS,
+      abi: poolAbi,
+      functionName: "drawCount",
+    })) as bigint;
     const draw = (await publicClient!.readContract({
       address: POOL_ADDRESS,
       abi: poolAbi,
       functionName: "draws",
-      args: [drawId],
+      args: [settledCount > 0n ? settledCount - 1n : 0n],
     })) as readonly [bigint, bigint, string, number, boolean];
     return {
       ...out,
@@ -358,7 +380,7 @@ export default function JudgeTab() {
       title: "Pay everyone out",
       sig: "sweepRange(uint256, uint16)",
       note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped instead of paid twice, so this is safe to repeat. ${cursor ?? 0} of ${state.depositors} covered.`,
-      disabled: state.drawCount === 0n || sweptAll,
+      disabled: !isConnected || state.drawCount === 0n || !claimOpen || sweptAll,
       go: () =>
         run("sweep", `sweepRange(${drawId}, 4)`, async () => {
           const out = await send("sweepRange", [drawId, 4], 3_600_000n);
@@ -385,12 +407,14 @@ export default function JudgeTab() {
       role: onSandbox ? "ANYONE" : "OWNER EARLY · ANYONE AFTER 30 DAYS",
       title: "Roll the period",
       sig: onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()",
-      note: sweptAll
-        ? onSandbox
-          ? "Ends the claim window and opens the next period, through the owner contract so it needs no key and no thirty-day wait. The pool is then back at step 01, ready to run again."
-          : "Ends the claim window and opens the next period. Held back thirty days after settlement so a claim is never a race."
-        : `Locked until everyone is swept: ${cursor ?? 0} of ${state.depositors}. Rolling now would end the claim window on anybody still unpaid.`,
-      disabled: !isConnected || state.drawCount === 0n || state.drawPending || !sweptAll,
+      note: !claimOpen
+        ? "Already done for this period. The last draw settled in an earlier one, its claim window is shut, and the pool is waiting for the next draw before there is anything to roll."
+        : sweptAll
+          ? onSandbox
+            ? "Ends the claim window and opens the next period, through the owner contract so it needs no key and no thirty-day wait. The pool is then back at step 01, ready to run again."
+            : "Ends the claim window and opens the next period. Held back thirty days after settlement so a claim is never a race."
+          : `Locked until everyone is swept: ${cursor ?? 0} of ${state.depositors}. Rolling now would end the claim window on anybody still unpaid.`,
+      disabled: !isConnected || state.drawCount === 0n || state.drawPending || !claimOpen || !sweptAll,
       go: () =>
         run("roll", onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()", async () => {
           const out = await sendGated("startNextPeriod");

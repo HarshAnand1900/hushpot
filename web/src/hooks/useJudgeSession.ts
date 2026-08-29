@@ -77,6 +77,10 @@ export function useJudgeSession(cycle: number, settled: boolean) {
   useEffect(() => {
     if (!ready || !settled) return;
     if (storedCycle === cycle) return;
+    // Only ever forward. `_advancePeriod` increments and never decrements, so a lower
+    // number is not a roll — it is a failed read falling back to its default, and acting
+    // on it would wipe a live cycle's progress over a momentary RPC hiccup.
+    if (storedCycle !== undefined && cycle < storedCycle) return;
     if (storedCycle !== undefined) setDone(new Set());
     setStoredCycle(cycle);
   }, [ready, settled, cycle, storedCycle]);

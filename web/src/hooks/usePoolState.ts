@@ -48,6 +48,15 @@ export function usePoolState() {
 
   return {
     isLoading,
+    /**
+     * Whether a read actually landed.
+     *
+     * `isLoading` is only true on the first fetch, so after a failed refetch it reads
+     * false while every field below falls back to its default — `currentPeriod` to 0 on a
+     * pool that is in period 3. Anything deciding on those values needs to know the
+     * difference between "zero" and "not answered".
+     */
+    loaded: data !== undefined,
     refetch,
     currentPeriod: (currentPeriod?.result as number | undefined) ?? 0,
     periodStart: (periodStart?.result as bigint | undefined) ?? 0n,

@@ -288,8 +288,8 @@ The obvious way to open a sandbox is to publish its owner's private key, and tha
 it is bad. It asks a reviewer to import a stranger's key into their wallet before they can look at anything, which
 nobody should be in the habit of doing and most reviewers will simply decline.
 
-So ownership went to [`contracts/SandboxOperator.sol`](contracts/SandboxOperator.sol) instead. It is thirty lines, and
-it forwards exactly two calls to anybody who asks:
+So ownership went to [`contracts/SandboxOperator.sol`](contracts/SandboxOperator.sol) instead. It is about twenty lines
+of code under twice as much comment, and it forwards three calls to anybody who asks:
 
 | Forwarded            | Why it is safe                                                                              |
 | -------------------- | ------------------------------------------------------------------------------------------- |
