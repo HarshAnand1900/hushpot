@@ -5,7 +5,7 @@ What is encrypted, what is public, what leaks, and what you have to trust.
 This document is deliberately unflattering. A confidential system that only advertises its strengths is harder to
 evaluate than one that names its edges, and every claim below can be checked against the deployed contract.
 
-**Contract:** `HushpotPool` · Sepolia · `0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69`
+**Contract:** `HushpotPool` · Sepolia · `0x1EA0982e4Ed5DCD6F0329a92D01A0065F864a8a2`
 
 > The live address always matches [`web/src/lib/contract.ts`](../web/src/lib/contract.ts). Earlier deployments
 > referenced in git history are superseded.
@@ -39,6 +39,14 @@ address. Odds are `yourWeight / publishedTotal` and the total is public at every
 plaintext derivative of an encrypted balance: read the file, divide, and the position falls out without any key. The
 series now lives in memory for the life of the page, and any entry an earlier build wrote is deleted on load.
 
+**A swept depositor could not find out what they had won — fixed.** Both claim paths computed
+`FHE.select(won, prize, 0)`, credited it, and discarded the handle. Since a keeper sweeps everybody before the roll,
+almost every depositor was checked while they were not looking, and the only evidence left was a balance that had moved.
+Asking afterwards was impossible: `checkClaim` recomputes against the live tree and reverts once the period rolls. Both
+paths now store the ciphertext as `awardOf(drawId, slot)` and grant it to the depositor, so the answer is a gas-free
+decryption that survives the roll. The grant goes to the slot's holder, never to the caller, so a keeper cannot read
+what it just handed out.
+
 **A self-check followed by a sweep credited twice — fixed.** `sweepRange` did not skip slots already settled by
 `checkClaim`, so a winner could be paid the prize twice out of a reserve that had only set one aside. `sweepRange` now
 skips already-checked slots — after advancing the running band edge, which matters: returning early without advancing
@@ -47,8 +55,8 @@ would shift every subsequent band and pick the wrong winner.
 **The confidential deposit route was unreachable — fixed.** The contract has always had
 `deposit(externalEuint64, proof)`, but the app only ever called `depositUnderlying`, whose amount is public. The faucet
 handed out plain tokens only, so a newcomer could not use the private path at all. The faucet now shields on request,
-and the confidential route is the only one the app has — the public route was removed from the frontend rather than
-left as an option, because an option to publish your own deposit is one somebody takes by accident.
+and the confidential route is the only one the app has — the public route was removed from the frontend rather than left
+as an option, because an option to publish your own deposit is one somebody takes by accident.
 
 **The seeding tasks were still publishing amounts — fixed.** Removing the public route from the frontend did not remove
 it from `tasks/hushpot.ts`, which seeded demo depositors with `depositUnderlying` and put 58 amounts in the clear on a
@@ -102,13 +110,13 @@ it.
 cUSDT is minted by wrapping plain tUSDT, and a plain ERC-20 transfer cannot hide its amount. **Whatever you shield is
 visible to anyone**, in the token's own `Transfer` event, before any deposit happens.
 
-What it does *not* reveal is a position. Shielding is a separate transaction against the token, not the pool: it says an
+What it does _not_ reveal is a position. Shielding is a separate transaction against the token, not the pool: it says an
 address now holds some cUSDT, not that it deposited, nor how much, nor when. Everything from the deposit onward — your
 balance, your odds, your winnings — is encrypted.
 
 - **Severity:** medium. It bounds your position from above, and only if you shield and deposit in one sitting.
-- **Decouple it:** shield at one time and deposit at another, in a different amount. The two are then unlinkable by
-  size or by timing, and the bound goes away.
+- **Decouple it:** shield at one time and deposit at another, in a different amount. The two are then unlinkable by size
+  or by timing, and the bound goes away.
 - **Or skip it:** any cUSDT works. Tokens acquired elsewhere carry no wrapping event of yours at all.
 
 `depositUnderlying()` — which takes plain tUSDT and wraps it inside the pool — collapses those two steps into one and so

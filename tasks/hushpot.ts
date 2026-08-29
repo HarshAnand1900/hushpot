@@ -206,6 +206,15 @@ task("hushpot:fund", "Top up the prize reserve with plain tokens")
     const underlying = await hre.ethers.getContractAt("TestERC20", await pool.underlyingToken());
     const { deployer } = await hre.getNamedAccounts();
 
+    // Mint what is missing. The task approved without checking the balance, so on a fresh
+    // deployment it reverted inside `transferFrom` with no reason string, which surfaces
+    // as an opaque gas-estimation failure. The faucet is open to everyone anyway.
+    const held: bigint = await underlying.balanceOf(deployer);
+    if (held < amount) {
+      console.log(`minting ${(amount - held) / 1_000_000n} tUSDT to cover the top-up...`);
+      await (await underlying.mint(deployer, amount - held)).wait();
+    }
+
     await ensureAllowance(underlying, deployer, await pool.getAddress(), amount);
 
     console.log(`funding reserve...`);

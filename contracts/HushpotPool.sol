@@ -119,6 +119,26 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// only that someone was checked — never whether they won.
     mapping(uint256 => mapping(uint16 => bool)) public claimChecked;
 
+    /// @notice What a draw awarded one slot: the prize, or an encrypted zero.
+    ///
+    /// @dev The receipt that makes "did I win?" answerable more than once.
+    ///
+    /// Claims are meant to be swept — a keeper checks everybody before the period rolls so
+    /// that nobody has to remember to collect. That is good for depositors and it used to
+    /// destroy the only way they could find out. The award was credited to the balance and
+    /// the handle discarded, so the sole evidence of a win was a balance that had moved,
+    /// which only the person who happened to read their balance either side of the sweep
+    /// could see. Anybody else asking afterwards got silence, and a rolled period made it
+    /// permanent: {checkClaim} recomputes against the live tree and reverts once the
+    /// numbers move on.
+    ///
+    /// Keeping the ciphertext costs one slot per claim and gives every depositor a private,
+    /// permanent answer they can open with a signature and no gas, whoever ran the check
+    /// and however long ago. It leaks nothing further: a handle's existence is already
+    /// public through {claimChecked}, only `account` is granted the right to decrypt it,
+    /// and a loser's zero is the same shape as a winner's prize.
+    mapping(uint256 => mapping(uint16 => euint64)) private _awardOf;
+
     event DrawOpened(uint256 indexed drawId, bytes32 totalHandle);
     event DrawSettled(uint256 indexed drawId, uint64 total, uint64 prize);
     event PeriodStarted(uint32 indexed period);
@@ -464,6 +484,16 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         emit SolvencyProven(block.timestamp);
     }
 
+    /// @notice What draw `drawId` awarded `slot`: the prize if it won, an encrypted zero
+    /// if it did not, and an empty handle if that slot was never checked.
+    ///
+    /// @dev Readable by anyone as a handle and openable only by the depositor it belongs
+    /// to. That asymmetry is the whole design: the chain will say a claim happened and
+    /// will not say what it found.
+    function awardOf(uint256 drawId, uint16 slot) external view returns (euint64) {
+        return _awardOf[drawId][slot];
+    }
+
     /// @notice Handle for the last solvency proof. Publicly decryptable — that is the point.
     function solvencyHandle() external view returns (ebool) {
         return _fullyBacked;
@@ -605,6 +635,12 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         ebool won = _checkWin(slot, d.drawPoint);
         euint64 award = FHE.select(won, FHE.asEuint64(d.prize), FHE.asEuint64(0));
 
+        // The receipt. Granted to the depositor, not the caller: a keeper sweeping the
+        // pool must not be able to read what it just handed out.
+        _awardOf[drawId][slot] = award;
+        FHE.allowThis(award);
+        FHE.allow(award, account);
+
         // Parked, not credited. Crediting repairs all ten ancestor sums — thirty encrypted
         // additions — to deposit what is, for all but one checker, an encrypted zero. The
         // award joins the tree on this slot's next deposit or withdrawal, which walks that
@@ -727,6 +763,17 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
             FHE.asEuint64(d.prize),
             FHE.asEuint64(0)
         );
+
+        // The same receipt {checkClaim} writes, and this is the path that matters: a
+        // keeper sweeping the pool is how almost every claim is actually settled, so
+        // leaving it out would mean the answer existed only for the handful of people who
+        // got there first.
+        _awardOf[drawId][slot] = award;
+        FHE.allowThis(award);
+        // A slot given up with {exitPool} keeps its place until the period rolls and can
+        // still be swept, with nobody left to grant it to.
+        address holder = slotOwner[slot];
+        if (holder != address(0)) FHE.allow(award, holder);
 
         _parkAward(slot, award);
 

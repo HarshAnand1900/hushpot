@@ -196,3 +196,40 @@
   color: var(--text-3);
   flex: 1 1 280px;
 }
+
+/* --------------------------------------------------------------- receipt -- */
+
+/* The answer, when there is one. Sits where the "window closed" apology used to. */
+.receipt {
+  margin-top: 18px;
+  padding: 18px 20px;
+  border: 1px solid rgba(255, 210, 8, 0.3);
+  background: rgba(255, 210, 8, 0.04);
+}
+
+.receiptHead {
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  color: var(--yellow);
+}
+
+.receiptValue {
+  margin: 8px 0 4px;
+  font-size: clamp(28px, 5vw, 44px);
+  line-height: 1;
+  color: var(--white);
+}
+
+/* The doorbell. Identical for winners and losers, which is what makes it safe to show. */
+.waiting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--rule);
+  background: rgba(255, 210, 8, 0.05);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-1);
+}

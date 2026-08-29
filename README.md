@@ -10,8 +10,8 @@ Built for the Zama Developer Program, Mainnet Season 4.
 
 - **Live app:** <https://hushpot-fhevm.vercel.app>
 - **Contract:**
-  [`0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69`](https://sepolia.etherscan.io/address/0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69)
-  (Sepolia). [Verified source](https://sepolia.etherscan.io/address/0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69#code).
+  [`0x1EA0982e4Ed5DCD6F0329a92D01A0065F864a8a2`](https://sepolia.etherscan.io/address/0x1EA0982e4Ed5DCD6F0329a92D01A0065F864a8a2)
+  (Sepolia). [Verified source](https://sepolia.etherscan.io/address/0x1EA0982e4Ed5DCD6F0329a92D01A0065F864a8a2#code).
   The address in [`web/src/lib/contract.ts`](web/src/lib/contract.ts) is always the live one
 - **Judge panel:** [`/judge`](https://hushpot-fhevm.vercel.app/judge). Run a whole draw cycle from the browser, no
   terminal needed
@@ -22,7 +22,7 @@ Built for the Zama Developer Program, Mainnet Season 4.
   anyone can self-serve
 - **Judge sandbox:** [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox). The same panel
   pointed at a second, expendable pool
-  ([`0xecE2…8a2D`](https://sepolia.etherscan.io/address/0xecE290A059cb04237c8E965FC0f39D8A791E8a2D#code)) whose owner is
+  ([`0xAFf5…51F8`](https://sepolia.etherscan.io/address/0xAFf577EAD9e971862996Aa8fB72A40D1700c51F8#code)) whose owner is
   a contract, so all six cycle steps are open to any wallet. No key to import, no week to wait. See
   [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md), covering what leaks and when
@@ -90,10 +90,40 @@ There is no announcement, because nothing knows who won. `checkClaim(drawId, acc
 any address, since the result is encrypted either way and the caller learns nothing from making the call. It adds
 `FHE.select(won, prize, 0)` to that depositor's balance.
 
-A loser's claim adds an encrypted zero. On-chain it is indistinguishable from a winner's, down to the gas. You find out
-by opening your own balance and seeing whether it moved.
+A loser's claim adds an encrypted zero. On-chain it is indistinguishable from a winner's, down to the gas.
 
-**Checking for yourself is the default**, and it costs you nothing until you want the answer.
+### Finding out, afterwards
+
+Every check also writes a **receipt**: `awardOf(drawId, slot)` holds what that draw paid that slot, the prize or an
+encrypted zero, decryptable only by the depositor it belongs to. Opening it is a decryption, so it costs a signature and
+no gas, and it keeps working for good.
+
+That matters more than it sounds, because sweeping is the normal case. A keeper checks everybody before the period rolls
+so that nobody has to remember to collect, which is good for depositors and used to be the end of the story: the award
+went into a balance while its owner was not looking, and the only evidence was a balance that had moved. Anybody asking
+afterwards got nothing, and a rolled period made it permanent, since `checkClaim` recomputes against the live tree and
+reverts once those numbers move on.
+
+The receipt is what stops a convenience for depositors from costing them the answer. It leaks nothing further: the
+handle's existence is already public through `claimChecked`, only the depositor is granted the right to open it, and a
+loser's zero is the same shape as a winner's prize. A test asserts that the keeper which ran the sweep cannot read what
+it handed out.
+
+### Why there is no "you won" notification
+
+Telling somebody they won is the disclosure this whole design exists to prevent. Any channel carrying the result knows
+the result, and so does anyone watching the channel — and even with an encrypted payload, winners would be identifiable
+from the traffic alone, because losers would receive none.
+
+What the app does instead is ring a doorbell that sounds the same for everybody. `ClaimChecked` fires for every
+depositor in a sweep, winner and loser, at the same gas, so the pool can tell all fourteen people at once that a result
+is ready without distinguishing between them. Counting those notifications tells an observer nothing they could not
+already count on-chain.
+
+The result itself never travels. It stays in `awardOf` as ciphertext, and the only thing that opens it is a signature
+from the one address it was granted to.
+
+**Checking for yourself is still the default**, and it costs you nothing until you want the answer.
 `sweepRange(drawId, count)` is the operator's alternative: it walks slots in order and carries the running band edge
 forward instead of rederiving it per person, which makes it about 1.6× cheaper each. Either path credits the same
 encrypted award, and a slot already checked is skipped, never credited twice.
@@ -204,7 +234,7 @@ contracts/
   SegmentTree.sol                    plaintext oracle, proven then encrypted
   TimeWeightedTree.sol               plaintext oracle for the time weighting
   mocks/                             local token pair + test-only tree harness
-test/                                129 tests
+test/                                133 tests
 tasks/hushpot.ts                     the operator + keeper flow
 deploy/01_hushpot.ts                 deployment
 web/                                 the app
@@ -276,8 +306,8 @@ Before then, use the **sandbox**: a second pool that exists for exactly this and
 |           |                                                                                                                                      |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Open it   | [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox)                                                         |
-| Pool      | [`0xecE290A059cb04237c8E965FC0f39D8A791E8a2D`](https://sepolia.etherscan.io/address/0xecE290A059cb04237c8E965FC0f39D8A791E8a2D#code) |
-| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xE7Abcac15F445559B397b0f576ea555F649d8F24#code), a contract, not a person  |
+| Pool      | [`0xAFf577EAD9e971862996Aa8fB72A40D1700c51F8`](https://sepolia.etherscan.io/address/0xAFf577EAD9e971862996Aa8fB72A40D1700c51F8#code) |
+| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0x33a72D459A762f31F96D4e1197f1029cBa628C30#code), a contract, not a person  |
 
 **There is no key to import.** All six steps run from whatever wallet you already have, on a pool whose first cycle has
 never been run.
@@ -348,7 +378,7 @@ Sepolia gas fee, which is why a pool anyone can freely open draws on is not a pr
    where things stand. Every task takes a `HUSHPOT_POOL` address override, so the sandbox is drivable from the CLI too:
 
    ```bash
-   HUSHPOT_POOL=0xecE290A059cb04237c8E965FC0f39D8A791E8a2D npx hardhat hushpot:status --network sepolia
+   HUSHPOT_POOL=0xAFf577EAD9e971862996Aa8fB72A40D1700c51F8 npx hardhat hushpot:status --network sepolia
    ```
 
    Unset, the tasks use the deployed pool. `hushpot:sandbox` deploys a fresh one in a single command: pool, operator,
@@ -437,7 +467,7 @@ redeploy), and the weekly cycle should be a funded keeper instead of a person.
 
 ```bash
 npm install
-npx hardhat test                 # 129 tests, no network needed
+npx hardhat test                 # 133 tests, no network needed
 ```
 
 Deploying:
@@ -481,22 +511,27 @@ On Sepolia, against the live coprocessor:
 
 | Operation            | Gas                         | Note                              |
 | -------------------- | --------------------------- | --------------------------------- |
-| Deploy               | 3,490,721                   |                                   |
-| Deposit              | 648k–1.56M                  | grows with pool size, see below   |
-| Claim, per depositor | **450,989**                 | was 2.4M                          |
-| Sweep, per depositor | **287,786**                 | paged, 1.57× cheaper than a claim |
+| Deploy               | 3,726,024                   |                                   |
+| Deposit              | 861k–1.56M                  | grows with pool size, see below   |
+| Claim, per depositor | **649,774**                 | was 2.4M; includes the receipt    |
+| Sweep, per depositor | **364,090**                 | paged, 1.44× cheaper than a claim |
+| Read a receipt       | 1 signature, no transaction | works after the period rolls      |
 | Reveal your position | 1 signature + 1 transaction | signature cached for the visit    |
 
-Deploy, deposit and claim figures come from the live Sepolia deployment above: twelve seeded depositors, one settled
-draw, one full sweep. The paged-sweep and depth figures come from `HushpotSweepGas.ts` and `HushpotDepthGas.ts`, which
-print them on every run so they cannot drift silently.
+Deploy, deposit and claim figures are read back off the live Sepolia deployment above: fourteen seeded depositors, one
+settled draw, one full sweep, averaged over all fourteen claim transactions. The paged-sweep and depth figures come from
+`HushpotSweepGas.ts` and `HushpotDepthGas.ts`, which print them on every run so they cannot drift silently.
 
-Two measured optimisations, both of which changed the numbers above by more than they look.
-
-**Claims went from 2.4M to 454k, a factor of 5.3.** Crediting a prize used to repair every ancestor sum between the slot
+**Claims went from 2.4M to 650k, a factor of 3.7.** Crediting a prize used to repair every ancestor sum between the slot
 and the root, three encrypted additions per level, for everyone. For all but one person the amount being added was an
 encrypted zero. Awards are now parked on the slot and folded into the tree on that slot's next deposit or withdrawal,
 which walks that path anyway.
+
+About 200k of that 650k is the receipt: storing the award ciphertext and granting the depositor the right to open it. It
+was 451k before, so the figure got worse on purpose, and it is worth saying why rather than quietly reporting the old
+number. Without it, a depositor swept by a keeper — which is nearly all of them — had no way to learn what the draw paid
+them, and no way at all once the period rolled. The cheaper claim was cheaper because it answered a question and then
+destroyed the answer.
 
 **Deposits scale with the pool, not with the capacity.** The tree walks only as far as the highest node covering the
 slots in use, so depth arrives with the crowd:
@@ -518,7 +553,7 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 
 ## Invariants under test
 
-129 tests, run against the FHEVM mock. The ones worth naming:
+133 tests, run against the FHEVM mock. The ones worth naming:
 
 - exactly one depositor is paid, and exactly the prize, verified by decrypting every participant's balance before and
   after a sweep
@@ -537,6 +572,8 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
   deadline
 - the sandbox's owner contract forwards a draw and a roll to a stranger, and exposes no third function that could reach
   the yield rate or ownership
+- a depositor swept by somebody else can still open their own result for that draw, after the period has rolled and
+  `checkClaim` has stopped being callable — and the keeper that ran the sweep cannot open it
 
 ---
 

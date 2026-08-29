@@ -12,7 +12,7 @@
 export const CHAIN_ID = 11155111;
 
 /** The pool this app talks to. */
-const MAIN_POOL = "0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69";
+const MAIN_POOL = "0x1EA0982e4Ed5DCD6F0329a92D01A0065F864a8a2";
 
 /**
  * A second, expendable pool that anyone can run the whole cycle on.
@@ -26,7 +26,7 @@ const MAIN_POOL = "0xc81acBf01ee93B66F4Db7aDE539b5F498289Ec69";
  * Reached with `?pool=sandbox` on any tab. Resolved once, at module load, so every hook
  * and component sees the same address without threading it through twenty-three files.
  */
-export const SANDBOX_POOL = "0xecE290A059cb04237c8E965FC0f39D8A791E8a2D";
+export const SANDBOX_POOL = "0xAFf577EAD9e971862996Aa8fB72A40D1700c51F8";
 
 /**
  * The sandbox's owner, which is a contract rather than a person.
@@ -36,7 +36,7 @@ export const SANDBOX_POOL = "0xecE290A059cb04237c8E965FC0f39D8A791E8a2D";
  * calls to anybody who asks and nothing else — so a judge runs all six steps from their
  * own wallet, with no key to import and no week to wait.
  */
-export const SANDBOX_OPERATOR = "0xE7Abcac15F445559B397b0f576ea555F649d8F24" as const;
+export const SANDBOX_OPERATOR = "0x33a72D459A762f31F96D4e1197f1029cBa628C30" as const;
 
 export const sandboxOperatorAbi = [
   { type: "function", name: "openDraw", inputs: [], outputs: [], stateMutability: "nonpayable" },
@@ -61,7 +61,7 @@ export const IS_SANDBOX = POOL_ADDRESS.toLowerCase() === SANDBOX_POOL.toLowerCas
  * Block the pool was deployed in. Log scans start here rather than at genesis — public
  * Sepolia endpoints reject unbounded ranges, and nothing about this pool exists before it.
  */
-export const DEPLOY_BLOCK = 11576817n;
+export const DEPLOY_BLOCK = 11589561n;
 
 /** cUSDTMock — "Confidential USDT (Mock)", 6 decimals, rate 1. */
 export const TOKEN_ADDRESS = "0x4E7B06D78965594eB5EF5414c357ca21E1554491" as const;
@@ -161,6 +161,15 @@ export const poolAbi = [
     name: "claimChecked",
     inputs: [{ type: "uint256" }, { type: "uint16" }],
     outputs: [{ type: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    // What a draw awarded one slot: the prize, or an encrypted zero. Readable as a handle
+    // by anyone, openable only by the depositor it belongs to.
+    type: "function",
+    name: "awardOf",
+    inputs: [{ type: "uint256" }, { type: "uint16" }],
+    outputs: [{ type: "bytes32" }],
     stateMutability: "view",
   },
 
