@@ -357,10 +357,17 @@ export default function JudgeTab() {
       role: onSandbox ? "ANYONE" : "OWNER EARLY · ANYONE AFTER CLOSE",
       title: "Open the draw",
       sig: onSandbox ? "SandboxOperator.openDraw()" : "openDraw()",
-      note: onSandbox
-        ? "Seals the pool total and publishes it for decryption. Sent through the sandbox's owner contract, which forwards this call to any address, so it works from your wallet, now, without waiting for the period to elapse."
-        : "Seals the pool total and publishes it for decryption. Anyone may call it once the period has elapsed; the owner may call it early so a week-long cycle fits in a demo.",
-      disabled: !isConnected || state.drawPending || (!state.periodEnded && !isOwner && !onSandbox),
+      note: claimOpen
+        ? `Draw #${Number(state.drawCount) - 1} has already settled in this period, and the contract allows one per period. Sweep everyone, then roll — the next draw opens on the other side of that.`
+        : onSandbox
+          ? "Seals the pool total and publishes it for decryption. Sent through the sandbox's owner contract, which forwards this call to any address, so it works from your wallet, now, without waiting for the period to elapse."
+          : "Seals the pool total and publishes it for decryption. Anyone may call it once the period has elapsed; the owner may call it early so a week-long cycle fits in a demo.",
+      // `claimOpen` blocks this one and enables steps 04 and 06, which is the right way
+      // round: the contract allows one draw per period, so a draw already settled in this
+      // period means the next thing to do is sweep and roll, not open another. Without it
+      // the step read READY, reverted with DrawAlreadySettledThisPeriod, and surfaced as
+      // "the node rejected the gas limit" — an estimation failure wearing a disguise.
+      disabled: !isConnected || state.drawPending || claimOpen || (!state.periodEnded && !isOwner && !onSandbox),
       go: () => run("open", onSandbox ? "SandboxOperator.openDraw()" : "openDraw()", open),
     },
     {

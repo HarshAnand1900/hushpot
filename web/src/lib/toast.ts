@@ -40,7 +40,10 @@ export function describeError(e: unknown): string {
 
   if (/user rejected|denied transaction|user denied/i.test(message)) return "You declined it in your wallet.";
   if (/insufficient funds/i.test(message)) return "Not enough Sepolia ETH for gas.";
-  if (/gas limit too high|exceeds block/i.test(message)) return "The node rejected the gas limit.";
+  // Wallets fall back to an enormous limit when `eth_estimateGas` reverts, and the node
+  // then refuses it. The surface error is about gas; the cause almost never is.
+  if (/gas limit too high|exceeds block/i.test(message))
+    return "The node rejected the gas limit, which usually means the call itself would revert.";
 
   // First line only: the rest is stack and documentation links.
   return message.split("\n")[0].slice(0, 120);
