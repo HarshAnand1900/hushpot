@@ -10,7 +10,7 @@ import { describeError, toast } from "@/lib/toast";
 import { formatCountdown, formatUnits } from "@/lib/format";
 import styles from "./DidIWin.module.css";
 
-type Phase = "idle" | "checking" | "reading" | "won" | "lost" | "error";
+type Phase = "idle" | "checking" | "reading" | "won" | "lost" | "settled" | "error";
 
 /**
  * The reveal.
@@ -94,6 +94,52 @@ export function DidIWin({
    */
   const claimable = draw !== undefined && draw.period === currentPeriod;
 
+  /**
+   * Whether this draw has already been checked for you.
+   *
+   * `claimChecked` is a public view per slot, so the panel can say this before anybody
+   * signs anything. It answers the question people actually have about an old draw, "was
+   * I included?", which is knowable — without pretending to answer "did I win", which
+   * after a sweep is not.
+   */
+  const [checkedForYou, setCheckedForYou] = useState<boolean>();
+  useEffect(() => {
+    if (!publicClient || !address || draw === undefined) return;
+    let live = true;
+    void (async () => {
+      try {
+        const joined = await publicClient.readContract({
+          address: POOL_ADDRESS,
+          abi: poolAbi,
+          functionName: "hasSlot",
+          args: [address],
+        });
+        if (!joined) {
+          if (live) setCheckedForYou(undefined);
+          return;
+        }
+        const slot = await publicClient.readContract({
+          address: POOL_ADDRESS,
+          abi: poolAbi,
+          functionName: "slotOf",
+          args: [address],
+        });
+        const flag = await publicClient.readContract({
+          address: POOL_ADDRESS,
+          abi: poolAbi,
+          functionName: "claimChecked",
+          args: [draw.id, slot],
+        });
+        if (live) setCheckedForYou(flag as boolean);
+      } catch {
+        /* the panel reads fine without it */
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [publicClient, address, draw]);
+
   const check = useCallback(async () => {
     if (!address || !publicClient || balanceBefore === undefined || !draw) return;
     setError(undefined);
@@ -157,6 +203,28 @@ export function DidIWin({
       const after = await decryptHandle(handle as string);
       const gained = after !== undefined && after > balanceBefore ? after - balanceBefore : 0n;
 
+      /**
+       * A delta only answers the question when this transaction is what moved the balance.
+       *
+       * If a keeper had already swept the slot, the credit landed at sweep time, which is
+       * before the balance this compares against was read. The difference is then zero for
+       * a winner and a loser alike, and reporting "not this draw" off the back of it was
+       * telling some winners they had lost. The contract stores no won-flag to fall back
+       * on, so the honest answer in that case is that the delta cannot say.
+       */
+      if (alreadyChecked) {
+        setDelta(0n);
+        setPhase("settled");
+        toast({
+          kind: "success",
+          title: "Already checked for you",
+          detail: "Your prize, if there was one, is in the balance above. A fresh check cannot separate it out.",
+          hash: tx,
+        });
+        onClaimed();
+        return;
+      }
+
       setDelta(gained);
       setPhase(gained > 0n ? "won" : "lost");
       toast(
@@ -190,7 +258,13 @@ export function DidIWin({
       <div className="panelHead">
         <span>DRAW #{draw ? String(draw.id) : "—"} · SETTLED</span>
         <span style={{ color: phase === "won" ? "var(--yellow)" : undefined }}>
-          {phase === "won" ? "YOURS ONLY" : phase === "lost" ? "CHECKED" : claimable ? "OPEN" : "WINDOW CLOSED"}
+          {phase === "won"
+            ? "YOURS ONLY"
+            : phase === "lost" || phase === "settled"
+              ? "CHECKED"
+              : claimable
+                ? "OPEN"
+                : "WINDOW CLOSED"}
         </span>
       </div>
 
@@ -259,15 +333,34 @@ export function DidIWin({
               <div className={styles.expired}>
                 Period #{draw.period} has rolled, and that is what closes a claim, not the thirty-day countdown. A claim
                 recomputes your band from the live tree; those numbers have moved on, so this draw can no longer be
-                answered by anybody. Nothing is lost by it: every depositor is checked before a roll, so any prize here
-                was already credited to whoever won it.
+                answered by anybody.
+                {checkedForYou === true ? (
+                  <>
+                    {" "}
+                    <strong>You were checked for this one</strong>, before the roll, and the prize or the encrypted zero
+                    went into your balance then. Nothing was missed. What no longer exists is a way to separate that
+                    credit back out: the contract keeps no record of who won a draw, which is the whole point of it.
+                    Your balance against what you deposited is the only ledger of winnings there is, and it is yours
+                    alone to read.
+                  </>
+                ) : (
+                  <> Every depositor is checked before a roll, so any prize here was credited to whoever won it.</>
+                )}
               </div>
             )}
 
             {error && <div className={styles.error}>{error}</div>}
             <div className={styles.actions}>
               <button className="btnPrimary" onClick={check} disabled={!unlocked || busy || !claimable}>
-                {!claimable ? "Window closed" : unlocked ? "Did I win?" : "Reveal your position first"}
+                {/* Promising "Did I win?" on a slot a keeper has already swept promises an
+                    answer the balance can no longer give. Say what the click does instead. */}
+                {!claimable
+                  ? "Window closed"
+                  : !unlocked
+                    ? "Reveal your position first"
+                    : checkedForYou
+                      ? "Already checked · refresh my balance"
+                      : "Did I win?"}
               </button>
               <button className="btnQuiet" onClick={() => setPreview(true)}>
                 Preview a win
@@ -305,6 +398,28 @@ export function DidIWin({
               <span className={styles.sweep} />
             </div>
           </>
+        )}
+
+        {/* Checked by somebody else before you asked, so a delta cannot attribute the
+            prize to this draw. Saying what *is* knowable beats inventing a verdict. */}
+        {phase === "settled" && (
+          <div className={styles.result}>
+            <div className={`num ${styles.lostHead}`}>Already checked for you.</div>
+            <p className={styles.copy}>
+              A keeper swept this draw before you asked, which is what is meant to happen: every depositor is checked
+              before the period rolls, so nobody has to remember to collect. The prize or the encrypted zero went into
+              your balance at that moment.
+            </p>
+            <p className={styles.copy}>
+              That is also why this panel will not now tell you which it was. The check compares your balance before and
+              after, and the credit landed before you looked. The contract keeps no record of who won any draw, so
+              nothing here can be consulted after the fact. <strong>Your balance above is the answer</strong>: compare
+              it against what you deposited, and the difference is everything you have ever won.
+            </p>
+            <button className="btnQuiet" onClick={() => setPhase("idle")}>
+              Reset
+            </button>
+          </div>
         )}
 
         {phase === "lost" && (
