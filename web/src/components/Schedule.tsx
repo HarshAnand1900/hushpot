@@ -54,11 +54,11 @@ const MOMENTS = [
   },
   {
     when: "THE SIX HOURS AFTER",
-    call: "sweepRange() → proveSolvency()",
+    call: "checkMyClaim() — or sweepRange()",
     what: "Everyone is checked, then the books are proved",
-    who: "The keeper, or any wallet that wants to",
+    who: "You, for yourself. Or a keeper, for everybody",
     detail:
-      "Every depositor is checked in turn, winner or not. A loser receives an encrypted zero, which costs the same gas and looks identical on-chain to a win — so being checked tells an observer nothing. The solvency proof then shows every deposit is still fully backed.",
+      "Claiming for yourself is one transaction and the path the protocol actually relies on, because its cost per depositor is flat and the person who pays is the person who gets paid. A keeper sweep does the same job for everyone at once, so nobody has to remember — a convenience worth running at this size, and one that no design should need at ten thousand. Either way a loser receives an encrypted zero, which costs the same gas and looks identical on-chain to a win, so being checked tells an observer nothing.",
     reveals: "That everyone was checked. Not who won",
   },
   {

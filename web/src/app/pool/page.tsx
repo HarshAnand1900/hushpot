@@ -358,7 +358,6 @@ export default function PoolTab() {
               <DidIWin
                 draws={draws.map((d) => ({ id: d.id, prize: d.prize, period: Number(d.period) }))}
                 currentPeriod={state.currentPeriod}
-                balanceBefore={position.balance}
                 unlocked={isUnlocked}
                 onClaimed={() => state.refetch()}
               />

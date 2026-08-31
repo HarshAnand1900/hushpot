@@ -38,6 +38,60 @@ version where the amounts stay encrypted and the winner is never resolved on-cha
 
 ---
 
+## Two walls, and where they are
+
+A confidential prize pool is easy to describe and awkward to build, because the obvious implementation runs into two
+separate ceilings. Only one of them gets discussed.
+
+### The depth wall
+
+PoolTogether picks a winner by walking a cumulative sum until it passes a random point:
+
+```
+r   = random(0, total)
+acc = 0
+for each depositor i:
+    acc    += balance[i]
+    hit     = acc > r
+    winner  = select(hit, i, winner)
+```
+
+Over ciphertext every line of that loop is a homomorphic operation, and each pass depends on the result of the one
+before it. FHEVM meters that dependency chain separately from gas and caps it at 5M HCU per transaction, 20M globally.
+Batching is no escape: the chain itself is the cost, so splitting it across transactions means carrying an encrypted
+accumulator between them and paying the same depth in pieces. The loop is bounded by a small constant of depositors, and
+no amount of engineering moves it, because the ceiling is on the shape of the algorithm.
+
+Hushpot replaces the walk with an **encrypted segment tree**. A slot's band is a prefix sum, a prefix sum is a walk from
+leaf to root, and that is `log2(slots)` levels instead of `n` iterations. At the deployed 16,384-slot capacity the
+deepest possible check is fourteen levels, and the tree only walks as far as the highest node covering the slots
+actually in use — a pool of nine pays for a tree of four. Raising the cap from 1,024 to 16,384 moved none of the
+measured costs for that reason. `HushpotDepthGas.ts` pins the ladder and prints it on every run.
+
+### The incidence wall
+
+This is the one that decides whether a design survives mainnet, and it is mostly left unsaid.
+
+Whatever a claim costs, **somebody has to pay it `n` times per draw**. Making claims cheap, batchable and permissionless
+does not change that. It changes who is inconvenienced. At the measured 649,774 gas a claim, a 10,000-depositor pool
+costs about 6.5 billion gas to settle — every draw, forever — and there is no batch size that turns that into a
+reasonable expense for whoever volunteered.
+
+So the protocol does not depend on a sweep. `checkMyClaim` is one transaction, sent by the person it pays, and it is the
+only settlement path Hushpot requires. Cost per depositor is flat, nobody funds anybody else's claim, and what the pool
+costs to run does not grow with the number of people in it. The keeper sweep is a convenience — sensible on a small pool
+or an L2, useful for depositors who have wandered off, and never load-bearing.
+
+It buys that with a deadline, which is worth stating rather than burying. A claim only works while the draw's period is
+still current, because the check recomputes your band against the live tree and rolling the period moves those numbers.
+The window is thirty days and the roll is held back from everyone but the owner for its duration. Claim inside it, or
+let a sweep cover you. Miss both and the prize stays in the reserve and funds the next draw.
+
+Finding out **whether** you won is a separate matter and has no deadline at all: the result is stored as a ciphertext
+only you can open, so it survives the sweep, the roll and the years after. See
+[Finding out, afterwards](#finding-out-afterwards).
+
+---
 ## How the draw works
 
 The interesting problem is picking a winner with odds proportional to a **secret** balance, without decrypting anyone's
@@ -86,11 +140,16 @@ contains it wins.
 
 ### Claiming
 
-There is no announcement, because nothing knows who won. `checkClaim(drawId, account)` is callable by any address, for
-any address, since the result is encrypted either way and the caller learns nothing from making the call. It adds
-`FHE.select(won, prize, 0)` to that depositor's balance.
+There is no announcement, because nothing knows who won. The settlement path the protocol relies on is
+`checkMyClaim(drawId)`: one transaction, sent by the depositor it pays, which evaluates the draw against their band and
+adds `FHE.select(won, prize, 0)` to their balance. Cost per depositor is flat, and nobody funds anybody else's claim.
 
 A loser's claim adds an encrypted zero. On-chain it is indistinguishable from a winner's, down to the gas.
+
+`checkClaim(drawId, account)` is the same thing callable by any address, for any address — safe to expose, because the
+result is encrypted either way and the caller learns nothing from making the call. That is what lets a keeper sweep a
+pool so nobody has to remember to collect. It is a convenience and not a dependency: see
+[the incidence wall](#the-incidence-wall) for why a design that needs the sweep does not reach mainnet.
 
 ### Finding out, afterwards
 
@@ -98,11 +157,14 @@ Every check also writes a **receipt**: `awardOf(drawId, slot)` holds what that d
 encrypted zero, decryptable only by the depositor it belongs to. Opening it is a decryption, so it costs a signature and
 no gas, and it keeps working for good.
 
-That matters more than it sounds, because sweeping is the normal case. A keeper checks everybody before the period rolls
-so that nobody has to remember to collect, which is good for depositors and used to be the end of the story: the award
+That matters more than it sounds, because a claim can be made by anybody. Whenever a keeper gets there first, the award
 went into a balance while its owner was not looking, and the only evidence was a balance that had moved. Anybody asking
-afterwards got nothing, and a rolled period made it permanent, since `checkClaim` recomputes against the live tree and
+afterwards got nothing, and a rolled period made it permanent, since a check recomputes against the live tree and
 reverts once those numbers move on.
+
+So the two questions are answered by different machinery on purpose. **Am I owed anything** is a payment: it costs gas,
+and it has the thirty-day deadline. **Did I win** is information: it costs a signature, and it has no deadline at all.
+The app splits them the same way, which is why an old draw still opens long after nothing can be claimed from it.
 
 The receipt is what stops a convenience for depositors from costing them the answer. It leaks nothing further: the
 handle's existence is already public through `claimChecked`, only the depositor is granted the right to open it, and a

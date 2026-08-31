@@ -276,3 +276,68 @@
   color: var(--text-4);
   max-width: 62ch;
 }
+
+/* --------------------------------------------------------------- markers -- */
+
+/* The strip carries the state so the prose does not have to: a draw you have opened,
+   a draw still claimable, a draw that has closed. */
+.pickDone {
+  margin-left: 5px;
+  color: var(--yellow);
+}
+
+.pickLive {
+  margin-left: 5px;
+  color: var(--yellow);
+  font-weight: 600;
+}
+
+/* A dead end, kept to one line with the mechanics folded behind it. Being told at length
+   why the chain cannot help is not an answer to "did I win". */
+.quiet {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 13px 15px;
+  border: 1px solid var(--rule);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.why {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.why > summary {
+  cursor: pointer;
+  font-family: var(--font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: var(--text-4);
+  list-style: none;
+}
+
+.why > summary::-webkit-details-marker {
+  display: none;
+}
+
+.why > summary::after {
+  content: " →";
+}
+
+.why[open] > summary::after {
+  content: " ↓";
+}
+
+.why > summary:hover {
+  color: var(--yellow);
+}
+
+.why > p {
+  margin: 9px 0 0;
+  line-height: 1.6;
+  max-width: 62ch;
+}

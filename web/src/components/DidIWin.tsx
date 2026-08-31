@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount, useConfig, usePublicClient, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
@@ -14,31 +14,52 @@ import styles from "./DidIWin.module.css";
 /** Addresses and hashes, trimmed to something a line can carry. */
 const shorten = (v: string) => (v.length > 14 ? `${v.slice(0, 8)}…${v.slice(-6)}` : v);
 
-type Phase = "idle" | "checking" | "reading" | "won" | "lost" | "settled" | "error";
+/** An unwritten handle is thirty-two zero bytes; a real one never is. */
+const isHandle = (v?: string) => !!v && /[1-9a-f]/i.test(v.slice(2));
+
+export type CheckableDraw = { id: bigint; prize: bigint; period: number };
 
 /**
- * The reveal.
+ * Two questions, told apart.
  *
- * There is no announcement to listen for. The contract genuinely does not know who won —
- * a claim adds `select(won, prize, 0)` to your balance, and a loser's claim adds an
- * encrypted zero that is indistinguishable on-chain from a winner's, down to the gas.
+ * "Am I owed anything?" is a payment. It costs gas, it runs `checkMyClaim`, and it only
+ * works while the draw's period is current, because the check recomputes your band from
+ * the live tree and a roll moves those numbers.
  *
- * So the only way to find out is to open your own balance and see whether it moved. That
- * is what this does: run the check, then decrypt your balance and compare.
+ * "Did I win?" is information. It opens `awardOf[draw][slot]` with a signature, costs no
+ * gas, and keeps working afterwards — after a sweep, after a roll, indefinitely.
+ *
+ * This panel used to answer both by sending a transaction and diffing the balance either
+ * side of it, which fails in the ordinary case: if anything checked your slot first, the
+ * credit landed before the snapshot and the difference reads zero for winners and losers
+ * alike. Every state below comes from two public reads and a stored ciphertext instead, so
+ * the answer never depends on who got there first.
  */
-export type CheckableDraw = { id: bigint; prize: bigint; period: number };
+type Answer =
+  /** Reads outstanding. */
+  | { kind: "loading" }
+  /** No wallet, so no address to answer for. */
+  | { kind: "disconnected" }
+  /** No deposit, so no slot and nothing to answer. */
+  | { kind: "no-slot" }
+  /** A receipt exists. It opens for a signature and no gas. */
+  | { kind: "ready"; handle: string }
+  /** Checked, but before receipts were written. The balance is the only ledger. */
+  | { kind: "legacy" }
+  /** Nobody has checked this slot and the window is open. Claim it. */
+  | { kind: "unclaimed" }
+  /** Nobody checked it and the period rolled. Nothing can answer it now. */
+  | { kind: "missed" };
 
 export function DidIWin({
   draws,
   currentPeriod,
-  balanceBefore,
   unlocked,
   onClaimed,
 }: {
   /** Every settled draw, newest first. */
   draws: CheckableDraw[];
   currentPeriod: number;
-  balanceBefore?: bigint;
   unlocked: boolean;
   onClaimed: () => void;
 }) {
@@ -47,18 +68,29 @@ export function DidIWin({
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
 
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [delta, setDelta] = useState<bigint>(0n);
-  const [error, setError] = useState<string>();
   const [picked, setPicked] = useState(0);
+  const [answer, setAnswer] = useState<Answer>({ kind: "loading" });
+  /** Opened receipts, by draw id. Keeps a revisited draw instant and silent. */
+  const [openedByDraw, setOpenedByDraw] = useState<Record<string, bigint>>({});
+  const [arrival, setArrival] = useState<{ at: number; hash: string; by: string }>();
+  const [busy, setBusy] = useState<"claiming" | "opening">();
+  const [error, setError] = useState<string>();
+  const [nonce, setNonce] = useState(0);
   // A rehearsal of the winning screen, with no transaction behind it. Most visitors will
   // lose — that is what a lottery is — and the screen that matters would otherwise never
   // be seen. It is labelled on every line so it can never be mistaken for a result.
   const [preview, setPreview] = useState(false);
 
-  // How long the 30-day window still has to run. The grace period is the contract's, read
-  // from it rather than hard-coded here — a countdown that disagrees with the chain is
-  // worse than no countdown.
+  const draw = draws[picked];
+  const key = draw ? String(draw.id) : "";
+  const opened = openedByDraw[key];
+  const { unopened, markOpened } = useReceipts(BigInt(draws.length));
+
+  /** Whether a claim would still be accepted on-chain for this draw. */
+  const windowOpen = draw !== undefined && draw.period === currentPeriod;
+
+  // How long the 30-day window still has to run. The grace is the contract's, read from it
+  // rather than hard-coded — a countdown that disagrees with the chain is worse than none.
   const [claimLeft, setClaimLeft] = useState<number>();
   useEffect(() => {
     if (!publicClient) return;
@@ -70,10 +102,8 @@ export function DidIWin({
           publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "lastDrawSettledAt" }),
           publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "CLAIM_GRACE" }),
         ])) as [bigint, bigint];
-
         if (settledAt === 0n) return;
-        const closesAt = Number(settledAt + grace);
-        if (live) setClaimLeft(closesAt - Math.floor(Date.now() / 1000));
+        if (live) setClaimLeft(Number(settledAt + grace) - Math.floor(Date.now() / 1000));
       } catch {
         /* no countdown is better than a wrong one */
       }
@@ -87,56 +117,22 @@ export function DidIWin({
     };
   }, [publicClient]);
 
-  const draw = draws[picked];
-
-  /**
-   * A draw is only claimable while its own period is still the current one.
-   *
-   * `checkClaim` requires it, and for a good reason: the check recomputes your band from
-   * the live tree, which only matches what the draw was settled against until the period
-   * rolls. So an older draw is not merely closed by policy — it is no longer answerable.
-   */
-  const claimable = draw !== undefined && draw.period === currentPeriod;
-
-  /**
-   * Whether this draw has already been checked for you.
-   *
-   * `claimChecked` is a public view per slot, so the panel can say this before anybody
-   * signs anything. It answers the question people actually have about an old draw, "was
-   * I included?", which is knowable — without pretending to answer "did I win", which
-   * after a sweep is not.
-   */
-  const [checkedForYou, setCheckedForYou] = useState<boolean>();
-  /**
-   * The handle holding what this draw awarded you.
-   *
-   * Written by whichever call checked the slot, keeper or self, and granted to the
-   * depositor. Opening it is a decryption, so it costs a signature and no gas, and it
-   * keeps working after the period rolls — which is the point, because `checkClaim`
-   * does not.
-   */
-  const [receipt, setReceipt] = useState<string>();
-  /**
-   * When the prize actually landed, and in whose transaction.
-   *
-   * A balance that silently grows is the correct protocol behaviour and a poor experience:
-   * the money arrives while you are not looking and nothing marks the moment. `ClaimChecked`
-   * is public and indexed by draw and slot, so the app can name the block, the time and the
-   * caller without asking anyone to decrypt anything. It turns "your balance is bigger now"
-   * into "it arrived at 04:12 UTC, in this transaction, put there by this keeper".
-   */
-  const [arrival, setArrival] = useState<{ at: number; hash: string; by: string }>();
-  // Bumped after a check writes one, so the panel picks up a receipt it did not have when
-  // the draw was selected.
-  const [receiptNonce, setReceiptNonce] = useState(0);
-  const { unopened, markOpened } = useReceipts(BigInt(draws.length));
-  const [opened, setOpened] = useState<bigint>();
-  const [opening, setOpening] = useState(false);
+  /** Resolve which state this draw is in, from public reads only. */
   useEffect(() => {
-    if (!publicClient || !address || draw === undefined) return;
+    if (!publicClient || draw === undefined) return;
+    // Without an address there is nobody to answer for, and leaving the panel on "reading"
+    // makes a missing wallet look like a stalled network.
+    if (!address) {
+      setAnswer({ kind: "disconnected" });
+      return;
+    }
     let live = true;
+
     void (async () => {
+      setAnswer({ kind: "loading" });
+      setArrival(undefined);
       try {
+        // No deposit, no slot, and `slotOf` reverts rather than returning one.
         const joined = await publicClient.readContract({
           address: POOL_ADDRESS,
           abi: poolAbi,
@@ -144,16 +140,18 @@ export function DidIWin({
           args: [address],
         });
         if (!joined) {
-          if (live) setCheckedForYou(undefined);
+          if (live) setAnswer({ kind: "no-slot" });
           return;
         }
-        const slot = await publicClient.readContract({
+
+        const slot = (await publicClient.readContract({
           address: POOL_ADDRESS,
           abi: poolAbi,
           functionName: "slotOf",
           args: [address],
-        });
-        const [flag, award] = await Promise.all([
+        })) as number;
+
+        const [checked, award] = (await Promise.all([
           publicClient.readContract({
             address: POOL_ADDRESS,
             abi: poolAbi,
@@ -166,17 +164,17 @@ export function DidIWin({
             functionName: "awardOf",
             args: [draw.id, slot],
           }),
-        ]);
-        if (!live) return;
-        setCheckedForYou(flag as boolean);
-        // An unset handle is thirty-two zero bytes, which is also a legitimate encrypted
-        // zero — but an unchecked slot has never been written, so the two cannot collide.
-        const handle = award as string;
-        const has = !!handle && /[1-9a-f]/i.test(handle.slice(2));
-        setReceipt(has ? handle : undefined);
+        ])) as [boolean, string];
 
-        setArrival(undefined);
-        if (has) {
+        if (!live) return;
+        if (isHandle(award)) setAnswer({ kind: "ready", handle: award });
+        else if (checked) setAnswer({ kind: "legacy" });
+        else if (windowOpen) setAnswer({ kind: "unclaimed" });
+        else setAnswer({ kind: "missed" });
+
+        // Provenance. `ClaimChecked` is public and indexed by draw and slot, so the panel
+        // can name the block, the time and the caller without decrypting anything.
+        if (checked) {
           const logs = await publicClient.getLogs({
             address: POOL_ADDRESS,
             event: {
@@ -202,166 +200,128 @@ export function DidIWin({
           }
         }
       } catch {
-        /* the panel reads fine without it */
+        if (live) setAnswer({ kind: "loading" });
       }
     })();
+
     return () => {
       live = false;
     };
-  }, [publicClient, address, draw, receiptNonce]);
+  }, [publicClient, address, draw, windowOpen, nonce]);
 
-  const check = useCallback(async () => {
-    if (!address || !publicClient || balanceBefore === undefined || !draw) return;
-    setError(undefined);
-
-    try {
-      // No deposit, no slot, and `slotOf` reverts rather than returning one.
-      const joined = await publicClient.readContract({
-        address: POOL_ADDRESS,
-        abi: poolAbi,
-        functionName: "hasSlot",
-        args: [address],
-      });
-
-      if (!joined) {
-        setError("You were not in this draw. Deposit before the next one closes.");
-        setPhase("error");
-        return;
+  /** Open a receipt. A decryption: one signature, no gas, works whenever. */
+  const open = useCallback(
+    async (handle: string, drawId: bigint, announce: boolean) => {
+      setBusy("opening");
+      setError(undefined);
+      try {
+        const value = (await decryptHandle(handle)) ?? 0n;
+        setOpenedByDraw((m) => ({ ...m, [String(drawId)]: value }));
+        markOpened(drawId);
+        if (announce) {
+          toast(
+            value > 0n
+              ? {
+                  kind: "success",
+                  title: `You won ${formatUnits(value)} cUSDT`,
+                  detail: "Read from your own receipt. Nobody else can open it.",
+                }
+              : { kind: "success", title: "Not this draw", detail: "Your receipt for it decrypts to zero." },
+          );
+        }
+      } catch (e) {
+        setError(describeError(e));
+        throw e;
+      } finally {
+        setBusy(undefined);
       }
+    },
+    [markOpened],
+  );
 
-      const slot = await publicClient.readContract({
-        address: POOL_ADDRESS,
-        abi: poolAbi,
-        functionName: "slotOf",
-        args: [address],
-      });
+  /**
+   * Open the answer without being asked, once the session is already unlocked.
+   *
+   * The click that used to sit here bought nothing: revealing your position has already
+   * cost the signature, so the extra step was a gate in front of a door that was open. A
+   * draw whose result is known should say the result.
+   */
+  const tried = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (answer.kind !== "ready" || !unlocked || !draw) return;
+    const k = String(draw.id);
+    if (openedByDraw[k] !== undefined || tried.current.has(k)) return;
+    tried.current.add(k);
+    void open(answer.handle, draw.id, false).catch(() => {
+      // A failed decrypt stays failed until the draw is picked again; the manual button
+      // below is the retry, so nothing here loops.
+    });
+  }, [answer, unlocked, draw, openedByDraw, open]);
 
-      const alreadyChecked = await publicClient.readContract({
-        address: POOL_ADDRESS,
-        abi: poolAbi,
-        functionName: "claimChecked",
-        args: [draw.id, slot],
-      });
-
-      // One transaction, not two. `checkMyClaim` runs the check and opens the answer in
-      // the same call; asking it separately meant two wallet prompts and a block of dead
-      // time between them to answer a single question.
-      //
-      // A keeper may already have swept this slot, in which case the check is done and
-      // only the reveal is outstanding — that path still needs `refreshMyBalance`, but it
-      // is one transaction too.
-      setPhase("checking");
+  /**
+   * Claim the draw for yourself: one transaction, one wallet prompt.
+   *
+   * `checkMyClaim` runs the check and refreshes the balance cache in the same call, and it
+   * writes the receipt this panel then opens. Nothing here reads a balance delta, so a
+   * keeper racing you changes which state you land in and never the answer.
+   */
+  const claim = useCallback(async () => {
+    if (!draw || !publicClient) return;
+    setBusy("claiming");
+    setError(undefined);
+    try {
       const tx = await writeContractAsync({
         address: POOL_ADDRESS,
         abi: poolAbi,
-        functionName: alreadyChecked ? "refreshMyBalance" : "checkMyClaim",
-        args: alreadyChecked ? [] : [draw.id],
+        functionName: "checkMyClaim",
+        args: [draw.id],
       });
       // Two confirmations: the relayer has to see the grant this transaction made before
-      // it will decrypt, and one block leaves too little room for that to reach whichever
-      // node it happens to read.
-      setPhase("reading");
+      // it will decrypt, and one block leaves too little room for that to propagate.
       await waitForTransactionReceipt(config, { hash: tx, confirmations: 2 });
-
-      const handle = await publicClient.readContract({
-        address: POOL_ADDRESS,
-        abi: poolAbi,
-        functionName: "balanceHandle",
-        args: [slot],
-      });
-
-      const after = await decryptHandle(handle as string);
-      const gained = after !== undefined && after > balanceBefore ? after - balanceBefore : 0n;
-
-      /**
-       * A delta only answers the question when this transaction is what moved the balance.
-       *
-       * If a keeper had already swept the slot, the credit landed at sweep time, which is
-       * before the balance this compares against was read. The difference is then zero for
-       * a winner and a loser alike, and reporting "not this draw" off the back of it was
-       * telling some winners they had lost. The contract stores no won-flag to fall back
-       * on, so the honest answer in that case is that the delta cannot say.
-       */
-      if (alreadyChecked) {
-        setDelta(0n);
-        setPhase("settled");
-        setReceiptNonce((n) => n + 1);
-        toast({
-          kind: "success",
-          title: "Already checked for you",
-          detail: "Your prize, if there was one, is in the balance above. A fresh check cannot separate it out.",
-          hash: tx,
-        });
-        onClaimed();
-        return;
-      }
-
-      setDelta(gained);
-      setPhase(gained > 0n ? "won" : "lost");
-      setReceiptNonce((n) => n + 1);
-      toast(
-        gained > 0n
-          ? {
-              kind: "success",
-              title: `You won ${formatUnits(gained)} cUSDT`,
-              detail: "It is already in your pool balance, legible to nobody else.",
-              hash: tx,
-            }
-          : {
-              kind: "success",
-              title: "Not this draw",
-              detail: "Your balance is unchanged. Nothing was ever at risk.",
-              hash: tx,
-            },
-      );
+      toast({ kind: "success", title: "Claimed", detail: "Opening your result…", hash: tx });
+      tried.current.delete(String(draw.id));
+      setNonce((n) => n + 1);
       onClaimed();
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Could not check the draw.";
-      setError(/user rejected|denied/i.test(message) ? "Transaction declined." : message.slice(0, 160));
-      setPhase("error");
-      toast({ kind: "error", title: "Could not check the draw", detail: describeError(e) });
-    }
-  }, [address, balanceBefore, config, draw, onClaimed, publicClient, writeContractAsync]);
-
-  const openReceipt = async () => {
-    if (!receipt) return;
-    setOpening(true);
-    setError(undefined);
-    try {
-      const value = await decryptHandle(receipt);
-      setOpened(value ?? 0n);
-      if (draw) markOpened(draw.id);
-      toast(
-        value && value > 0n
-          ? {
-              kind: "success",
-              title: `You won ${formatUnits(value)} cUSDT`,
-              detail: "Read from your own receipt for this draw. Nobody else can open it.",
-            }
-          : { kind: "success", title: "Not this draw", detail: "Your receipt for it decrypts to zero." },
-      );
-    } catch (e) {
-      setError(e instanceof Error ? describeError(e) : "Could not open the receipt.");
+      const message = e instanceof Error ? e.message : "Could not claim this draw.";
+      setError(/user rejected|denied/i.test(message) ? "Transaction declined." : describeError(e));
+      toast({ kind: "error", title: "Could not claim this draw", detail: describeError(e) });
     } finally {
-      setOpening(false);
+      setBusy(undefined);
     }
-  };
+  }, [config, draw, onClaimed, publicClient, writeContractAsync]);
 
-  const busy = phase === "checking" || phase === "reading" || opening;
+  /** What the header says. Short, and about you rather than about the contract. */
+  const status = (() => {
+    if (opened !== undefined) return opened > 0n ? "YOU WON" : "NOT THIS ONE";
+    switch (answer.kind) {
+      case "ready":
+        return "RESULT READY";
+      case "unclaimed":
+        return "YOURS TO CLAIM";
+      case "missed":
+      case "legacy":
+        return "NO RECORD";
+      case "no-slot":
+        return "NOT ENTERED";
+      default:
+        return windowOpen ? "OPEN" : "CLOSED";
+    }
+  })();
+
+  /** A one-glance marker per draw, so the strip carries the state and prose need not. */
+  const markFor = (d: CheckableDraw) => {
+    if (openedByDraw[String(d.id)] !== undefined) return { mark: "✓", cls: styles.pickDone };
+    if (d.period === currentPeriod) return { mark: "!", cls: styles.pickLive };
+    return { mark: "·", cls: styles.pickShut };
+  };
 
   return (
     <section className="panel">
       <div className="panelHead">
         <span>DRAW #{draw ? String(draw.id) : "—"} · SETTLED</span>
-        <span style={{ color: phase === "won" ? "var(--yellow)" : undefined }}>
-          {phase === "won"
-            ? "YOURS ONLY"
-            : phase === "lost" || phase === "settled"
-              ? "CHECKED"
-              : claimable
-                ? "OPEN"
-                : "WINDOW CLOSED"}
-        </span>
+        <span style={{ color: opened !== undefined && opened > 0n ? "var(--yellow)" : undefined }}>{status}</span>
       </div>
 
       {unopened > 0 && (
@@ -372,31 +332,17 @@ export function DidIWin({
         </div>
       )}
 
-      {/* `lastDrawSettledAt` is one global figure describing the newest draw, so this bar
-          belongs only to a draw that is still claimable. Beside an older one it read
-          "CLAIM CLOSES 29d" directly under the words "WINDOW CLOSED". */}
-      {claimable && claimLeft !== undefined && claimLeft > 0 && (
+      {/* `lastDrawSettledAt` describes the newest draw, so this bar belongs only to a draw
+          that is still claimable. Beside an older one it read "CLAIM CLOSES 29d" directly
+          underneath the word "CLOSED". */}
+      {windowOpen && claimLeft !== undefined && claimLeft > 0 && (
         <div className={styles.claimBar}>
           <span className={styles.claimK}>CLAIM CLOSES</span>
           <span className={`num ${styles.claimV}`} suppressHydrationWarning>
             {formatCountdown(claimLeft)}
           </span>
           <span className={styles.claimNote}>
-            Thirty days is how long the roll is held back from everybody else, so a claim is never a race. The pool
-            owner is exempt and can roll sooner, which is why a sweep runs before every roll.
-          </span>
-        </div>
-      )}
-
-      {/* A window that closed early closed because somebody rolled, not because a month
-          passed. Left unsaid, the countdown above makes it look like a clock ran out. */}
-      {!claimable && draw && (
-        <div className={styles.claimBar}>
-          <span className={styles.claimK}>CLOSED BY</span>
-          <span className={`num ${styles.claimV}`}>THE ROLL</span>
-          <span className={styles.claimNote}>
-            Not by the clock. Period #{draw.period} rolling is what ended this one, whether or not the thirty days had
-            run. Every depositor was checked before that happened.
+            Thirty days is how long the roll is held back from everybody else, so claiming is never a race.
           </span>
         </div>
       )}
@@ -404,166 +350,186 @@ export function DidIWin({
       <div className={styles.body}>
         {draws.length > 1 && (
           <div className={styles.picker}>
-            {draws.map((d, i) => (
-              <button
-                key={String(d.id)}
-                className={i === picked ? `${styles.pick} ${styles.pickOn}` : styles.pick}
-                onClick={() => {
-                  setPicked(i);
-                  setPhase("idle");
-                  setPreview(false);
-                  setError(undefined);
-                }}
-                title={d.period === currentPeriod ? "Still claimable" : "Claim window closed"}
-              >
-                #{String(d.id)}
-                {d.period !== currentPeriod && <span className={styles.pickShut}>·</span>}
-              </button>
-            ))}
+            {draws.map((d, i) => {
+              const { mark, cls } = markFor(d);
+              return (
+                <button
+                  key={String(d.id)}
+                  className={i === picked ? `${styles.pick} ${styles.pickOn}` : styles.pick}
+                  onClick={() => {
+                    setPicked(i);
+                    setPreview(false);
+                    setError(undefined);
+                  }}
+                  title={
+                    openedByDraw[String(d.id)] !== undefined
+                      ? "You have opened this one"
+                      : d.period === currentPeriod
+                        ? "Claimable now"
+                        : "Claim window closed"
+                  }
+                >
+                  #{String(d.id)}
+                  <span className={cls}>{mark}</span>
+                </button>
+              );
+            })}
           </div>
         )}
 
-        {(phase === "idle" || phase === "error") && (
-          <>
-            <p className={styles.copy}>
-              The pot landed in somebody&apos;s balance with no announcement. The only way to know is to open yours.
-            </p>
-            <p className={styles.cipher}>
-              This draw paid {draw ? formatUnits(draw.prize) : "—"} cUSDT to exactly one depositor. Nobody — not the
-              other players, not the contract, not us, can say which.
-            </p>
+        {/* ---------------------------------------------------------- the answer -- */}
 
-            {/* A receipt exists whenever the slot was checked, by anyone, ever. Opening it
-                is a decryption: one signature, no gas, and it still works long after the
-                period rolled and `checkClaim` stopped being callable. */}
-            {receipt && opened === undefined && (
-              <div className={styles.receipt}>
-                <div className={styles.receiptHead}>YOUR RECEIPT FOR THIS DRAW</div>
-                <p className={styles.copy}>
-                  This draw was checked for you and the result was written down, encrypted to your address. Opening it
-                  costs a signature and no gas, and nobody else can open it — not the keeper that ran the check, not us,
-                  not the contract.
-                </p>
-                <button className="btnPrimary" onClick={openReceipt} disabled={busy || !unlocked}>
-                  {opening ? "Opening…" : unlocked ? "Open my result · no gas" : "Reveal your position first"}
-                </button>
-              </div>
-            )}
-
-            {receipt && opened !== undefined && (
-              <div className={opened > 0n ? `${styles.receipt} ${styles.receiptWon}` : styles.receipt}>
-                <div className={styles.receiptHead}>{opened > 0n ? "PRIZE ARRIVED" : "NOT THIS DRAW"}</div>
-                <div className={`num ${styles.receiptValue}`}>
-                  {opened > 0n ? `+${formatUnits(opened)}` : formatUnits(0n)} cUSDT
-                </div>
-
-                {/* A silent balance change is the protocol working and a bad experience.
-                    Naming the moment, the transaction and the caller turns it into
-                    something that happened rather than something that is merely true. */}
-                {arrival && (
-                  <div className={styles.arrival}>
-                    {/* Shown for a zero as well as a prize, and deliberately: these three
-                        facts are public and identical either way, so a losing panel that
-                        omitted them would imply they meant something. */}
-                    <div className={styles.arrivalRow}>
-                      <span>CHECKED AT</span>
-                      <span suppressHydrationWarning>
-                        {new Date(arrival.at * 1000).toUTCString().replace("GMT", "UTC")}
-                      </span>
-                    </div>
-                    <div className={styles.arrivalRow}>
-                      <span>CHECKED BY</span>
-                      <span>{shorten(arrival.by)}</span>
-                    </div>
-                    <div className={styles.arrivalRow}>
-                      <span>IN</span>
-                      <a href={`https://sepolia.etherscan.io/tx/${arrival.hash}`} target="_blank" rel="noreferrer">
-                        {shorten(arrival.hash)} ↗
-                      </a>
-                    </div>
-                  </div>
-                )}
-
-                <p className={styles.copy}>
-                  {opened > 0n
-                    ? "It is already in your pool balance — added the moment you were checked, which is why nothing announced it at the time. Withdraw it whenever you like; it is principal now."
-                    : "Your receipt decrypts to zero. It cost the same gas as a winner's and looks identical on-chain, which is what stops anybody reading the result off the ledger."}
-                </p>
-                <p className={styles.fine}>
-                  The amount above came from decrypting your own receipt in this browser and is visible to nobody else.
-                  The three lines under it are public: the chain records that your slot was checked, when, and by whom,
-                  for every depositor alike. That is what makes them safe to show — a losing panel says exactly the same
-                  three things.
-                </p>
-                <button className="btnQuiet" onClick={() => setOpened(undefined)}>
-                  Close
-                </button>
-              </div>
-            )}
-
-            {claimable && draw && !receipt && (
-              <div className={styles.receipt}>
-                <div className={styles.receiptHead}>NOBODY HAS CHECKED THIS DRAW FOR YOU</div>
-                <p className={styles.copy}>
-                  No keeper has swept your slot yet, so the prize for this draw has not been decided against your band.
-                  Claiming it is a transaction, and it does both halves at once: it checks the draw and opens the
-                  answer, crediting you the prize or an encrypted zero. Either way a receipt is written that you can
-                  reopen for free afterwards.
-                </p>
-                <p className={styles.copy}>
-                  There is no hurry and no race. The claim window runs thirty days, a keeper will almost certainly get
-                  there first, and being swept costs you nothing — it credits the same amount to the same balance.
-                </p>
-              </div>
-            )}
-
-            {!claimable && draw && !receipt && (
-              <div className={styles.expired}>
-                Period #{draw.period} has rolled, and that is what closes a claim, not the thirty-day countdown. A claim
-                recomputes your band from the live tree; those numbers have moved on, so this draw can no longer be
-                answered by anybody. <strong>Nobody checked your slot before that happened</strong>, so there is no
-                receipt to open either. This is the one outcome the sweep exists to prevent, and it is why the panel
-                above refuses to roll a period until every depositor has been covered.
-                {checkedForYou === true ? (
-                  <>
-                    {" "}
-                    <strong>You were checked for this one</strong>, before the roll, and the prize or the encrypted zero
-                    went into your balance then. Nothing was missed. What no longer exists is a way to separate that
-                    credit back out: the contract keeps no record of who won a draw, which is the whole point of it.
-                    Your balance against what you deposited is the only ledger of winnings there is, and it is yours
-                    alone to read.
-                  </>
-                ) : (
-                  <> Every depositor is checked before a roll, so any prize here was credited to whoever won it.</>
-                )}
-              </div>
-            )}
-
-            {error && <div className={styles.error}>{error}</div>}
-            <div className={styles.actions}>
-              {/* Once a receipt exists it answers the question for a signature and no gas,
-                  which makes a transaction here strictly worse: it costs money and, on a
-                  slot somebody else swept, cannot tell you anything the balance still
-                  shows. The receipt panel above is the action in that case. */}
-              {!receipt && (
-                <button className="btnPrimary" onClick={check} disabled={!unlocked || busy || !claimable}>
-                  {!claimable ? "Window closed" : !unlocked ? "Reveal your position first" : "Did I win?"}
-                </button>
-              )}
-              <button className="btnQuiet" onClick={() => setPreview(true)}>
-                Preview a win
-              </button>
+        {opened !== undefined && (
+          <div className={opened > 0n ? `${styles.receipt} ${styles.receiptWon}` : styles.receipt}>
+            <div className={styles.receiptHead}>{opened > 0n ? "PRIZE ARRIVED" : "NOT THIS DRAW"}</div>
+            <div className={`num ${styles.receiptValue}`}>
+              {opened > 0n ? `+${formatUnits(opened)}` : formatUnits(0n)} cUSDT
             </div>
-          </>
+
+            {arrival && (
+              <div className={styles.arrival}>
+                {/* Shown for a zero as well as a prize, and deliberately: these three facts
+                    are public and identical either way, so a losing panel that omitted them
+                    would imply they meant something. */}
+                <div className={styles.arrivalRow}>
+                  <span>CHECKED AT</span>
+                  <span suppressHydrationWarning>
+                    {new Date(arrival.at * 1000).toUTCString().replace("GMT", "UTC")}
+                  </span>
+                </div>
+                <div className={styles.arrivalRow}>
+                  <span>CHECKED BY</span>
+                  <span>{shorten(arrival.by)}</span>
+                </div>
+                <div className={styles.arrivalRow}>
+                  <span>IN</span>
+                  <a href={`https://sepolia.etherscan.io/tx/${arrival.hash}`} target="_blank" rel="noreferrer">
+                    {shorten(arrival.hash)} ↗
+                  </a>
+                </div>
+              </div>
+            )}
+
+            <p className={styles.copy}>
+              {opened > 0n
+                ? "It is already in your pool balance — added the moment you were checked, which is why nothing announced it at the time. Withdraw it whenever you like; it is principal now."
+                : "Your receipt decrypts to zero. It cost the same gas as a winner's and looks identical on-chain, which is what stops anybody reading the result off the ledger."}
+            </p>
+            <p className={styles.fine}>
+              The amount above came from decrypting your own receipt in this browser and is visible to nobody else. The
+              three lines under it are public: the chain records that your slot was checked, when, and by whom, for
+              every depositor alike. That is what makes them safe to show — a losing panel says the same three things.
+            </p>
+          </div>
         )}
 
-        {preview && phase !== "won" && (
+        {/* A receipt exists but the session is locked, so the signature has to be asked
+            for. Once it has been, the block above opens by itself. */}
+        {answer.kind === "ready" && opened === undefined && (
+          <div className={styles.receipt}>
+            <div className={styles.receiptHead}>YOUR RESULT IS WAITING</div>
+            <p className={styles.copy}>
+              This draw was checked for you and the answer was written down, encrypted to your address. Nobody else can
+              open it — not whoever ran the check, not us, not the contract.
+            </p>
+            <button
+              className="btnPrimary"
+              onClick={() => draw && open(answer.handle, draw.id, true).catch(() => {})}
+              disabled={!!busy}
+            >
+              {busy === "opening" ? "Opening…" : unlocked ? "Open my result · no gas" : "Reveal your position first"}
+            </button>
+          </div>
+        )}
+
+        {/* ---------------------------------------------------------- the action -- */}
+
+        {answer.kind === "unclaimed" && (
+          <div className={styles.receipt}>
+            <div className={styles.receiptHead}>THIS ONE IS STILL YOURS TO CLAIM</div>
+            <p className={styles.copy}>
+              One transaction settles it: the draw is evaluated against your band and the result written down, crediting
+              you the prize or an encrypted zero. On-chain those two are identical, down to the gas. Your answer opens
+              straight afterwards, and reopens for free whenever you like.
+            </p>
+            <button className="btnPrimary" onClick={claim} disabled={!!busy}>
+              {busy === "claiming" ? "Claiming…" : "Claim this draw"}
+            </button>
+            <p className={styles.fine}>
+              You never have to be first. A keeper sweeping the pool credits you exactly the same amount, and being
+              swept costs you nothing.
+            </p>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------ the quiet cases -- */}
+
+        {answer.kind === "loading" && <p className={styles.copy}>Reading the chain…</p>}
+
+        {answer.kind === "disconnected" && (
+          <p className={styles.copy}>
+            Connect a wallet to see where you stand in this draw. Everything here is read for your address alone, and
+            the result itself only ever opens with your key.
+          </p>
+        )}
+
+        {answer.kind === "no-slot" && (
+          <p className={styles.copy}>
+            You had no deposit when this one ran, so there is nothing to answer. Deposit before the next draw closes and
+            your odds start accruing from the minute it lands.
+          </p>
+        )}
+
+        {/* Dead ends, kept to a line. The mechanics are true and worth having, and they are
+            not what somebody wants shouted at them for asking a simple question. */}
+        {(answer.kind === "missed" || answer.kind === "legacy") && (
+          <div className={styles.quiet}>
+            <span>
+              {answer.kind === "legacy"
+                ? "Checked, but no receipt was kept for this one."
+                : "No record was kept of this one for you."}
+            </span>
+            <details className={styles.why}>
+              <summary>Why</summary>
+              {answer.kind === "legacy" ? (
+                <p>
+                  Your slot was checked, so the prize or the encrypted zero went into your balance then and nothing was
+                  missed. Receipts were added after this draw ran, which is why the amount cannot be separated back out
+                  now. Your balance against what you deposited is the only ledger of winnings there is, and it is yours
+                  alone to read.
+                </p>
+              ) : (
+                <p>
+                  Period #{draw?.period} rolled before anybody checked your slot, and the roll is what ends a claim: a
+                  check recomputes your band from the live tree, and those numbers have moved on. Claiming inside the
+                  window, or leaving a keeper to sweep, both prevent it — the pool blocks the roll until every depositor
+                  is covered, so reaching this at all takes the owner cutting the window short.
+                </p>
+              )}
+            </details>
+          </div>
+        )}
+
+        <p className={styles.cipher}>
+          This draw paid {draw ? formatUnits(draw.prize) : "—"} cUSDT to exactly one depositor. Nobody — not the other
+          players, not the contract, not us — can say which.
+        </p>
+
+        {error && <div className={styles.error}>{error}</div>}
+
+        <div className={styles.actions}>
+          <button className="btnQuiet" onClick={() => setPreview(true)}>
+            Preview a win
+          </button>
+        </div>
+
+        {preview && (
           <div className={`${styles.result} ${styles.preview}`}>
             <div className={styles.previewTag}>PREVIEW · NOT A RESULT · NOTHING WAS CHECKED</div>
             <div className={styles.wonKicker}>THIS IS WHAT WINNING WOULD LOOK LIKE</div>
             <div className={`num ${styles.wonAmount}`}>+{draw ? formatUnits(draw.prize) : "—"}</div>
             <p className={styles.copy}>
-              Only the winner ever sees this screen, because only their key opens the balance it reads. No transaction
+              Only the winner ever sees this screen, because only their key opens the receipt it reads. No transaction
               was sent and your position is untouched.
             </p>
             <button className="btnQuiet" onClick={() => setPreview(false)}>
@@ -572,69 +538,16 @@ export function DidIWin({
           </div>
         )}
 
-        {busy && (
+        {busy === "claiming" && (
           <>
-            <div className={styles.scramble}>
-              {phase === "checking" ? "Running the check on-chain…" : "Decrypting your balance locally…"}
-            </div>
+            <div className={styles.scramble}>Running the check on-chain…</div>
             <p className={styles.copy}>
-              {phase === "checking"
-                ? "Your claim adds the prize or an encrypted zero. On-chain the two are identical."
-                : "Only your key opens this. The answer never crosses the wire in the clear."}
+              Your claim adds the prize or an encrypted zero. On-chain the two are indistinguishable.
             </p>
             <div className={styles.sweepTrack}>
               <span className={styles.sweep} />
             </div>
           </>
-        )}
-
-        {/* Checked by somebody else before you asked, so a delta cannot attribute the
-            prize to this draw. Saying what *is* knowable beats inventing a verdict. */}
-        {phase === "settled" && (
-          <div className={styles.result}>
-            <div className={`num ${styles.lostHead}`}>Already checked for you.</div>
-            <p className={styles.copy}>
-              A keeper swept this draw before you asked, which is what is meant to happen: every depositor is checked
-              before the period rolls, so nobody has to remember to collect. The prize or the encrypted zero went into
-              your balance at that moment.
-            </p>
-            <p className={styles.copy}>
-              That is also why this panel will not now tell you which it was. The check compares your balance before and
-              after, and the credit landed before you looked. The contract keeps no record of who won any draw, so
-              nothing here can be consulted after the fact. <strong>Your balance above is the answer</strong>: compare
-              it against what you deposited, and the difference is everything you have ever won.
-            </p>
-            <button className="btnQuiet" onClick={() => setPhase("idle")}>
-              Reset
-            </button>
-          </div>
-        )}
-
-        {phase === "lost" && (
-          <div className={styles.result}>
-            <div className={`num ${styles.lostHead}`}>Not this time.</div>
-            <p className={styles.copy}>
-              Your balance is unchanged: exactly what you put in. Nothing was ever at risk, and you are already entered
-              in the next draw.
-            </p>
-            <button className="btnQuiet" onClick={() => setPhase("idle")}>
-              Reset
-            </button>
-          </div>
-        )}
-
-        {phase === "won" && (
-          <div className={styles.result}>
-            <div className={styles.wonKicker}>LEGIBLE TO YOU AND TO NO ONE ELSE</div>
-            <div className={`num ${styles.wonAmount}`}>+{formatUnits(delta)}</div>
-            <p className={styles.copy}>
-              It landed in your balance, and it is already earning odds for the next draw. If you want anyone to know,
-              that is your call to make.
-            </p>
-            <button className="btnQuiet" onClick={() => setPhase("idle")}>
-              Reset
-            </button>
-          </div>
         )}
       </div>
     </section>
