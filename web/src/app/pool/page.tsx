@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
 import Link from "next/link";
 
@@ -25,6 +25,13 @@ export default function PoolTab() {
   const state = usePoolState();
   const lastDraw = useLastDraw(state.drawCount);
   const { draws } = useDraws(state.drawCount);
+  // Built once per change of `draws` rather than once per render. This page polls, and
+  // handing a freshly-built array down on every tick re-fired the panel's reads and made
+  // it flicker between the answer and its loading state.
+  const checkable = useMemo(
+    () => draws.map((d) => ({ id: d.id, prize: d.prize, period: Number(d.period) })),
+    [draws],
+  );
   const { isConnected } = useAccount();
   const { stage, position, error, reveal, lock, isUnlocked } = useMyPosition();
   // "join" is deposit with the withdraw tab hidden: it is the way in for someone who
@@ -356,7 +363,7 @@ export default function PoolTab() {
           <div>
             {draws.length > 0 && (
               <DidIWin
-                draws={draws.map((d) => ({ id: d.id, prize: d.prize, period: Number(d.period) }))}
+                draws={checkable}
                 currentPeriod={state.currentPeriod}
                 unlocked={isUnlocked}
                 onClaimed={() => state.refetch()}

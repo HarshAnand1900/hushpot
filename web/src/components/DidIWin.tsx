@@ -82,9 +82,14 @@ export function DidIWin({
   const [preview, setPreview] = useState(false);
 
   const draw = draws[picked];
+  /** A bigint compares by value, so effects keyed on this survive the parent's re-renders. */
+  const drawId = draw?.id;
   const key = draw ? String(draw.id) : "";
   const opened = openedByDraw[key];
   const { unopened, markOpened } = useReceipts(BigInt(draws.length));
+
+  /** Which draw the resolve effect last settled, so a re-run does not blank a good answer. */
+  const resolved = useRef<string>(undefined);
 
   /** Whether a claim would still be accepted on-chain for this draw. */
   const windowOpen = draw !== undefined && draw.period === currentPeriod;
@@ -117,9 +122,16 @@ export function DidIWin({
     };
   }, [publicClient]);
 
-  /** Resolve which state this draw is in, from public reads only. */
+  /**
+   * Resolve which state this draw is in, from public reads only.
+   *
+   * Keyed on `drawId` rather than on `draw`. The parent builds its array inline, so every
+   * one of its renders — and it polls — hands down a new object with the same contents.
+   * Depending on that identity re-ran this effect several times a second and flashed
+   * "reading the chain" over an answer that was already correct.
+   */
   useEffect(() => {
-    if (!publicClient || draw === undefined) return;
+    if (!publicClient || drawId === undefined) return;
     // Without an address there is nobody to answer for, and leaving the panel on "reading"
     // makes a missing wallet look like a stalled network.
     if (!address) {
@@ -129,8 +141,12 @@ export function DidIWin({
     let live = true;
 
     void (async () => {
-      setAnswer({ kind: "loading" });
-      setArrival(undefined);
+      // Blank the panel only when moving to a different draw. A background re-resolve of
+      // the one already on screen must not throw the answer away and put it back.
+      if (resolved.current !== String(drawId)) {
+        setAnswer({ kind: "loading" });
+        setArrival(undefined);
+      }
       try {
         // No deposit, no slot, and `slotOf` reverts rather than returning one.
         const joined = await publicClient.readContract({
@@ -156,13 +172,13 @@ export function DidIWin({
             address: POOL_ADDRESS,
             abi: poolAbi,
             functionName: "claimChecked",
-            args: [draw.id, slot],
+            args: [drawId, slot],
           }),
           publicClient.readContract({
             address: POOL_ADDRESS,
             abi: poolAbi,
             functionName: "awardOf",
-            args: [draw.id, slot],
+            args: [drawId, slot],
           }),
         ])) as [boolean, string];
 
@@ -186,7 +202,7 @@ export function DidIWin({
                 { name: "checkedBy", type: "address", indexed: true },
               ],
             },
-            args: { drawId: draw.id, slot: Number(slot) },
+            args: { drawId, slot: Number(slot) },
             fromBlock: DEPLOY_BLOCK,
           });
           const hit = logs[logs.length - 1];
@@ -207,7 +223,8 @@ export function DidIWin({
     return () => {
       live = false;
     };
-  }, [publicClient, address, draw, windowOpen, nonce]);
+    resolved.current = String(drawId);
+  }, [publicClient, address, drawId, windowOpen, nonce]);
 
   /** Open a receipt. A decryption: one signature, no gas, works whenever. */
   const open = useCallback(
@@ -247,16 +264,19 @@ export function DidIWin({
    * draw whose result is known should say the result.
    */
   const tried = useRef<Set<string>>(new Set());
+  const handle = answer.kind === "ready" ? answer.handle : undefined;
   useEffect(() => {
-    if (answer.kind !== "ready" || !unlocked || !draw) return;
-    const k = String(draw.id);
-    if (openedByDraw[k] !== undefined || tried.current.has(k)) return;
+    if (!handle || !unlocked || drawId === undefined) return;
+    const k = String(drawId);
+    // `tried` is the loop guard, so this stays keyed on values rather than on the objects
+    // the parent rebuilds every render.
+    if (tried.current.has(k)) return;
     tried.current.add(k);
-    void open(answer.handle, draw.id, false).catch(() => {
+    void open(handle, drawId, false).catch(() => {
       // A failed decrypt stays failed until the draw is picked again; the manual button
       // below is the retry, so nothing here loops.
     });
-  }, [answer, unlocked, draw, openedByDraw, open]);
+  }, [handle, unlocked, drawId, open]);
 
   /**
    * Claim the draw for yourself: one transaction, one wallet prompt.
