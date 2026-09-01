@@ -14,7 +14,7 @@ import { Pot3D } from "@/components/Pot3D";
 import { useMyPosition } from "@/hooks/useMyPosition";
 import { useDraws } from "@/hooks/useDraws";
 import { usePoolHref } from "@/hooks/usePoolHref";
-import { poolPhase } from "@/hooks/usePoolPhase";
+import { poolPhase, type Phase } from "@/hooks/usePoolPhase";
 import { useLastDraw, useNow, usePoolState, useWeeklyPot } from "@/hooks/usePoolState";
 import { POOL_ADDRESS } from "@/lib/contract";
 import { formatCountdown, formatUnits, shortenAddress, splitUnits } from "@/lib/format";
@@ -327,31 +327,35 @@ export default function PoolTab() {
         <section className="panel">
           <div className="panelHead">
             <span>DRAW ENGINE · #{drawNumber}</span>
-            <span style={{ color: state.drawPending ? "var(--yellow)" : undefined }}>
-              {state.drawPending ? "IN FLIGHT" : state.periodEnded ? "ARMED" : "SEALED UNTIL CLOSE"}
-            </span>
+            {/* One vocabulary for the whole page. This badge used to run its own logic and
+                say "SEALED UNTIL CLOSE" during a week where nothing was sealed, while the
+                phase line below it said "OPEN" about the same moment. */}
+            <span style={{ color: phase.id === "accruing" ? undefined : "var(--yellow)" }}>{phase.tag}</span>
           </div>
+          {/* These three used to read `drawNumber > 0`, so every cell showed OK forever
+              once any draw had ever settled — a diagram of the mechanism rather than a
+              report on this one. They now track the cycle actually in front of you. */}
           <div className={styles.engine}>
             <EngineCell
               label="COMMITMENT"
               note="the pool total is sealed and published for decryption"
-              done={state.drawPending || drawNumber > 0}
-              active={state.drawPending}
+              done={phase.id === "sealed" || phase.id === "settling"}
+              active={phase.id === "due"}
             />
             <EngineCell
               label="ENCRYPTED DIE"
-              note="the network rolls it on-chain, in the settling tx"
-              done={drawNumber > 0 && !state.drawPending}
-              active={false}
+              note="the network rolls it on-chain, inside the settling transaction"
+              done={phase.id === "settling"}
+              active={phase.id === "sealed"}
             />
             <EngineCell
-              label="SETTLEMENT"
-              note="FHE.select moves the pot, branchlessly"
-              done={drawNumber > 0 && !state.drawPending}
-              active={false}
+              label="PAYOUT"
+              note="every depositor is checked; FHE.select moves the pot, branchlessly"
+              done={false}
+              active={phase.id === "settling"}
             />
           </div>
-          <CloseDraw drawPending={state.drawPending} />
+          <CloseDraw phase={phase} />
         </section>
 
         {/* v6 pairs the personal question with the public record, side by side: the
@@ -425,25 +429,44 @@ function EngineCell({ label, note, done, active }: { label: string; note: string
 }
 
 /**
- * What closing the week is, said where depositors stand.
+ * What the cycle needs next, said where depositors stand.
  *
- * The action itself lives on Judge, which is the page that owns the whole cycle. This used
- * to carry its own `openDraw` button as well, and a second copy of a rule is a second copy
- * to keep correct: it gated on the elapsed period alone, so it sat greyed out for the owner
- * who may open early and for the sandbox where the operator forwards the call to anyone,
- * and it pointed at the pool rather than the operator, which would have reverted. One
- * sentence and a link cannot drift out of step with the contract.
+ * The action itself lives on Judge, which owns the whole cycle. This used to carry its own
+ * `openDraw` button as well, and a second copy of a rule is a second copy to keep correct:
+ * it gated on the elapsed period alone, so it sat greyed out for the owner who may open
+ * early and on the sandbox where the operator forwards the call to anyone. One sentence
+ * cannot drift out of step with the contract — but it can at least say which step is next,
+ * rather than describing the mechanism in general while the pool waits on something
+ * specific.
  */
-function CloseDraw({ drawPending }: { drawPending: boolean }) {
+function CloseDraw({ phase }: { phase: Phase }) {
   const withPool = usePoolHref();
+
+  const next: Record<Phase["id"], { says: string; cta: string }> = {
+    accruing: {
+      says: "Nothing to do yet. When the week is up, any wallet can open the draw — the operator is not in that path.",
+      cta: "See the cycle on Judge",
+    },
+    due: {
+      says: "The week is up and nobody has sealed the total yet. This needs no permission now; it is waiting on somebody to press it.",
+      cta: "Open the draw on Judge",
+    },
+    sealed: {
+      says: "The total is sealed and published. Settling relays the decrypted total back with its proof, and the die is rolled in that same transaction.",
+      cta: "Settle it on Judge",
+    },
+    settling: {
+      says: "The die is rolled and prizes are being credited. Every depositor is checked in turn, winner or loser, and the checks cost the same.",
+      cta: "Run the payout on Judge",
+    },
+  };
+  const step = next[phase.id];
 
   return (
     <div className={styles.engineFoot}>
       <span>
         One round closes the week: the pool is sealed, the network rolls an encrypted die, and the pot moves without
-        ever resolving a name.{" "}
-        {drawPending ? "The total is sealed and waiting to be settled." : "Anyone can start it once the week is up."}{" "}
-        <Link href={withPool("/judge")}>{drawPending ? "Settle it on Judge" : "Run it on Judge"} →</Link>
+        ever resolving a name. {step.says} <Link href={withPool("/judge")}>{step.cta} →</Link>
       </span>
     </div>
   );

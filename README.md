@@ -44,6 +44,12 @@ The pool has run a full cycle three times: deposits accrued, a draw opened and s
 depositor was checked, and the period rolled. Nobody — including the contract — knows which of the fifteen won any of
 them.
 
+**Three of the four cycle steps are permissionless.** Once the week is up, any wallet can open the draw, settle it, and
+pay every depositor out — the operator is not in that path and cannot stall it. Only the roll is the operator's, and
+only because the thirty-day claim window outlasts the seven-day period, so nobody else reaches the point where the
+contract would let them close a claim early. That single exception is the one place this design asks for trust, and
+[`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner) treats it as one rather than as a feature.
+
 ---
 
 ## The idea in one paragraph
