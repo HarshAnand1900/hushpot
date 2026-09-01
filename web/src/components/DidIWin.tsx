@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAccount, useConfig, usePublicClient, useWriteContract } from "wagmi";
+import { useAccount, useConfig, usePublicClient, useSignTypedData, useWriteContract } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { DEPLOY_BLOCK, POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { useReceipts } from "@/hooks/useReceipts";
-import { decryptHandle } from "@/lib/fhe";
+import { currentSession, decryptHandle, openSession } from "@/lib/fhe";
 import { describeError, toast } from "@/lib/toast";
 import { formatCountdown, formatUnits } from "@/lib/format";
 import styles from "./DidIWin.module.css";
@@ -67,13 +67,14 @@ export function DidIWin({
   const config = useConfig();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const { signTypedDataAsync } = useSignTypedData();
 
   const [picked, setPicked] = useState(0);
   const [answer, setAnswer] = useState<Answer>({ kind: "loading" });
   /** Opened receipts, by draw id. Keeps a revisited draw instant and silent. */
   const [openedByDraw, setOpenedByDraw] = useState<Record<string, bigint>>({});
   const [arrival, setArrival] = useState<{ at: number; hash: string; by: string }>();
-  const [busy, setBusy] = useState<"claiming" | "opening">();
+  const [busy, setBusy] = useState<"signing" | "claiming" | "opening">();
   const [error, setError] = useState<string>();
   const [nonce, setNonce] = useState(0);
   // A rehearsal of the winning screen, with no transaction behind it. Most visitors will
@@ -187,6 +188,9 @@ export function DidIWin({
         else if (checked) setAnswer({ kind: "legacy" });
         else if (windowOpen) setAnswer({ kind: "unclaimed" });
         else setAnswer({ kind: "missed" });
+        // Marked only once the reads have landed, so an interrupted resolve is retried
+        // from scratch rather than treated as already answered.
+        resolved.current = String(drawId);
 
         // Provenance. `ClaimChecked` is public and indexed by draw and slot, so the panel
         // can name the block, the time and the caller without decrypting anything.
@@ -223,15 +227,28 @@ export function DidIWin({
     return () => {
       live = false;
     };
-    resolved.current = String(drawId);
   }, [publicClient, address, drawId, windowOpen, nonce]);
 
-  /** Open a receipt. A decryption: one signature, no gas, works whenever. */
+  /**
+   * Make sure a decrypt session exists, opening one if it does not.
+   *
+   * The panel used to render a disabled button reading "Reveal your position first",
+   * which is an instruction to go and operate a different panel and then come back. A
+   * signature this flow needs is a signature this flow should ask for.
+   */
+  const ensureSession = useCallback(async () => {
+    if (!address || currentSession(address)) return;
+    setBusy("signing");
+    await openSession(address, signTypedDataAsync as never);
+  }, [address, signTypedDataAsync]);
+
+  /** Open a receipt. A decryption: one signature at most, no gas, works whenever. */
   const open = useCallback(
     async (handle: string, drawId: bigint, announce: boolean) => {
-      setBusy("opening");
       setError(undefined);
       try {
+        await ensureSession();
+        setBusy("opening");
         const value = (await decryptHandle(handle)) ?? 0n;
         setOpenedByDraw((m) => ({ ...m, [String(drawId)]: value }));
         markOpened(drawId);
@@ -253,7 +270,7 @@ export function DidIWin({
         setBusy(undefined);
       }
     },
-    [markOpened],
+    [ensureSession, markOpened],
   );
 
   /**
@@ -286,10 +303,14 @@ export function DidIWin({
    * keeper racing you changes which state you land in and never the answer.
    */
   const claim = useCallback(async () => {
-    if (!draw || !publicClient) return;
-    setBusy("claiming");
+    if (!draw || !address || !publicClient) return;
     setError(undefined);
     try {
+      // Signature first, while nothing has been spent. Asking for it afterwards left the
+      // user holding a settled transaction and a panel that would not say what it did.
+      await ensureSession();
+
+      setBusy("claiming");
       const tx = await writeContractAsync({
         address: POOL_ADDRESS,
         abi: poolAbi,
@@ -299,18 +320,50 @@ export function DidIWin({
       // Two confirmations: the relayer has to see the grant this transaction made before
       // it will decrypt, and one block leaves too little room for that to propagate.
       await waitForTransactionReceipt(config, { hash: tx, confirmations: 2 });
-      toast({ kind: "success", title: "Claimed", detail: "Opening your result…", hash: tx });
-      tried.current.delete(String(draw.id));
+
+      // Read and open the receipt here rather than waiting for the resolve effect to
+      // notice. One button, one continuous flow, ending on the answer.
+      setBusy("opening");
+      const slot = (await publicClient.readContract({
+        address: POOL_ADDRESS,
+        abi: poolAbi,
+        functionName: "slotOf",
+        args: [address],
+      })) as number;
+      const award = (await publicClient.readContract({
+        address: POOL_ADDRESS,
+        abi: poolAbi,
+        functionName: "awardOf",
+        args: [draw.id, slot],
+      })) as string;
+
+      if (isHandle(award)) {
+        const value = (await decryptHandle(award)) ?? 0n;
+        setOpenedByDraw((m) => ({ ...m, [String(draw.id)]: value }));
+        markOpened(draw.id);
+        setAnswer({ kind: "ready", handle: award });
+        tried.current.add(String(draw.id));
+        toast(
+          value > 0n
+            ? {
+                kind: "success",
+                title: `You won ${formatUnits(value)} cUSDT`,
+                detail: "Only you can read it.",
+                hash: tx,
+              }
+            : { kind: "success", title: "Not this draw", detail: "Your receipt decrypts to zero.", hash: tx },
+        );
+      }
       setNonce((n) => n + 1);
       onClaimed();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not claim this draw.";
-      setError(/user rejected|denied/i.test(message) ? "Transaction declined." : describeError(e));
+      setError(/user rejected|denied/i.test(message) ? "Declined." : describeError(e));
       toast({ kind: "error", title: "Could not claim this draw", detail: describeError(e) });
     } finally {
       setBusy(undefined);
     }
-  }, [config, draw, onClaimed, publicClient, writeContractAsync]);
+  }, [address, config, draw, ensureSession, markOpened, onClaimed, publicClient, writeContractAsync]);
 
   /** What the header says. Short, and about you rather than about the contract. */
   const status = (() => {
@@ -457,7 +510,7 @@ export function DidIWin({
               onClick={() => draw && open(answer.handle, draw.id, true).catch(() => {})}
               disabled={!!busy}
             >
-              {busy === "opening" ? "Opening…" : unlocked ? "Open my result · no gas" : "Reveal your position first"}
+              {busy === "signing" ? "Check your wallet…" : busy === "opening" ? "Opening…" : "Open my result · no gas"}
             </button>
           </div>
         )}
@@ -473,7 +526,13 @@ export function DidIWin({
               straight afterwards, and reopens for free whenever you like.
             </p>
             <button className="btnPrimary" onClick={claim} disabled={!!busy}>
-              {busy === "claiming" ? "Claiming…" : "Claim this draw"}
+              {busy === "signing"
+                ? "Check your wallet…"
+                : busy === "claiming"
+                  ? "Claiming…"
+                  : busy === "opening"
+                    ? "Opening your result…"
+                    : "Claim this draw"}
             </button>
             <p className={styles.fine}>
               You never have to be first. A keeper sweeping the pool credits you exactly the same amount, and being
@@ -558,11 +617,15 @@ export function DidIWin({
           </div>
         )}
 
-        {busy === "claiming" && (
+        {(busy === "claiming" || busy === "opening") && (
           <>
-            <div className={styles.scramble}>Running the check on-chain…</div>
+            <div className={styles.scramble}>
+              {busy === "claiming" ? "Running the check on-chain…" : "Decrypting your answer, in this browser…"}
+            </div>
             <p className={styles.copy}>
-              Your claim adds the prize or an encrypted zero. On-chain the two are indistinguishable.
+              {busy === "claiming"
+                ? "Your claim adds the prize or an encrypted zero. On-chain the two are indistinguishable."
+                : "The result never crosses the wire in the clear. Only your key opens it."}
             </p>
             <div className={styles.sweepTrack}>
               <span className={styles.sweep} />

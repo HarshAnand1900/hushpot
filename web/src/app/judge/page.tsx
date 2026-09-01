@@ -70,6 +70,10 @@ export default function JudgeTab() {
   const drawId = state.drawCount > 0n ? state.drawCount - 1n : 0n;
   const isOwner = !!address && !!owner && address.toLowerCase() === owner.toLowerCase();
   const sweptAll = cursor !== undefined && cursor >= state.depositors && state.depositors > 0;
+  // How many more times step 04 has to be pressed. A sweep covers four slots, and without
+  // this the panel showed progress but never said that pressing the same button again is
+  // what finishes it — which reads as a stuck pool rather than an unfinished one.
+  const sweepsLeft = Math.max(0, Math.ceil((Number(state.depositors) - Number(cursor ?? 0)) / 4));
   /**
    * Whether the last settled draw still belongs to the current period.
    *
@@ -358,7 +362,7 @@ export default function JudgeTab() {
       title: "Open the draw",
       sig: onSandbox ? "SandboxOperator.openDraw()" : "openDraw()",
       note: claimOpen
-        ? `Draw #${Number(state.drawCount) - 1} has already settled in this period, and the contract allows one per period. Sweep everyone, then roll — the next draw opens on the other side of that.`
+        ? `Draw #${Number(state.drawCount) - 1} has already settled in this period, and the contract allows one per period. The next draw lives on the other side of a roll, so the order from here is: step 04 ${sweepsLeft > 0 ? `${sweepsLeft} more time${sweepsLeft === 1 ? "" : "s"}` : "until everyone is covered"}, then step 06, then this one.`
         : onSandbox
           ? "Seals the pool total and publishes it for decryption. Sent through the sandbox's owner contract, which forwards this call to any address, so it works from your wallet, now, without waiting for the period to elapse."
           : "Seals the pool total and publishes it for decryption. Anyone may call it once the period has elapsed; the owner may call it early so a week-long cycle fits in a demo.",
@@ -386,7 +390,7 @@ export default function JudgeTab() {
       role: "ANYONE",
       title: "Pay everyone out",
       sig: "sweepRange(uint256, uint16)",
-      note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped instead of paid twice, so this is safe to repeat. ${cursor ?? 0} of ${state.depositors} covered.`,
+      note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped instead of paid twice, so this is safe to repeat. ${cursor ?? 0} of ${state.depositors} covered${sweepsLeft > 1 ? ` — press Run ${sweepsLeft} more times to finish` : sweepsLeft === 1 ? " — one more Run finishes it" : ""}.`,
       disabled: !isConnected || state.drawCount === 0n || !claimOpen || sweptAll,
       go: () =>
         run("sweep", `sweepRange(${drawId}, 4)`, async () => {
@@ -420,7 +424,7 @@ export default function JudgeTab() {
           ? onSandbox
             ? "Ends the claim window and opens the next period, through the owner contract so it needs no key and no thirty-day wait. The pool is then back at step 01, ready to run again."
             : "Ends the claim window and opens the next period. Held back thirty days after settlement so a claim is never a race."
-          : `Locked until everyone is swept: ${cursor ?? 0} of ${state.depositors}. Rolling now would end the claim window on anybody still unpaid.`,
+          : `Locked until everyone is swept: ${cursor ?? 0} of ${state.depositors}. Rolling now would end the claim window on anybody still unpaid, so run step 04 ${sweepsLeft} more time${sweepsLeft === 1 ? "" : "s"} and this unlocks. The contract would let the owner roll regardless — this gate is the app being careful, not a rule.`,
       disabled: !isConnected || state.drawCount === 0n || state.drawPending || !claimOpen || !sweptAll,
       go: () =>
         run("roll", onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()", async () => {

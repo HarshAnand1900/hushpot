@@ -43,9 +43,9 @@ Stated plainly rather than buried, and covered in full in [`THREAT-MODEL.md`](TH
   check exempts the owner.
 - **A griefer's slots cannot be reclaimed.** A depositor can give their own slot back with `exitPool`, but nobody can
   take one from an attacker — that case is priced rather than prevented. See [§9](THREAT-MODEL.md#9-slot-exhaustion).
-- **Acquiring cUSDT publishes that amount**, because wrapping plain tUSDT is an ordinary ERC-20 transfer. It happens
-  at the faucet, decoupled from any deposit. The contract's public `depositUnderlying` route is not wired to anything
-  in the app — see [§3.1](THREAT-MODEL.md#31-acquiring-cusdt-publishes-that-amount).
+- **Acquiring cUSDT publishes that amount**, because wrapping plain tUSDT is an ordinary ERC-20 transfer. It happens at
+  the faucet, decoupled from any deposit. The contract's public `depositUnderlying` route is not wired to anything in
+  the app — see [§3.1](THREAT-MODEL.md#31-acquiring-cusdt-publishes-that-amount).
 - **Yield is funded from a reserve**, not a live strategy. On mainnet the same reserve would be fed by real yield.
 - **Ownership is a single key**, not a multisig, and the contract is not upgradeable — see
   [Operating the protocol](../README.md#operating-the-protocol).

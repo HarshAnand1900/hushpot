@@ -255,7 +255,7 @@ export function PositionPanel({
               : oddsStale
                 ? `out of date: the pool has grown past the total published at draw #${Math.max(0, drawNumber - 1)}, and the live one is encrypted. Your real share is recalculable only when the next draw publishes a new total.`
                 : isUnlocked
-                  ? "climbing every minute you stay in, computed here and never transmitted"
+                  ? "your share of the pool, against the total published at the last draw. It climbs through the period because that denominator is frozen while your weight accrues — not because holding beats holding. If everyone stays, everyone's weight grows together and the real shares barely move. Computed here, never transmitted."
                   : "computed here, never transmitted"}
           </div>
         </div>

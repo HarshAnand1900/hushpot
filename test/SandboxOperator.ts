@@ -106,7 +106,9 @@ describe("SandboxOperator", function () {
       "OwnableUnauthorizedAccount",
     );
 
-    const fns = SandboxOperator__factory.abi.filter((f) => f.type === "function").map((f) => ("name" in f ? f.name : ""));
+    const fns = SandboxOperator__factory.abi
+      .filter((f) => f.type === "function")
+      .map((f) => ("name" in f ? f.name : ""));
     expect(fns).to.have.members(["pool", "openDraw", "startNextPeriod", "fundPrizeReserve"]);
   });
 

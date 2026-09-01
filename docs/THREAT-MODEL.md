@@ -92,14 +92,19 @@ prize or an encrypted zero, and on-chain those two transactions are indistinguis
 | That an address deposited or withdrew, and when | Inherent to a public chain. Transactions are visible.  |
 | Which slot an address holds                     | A plain mapping. Reveals participation, never amount.  |
 | The pool total, once per draw                   | Needed to reduce the draw point into the pool's range. |
-| The prize each draw paid                        | Not anybody's balance.                                 |
-| Number of depositors                            | Aggregate.                                             |
+| The prize each draw paid                        | Not anybody's balance. Identical for every depositor.  |
+| Number of depositors                            | Aggregate — and the size of the anonymity set. §3.6    |
 | That a slot was checked for a draw              | Reveals a check happened, never its outcome.           |
 | Period schedule, yield rate, prize reserve      | Protocol parameters.                                   |
 | All contract code                               | The selection rule should be readable.                 |
 
 **Participation is public; position is not.** Anyone can see that you are in the pool. Nobody can see what you have in
 it.
+
+That is the claim this protocol makes, and §3.5 is where it is weakest: the published total is an aggregate, but
+subtracted across two draws and divided by a public timestamp it reconstructs a single depositor's amount exactly. The
+guarantee holds against reading the chain; it does not hold against arithmetic on what the chain already publishes,
+whenever a period is quiet enough. That section carries the worked example and the fix.
 
 ---
 
@@ -134,7 +139,8 @@ this reveals nothing about any individual. With few, it narrows sharply. **With 
 
 - **Severity:** scales inversely with pool size. Genuinely weak on a small testnet pool.
 - **Mitigation:** publish only at draw boundaries, never continuously. A live total would leak every deposit by
-  subtraction.
+  subtraction. This bounds the sampling rate; it does not close the leak. See §3.5, where the boundary version is
+  carried through to an exact recovery against the live pool.
 - **Consequence honoured in the UI:** the odds display divides by the total published at the _last_ draw, never a live
   one. A live denominator would let anyone recover the running total by dividing their own odds into it.
 
@@ -143,7 +149,8 @@ this reveals nothing about any individual. With few, it narrows sharply. **With 
 Odds are weighted by amount × time held, and the minute a deposit landed is a public block timestamp. So the
 _multiplier_ is known. The amount is not, so the product is not.
 
-- **Severity:** low. Reveals when you acted, which the transaction already did.
+- **Severity:** low alone, and the qualifier matters: this is half of §3.5. The multiplier is harmless only while the
+  product is unknown, and §3.2 supplies the product.
 
 ### 3.4 Concentration in a small pool
 
@@ -155,7 +162,80 @@ correlate.
 - **Possible mitigation, not implemented:** cap any single depositor's odds with `FHE.min`. This would clamp odds only,
   never principal, so the no-loss guarantee is untouched.
 
-### 3.5 What does _not_ leak
+### 3.5 §3.2 and §3.3 compose, and together they are exact
+
+The two leaks above are individually modest and were documented that way. Composed, they recover a deposit in full. §3.3
+argues that knowing the multiplier is harmless because the amount is unknown, so the product is unknown. That reasoning
+runs the other way as well: **knowing the product and the multiplier gives the amount by division.**
+
+- §3.2 gives the product. The difference between two published totals is that period's net weight.
+- §3.3 gives the multiplier. `Deposited` names the address, and the block timestamp fixes the minute.
+- Divide, and the deposit falls out in the clear.
+
+This is not theoretical. It works on the live deployment, and the arithmetic can be re-run by anybody:
+
+| Reading                           | Value                                  | Where from                |
+| --------------------------------- | -------------------------------------- | ------------------------- |
+| `draws(1).total`                  | 9,499,068,241,296,480                  | public getter             |
+| `draws(2).total`                  | 9,700,628,241,296,480                  | public getter             |
+| difference                        | 201,560,000,000,000                    | subtraction               |
+| the only `Deposited` between them | slot 14, block timestamp 1788136428    | public event              |
+| `periodStart` for period 2        | 1788136272                             | public getter             |
+| minute of period                  | (1788136428 − 1788136272) / 60 = **2** | arithmetic                |
+| multiplier                        | 10080 − 2 = **10078**                  | `PERIOD_MINUTES − minute` |
+| **201,560,000,000,000 ÷ 10078**   | **20,000,000,000 = 20,000 cUSDT**      | exact, no remainder       |
+
+The divisor is unique, so there is no ambiguity to hide in: 10077 leaves remainder 6791, 10079 leaves 1596, 10080
+leaves 320. Only the true multiplier divides evenly.
+
+- **Severity:** high whenever a period contains few deposits, and exact when it contains one. The ciphertext was never
+  broken — a published aggregate and two public timestamps reconstructed the plaintext beside it.
+- **Scope:** it recovers deposits made in a period, not balances held across many. A depositor who joined before the
+  first draw, or who moves in a busy period, is not separable this way.
+
+**The fix, and why it is not deployed.** Publish a _rounded_ total rather than the exact one: round up to the next
+multiple of some granularity `G`, and draw modulo that. Two consequences follow directly, and they trade against each
+other:
+
+- Any deposit smaller than `G` disappears. The published figure moves in steps of `G`, so a period whose net activity is
+  under that threshold publishes the same number twice and the subtraction yields nothing.
+- The draw point can land in the padding above the real total, in which case nobody wins and the prize rolls over. That
+  happens with probability at most `G / roundUp(total, G)`.
+
+So `G` is a dial between how large a deposit stays hidden and how many draws pay nobody. At the live pool's scale,
+`G = 2 × 10^14` ticket-minutes hides deposits up to roughly 20,000 cUSDT for a dead-draw rate near 2%. Rounding to the
+next power of two — the other obvious choice — buys the same class of protection at up to 50% dead draws, which is a
+much worse trade.
+
+This is a change to the draw itself, and it is not in the deployed contract. Making it days before a deadline, on a pool
+that cannot be re-tested under load, would risk the correctness the rest of this document is trying to establish. It is
+written down here instead, with the measurement that justifies it.
+
+### 3.6 The anonymity set is the pool
+
+A winner is one of the depositors, and the number of depositors is public. At fifteen slots that is a one-in-fifteen
+set, and the app says so on its face rather than implying better.
+
+This is inherent rather than incidental: slots are public because public slots are what let anyone settle a draw for
+anyone, which is what removes the operator from the payout path. The set grows with the pool and cannot be improved by
+encryption, only by participation.
+
+- **Severity:** structural, and honest. Confidentiality here protects _amounts and outcomes_, never _participation_.
+
+### 3.7 Displayed odds can exceed 100%, and that is the frozen denominator
+
+Odds are shown as your weight over the total published at the **last** draw, never a live total — §3.2 is why. Your
+weight accrues through the period while that denominator does not, so the displayed figure climbs, and every depositor's
+figure climbs at once. Summed across the pool they can exceed 100%.
+
+Nothing is inconsistent underneath: at draw time the real shares are computed against the real total and sum to exactly
+100%. The drift is an artifact of refusing to publish a live denominator, and the alternative leaks far more — anyone
+could divide their own odds into a live total, recover it, and take §3.2 from once a week to once a block.
+
+- **Severity:** none to confidentiality; a presentation cost paid deliberately. Past 100.5% the panel withholds the
+  number and says why rather than capping it, since a capped 100% reads as certainty.
+
+### 3.8 What does _not_ leak
 
 Worth stating, because both are common assumptions:
 
@@ -255,7 +335,7 @@ Honest omissions, with what each would take:
 
 _Last updated 27 August 2026. If something here is wrong, that is a bug — please report it._
 
-## 9. Slot exhaustion
+## 7. Slot exhaustion
 
 A slot is claimed on the first deposit from an address. Since `exitPool`, a depositor can give theirs back — it is
 released at the next period roll and handed to the next newcomer before the tree grows — so ordinary churn no longer

@@ -67,7 +67,7 @@ const MOMENTS = [
     what: "And the week opens again",
     who: "The keeper again",
     detail:
-      "The claim window closes and the next period begins. This is the one step a weekly cadence keeps in the operator's hands: the contract only opens it to everybody else after the full thirty days, which a seven-day week never reaches. Anyone left unswept would be stranded, so the call is blocked until the sweep is complete.",
+      "The claim window closes and the next period begins. This is the one step a weekly cadence keeps in the operator's hands: the contract only opens it to everybody else after the full thirty days, which a seven-day week never reaches. What protects an unclaimed slot is that thirty-day hold, not a sweep check — the contract does not verify one, and the owner can roll early. The Judge panel declines to until every slot is covered, but that is the app being careful, not the contract.",
     reveals: "Nothing",
   },
 ];

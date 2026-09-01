@@ -20,8 +20,8 @@ export type Receipt = { drawId: bigint; handle: string; opened: boolean };
  * What can be published is that a result *exists*, because that is already public and,
  * more importantly, identical for everybody. `claimChecked` and the `ClaimChecked` event
  * fire for every depositor in a sweep, winner and loser, at the same gas. So the pool can
- * say "draw #3 has been checked for you, and your receipt is ready" to all fourteen people
- * at once, and an observer counting notifications learns nothing they could not already
+ * say "draw #3 has been checked for you, and your receipt is ready" to every depositor at
+ * once, and an observer counting notifications learns nothing they could not already
  * count on-chain.
  *
  * The result itself never travels. It sits in `awardOf` as ciphertext only the depositor

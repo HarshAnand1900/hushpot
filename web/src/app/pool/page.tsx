@@ -28,10 +28,7 @@ export default function PoolTab() {
   // Built once per change of `draws` rather than once per render. This page polls, and
   // handing a freshly-built array down on every tick re-fired the panel's reads and made
   // it flicker between the answer and its loading state.
-  const checkable = useMemo(
-    () => draws.map((d) => ({ id: d.id, prize: d.prize, period: Number(d.period) })),
-    [draws],
-  );
+  const checkable = useMemo(() => draws.map((d) => ({ id: d.id, prize: d.prize, period: Number(d.period) })), [draws]);
   const { isConnected } = useAccount();
   const { stage, position, error, reveal, lock, isUnlocked } = useMyPosition();
   // "join" is deposit with the withdraw tab hidden: it is the way in for someone who

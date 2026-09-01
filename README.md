@@ -92,6 +92,7 @@ only you can open, so it survives the sweep, the roll and the years after. See
 [Finding out, afterwards](#finding-out-afterwards).
 
 ---
+
 ## How the draw works
 
 The interesting problem is picking a winner with odds proportional to a **secret** balance, without decrypting anyone's
@@ -138,6 +139,28 @@ contains it wins.
 3. `settleDraw()` rolls `FHE.randEuint64` on-chain and reduces it into the pool's range. **The draw point is never
    decrypted by anyone.**
 
+### Proportionality is proved exhaustively, not sampled
+
+A weighted lottery is only fair if the chance of winning equals the share of the pool, and the usual way to argue that
+is a Monte Carlo run — a few hundred thousand random draws, and a distribution that comes out close enough.
+
+`SegmentTree.ts` does something stronger. It builds a pool whose weights sum to 100, then walks **every** draw point in
+`[0, 100)` — not a sample of them, all of them — and asserts that each slot is selected exactly as many times as its
+weight:
+
+```
+for (let drawPoint = 0; drawPoint < total; drawPoint++) counts[findLeaf(drawPoint)]++;
+// then, for every slot:  counts[slot] === weight[slot]
+```
+
+There is no tolerance and no statistical error, because nothing is sampled. Every reachable input is enumerated and
+every output checked, which makes it a proof of exact proportionality over the whole domain rather than evidence of
+approximate proportionality over part of it. It also catches the off-by-one at a band boundary that a distribution test
+is least likely to notice and most likely to be broken by.
+
+Two companion cases pin the edges: a slot with zero weight is never selected, and re-weighting a leaf moves the bands
+correspondingly.
+
 ### Claiming
 
 There is no announcement, because nothing knows who won. The settlement path the protocol relies on is
@@ -178,9 +201,9 @@ the result, and so does anyone watching the channel — and even with an encrypt
 from the traffic alone, because losers would receive none.
 
 What the app does instead is ring a doorbell that sounds the same for everybody. `ClaimChecked` fires for every
-depositor in a sweep, winner and loser, at the same gas, so the pool can tell all fourteen people at once that a result
-is ready without distinguishing between them. Counting those notifications tells an observer nothing they could not
-already count on-chain.
+depositor in a sweep, winner and loser, at the same gas, so the pool can tell every depositor at once that a result is
+ready without distinguishing between them. Counting those notifications tells an observer nothing they could not already
+count on-chain.
 
 The result itself never travels. It stays in `awardOf` as ciphertext, and the only thing that opens it is a signature
 from the one address it was granted to.
@@ -580,9 +603,11 @@ On Sepolia, against the live coprocessor:
 | Read a receipt       | 1 signature, no transaction | works after the period rolls      |
 | Reveal your position | 1 signature + 1 transaction | signature cached for the visit    |
 
-Deploy, deposit and claim figures are read back off the live Sepolia deployment above: fourteen seeded depositors, one
-settled draw, one full sweep, averaged over all fourteen claim transactions. The paged-sweep and depth figures come from
-`HushpotSweepGas.ts` and `HushpotDepthGas.ts`, which print them on every run so they cannot drift silently.
+Deploy, deposit and claim figures are read back off the live Sepolia deployment above, measured when it held fourteen
+seeded depositors with one settled draw and one full sweep, averaged over all fourteen claim transactions. The pool has
+grown since; the figures are the conditions they were taken under, not a description of it today. The paged-sweep and
+depth figures come from `HushpotSweepGas.ts` and `HushpotDepthGas.ts`, which print them on every run so they cannot
+drift silently.
 
 **Claims went from 2.4M to 650k, a factor of 3.7.** Crediting a prize used to repair every ancestor sum between the slot
 and the root, three encrypted additions per level, for everyone. For all but one person the amount being added was an
@@ -615,13 +640,15 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 
 ## Invariants under test
 
-133 tests, run against the FHEVM mock. The ones worth naming:
+135 tests, run against the FHEVM mock. The ones worth naming:
 
 - exactly one depositor is paid, and exactly the prize, verified by decrypting every participant's balance before and
   after a sweep
 - a self-check followed by a sweep does **not** credit the same slot twice
 - the pool total is published only at a draw boundary, never on demand
+- every slot is selected exactly as often as its weight, checked by enumerating every draw point rather than sampling
 - bands tile the number line with no gaps and no overlaps, checked exhaustively against a plaintext oracle
+- a prize parked on a slot whose owner has left is never handed to whoever inherits that slot
 - a withdrawal is clamped to the balance held, because a ciphertext cannot be branched on
 - no second draw can settle in the same period
 - a prize never touches principal

@@ -764,18 +764,28 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
             FHE.asEuint64(0)
         );
 
-        // The same receipt {checkClaim} writes, and this is the path that matters: a
-        // keeper sweeping the pool is how almost every claim is actually settled, so
-        // leaving it out would mean the answer existed only for the handful of people who
-        // got there first.
-        _awardOf[drawId][slot] = award;
-        FHE.allowThis(award);
-        // A slot given up with {exitPool} keeps its place until the period rolls and can
-        // still be swept, with nobody left to grant it to.
+        // A slot given up with {exitPool} keeps its place until the period rolls, so it
+        // still has weight from the days it was held and its band can still take the draw
+        // point. Nobody owns it, though, and parking an award on it is how the prize
+        // reached a stranger: `_pendingAward` carries no period stamp, `_retireSlot` does
+        // not clear it, and `_ensureSlot` hands the slot on believing it is empty. The
+        // next depositor folded the award into their own balance.
+        //
+        // The band is still counted above — dropping it would shift every later slot's
+        // edge and break the partition — but nothing is recorded and nothing is parked.
+        // The prize then goes unawarded, exactly as it does for a claim nobody makes.
         address holder = slotOwner[slot];
-        if (holder != address(0)) FHE.allow(award, holder);
+        if (holder != address(0)) {
+            // The same receipt {checkClaim} writes, and this is the path that matters: a
+            // keeper sweeping the pool is how almost every claim is actually settled, so
+            // leaving it out would mean the answer existed only for the handful of people
+            // who got there first.
+            _awardOf[drawId][slot] = award;
+            FHE.allowThis(award);
+            FHE.allow(award, holder);
 
-        _parkAward(slot, award);
+            _parkAward(slot, award);
+        }
 
         claimChecked[drawId][slot] = true;
         emit ClaimChecked(drawId, slot, msg.sender);

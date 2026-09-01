@@ -447,8 +447,9 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
 
     /// @dev Compute the pool's total ticket-minutes and mark it publicly decryptable.
     ///
-    /// Deliberately **internal**. The total is the one aggregate Hushpot publishes, and
-    /// only at a draw boundary — {HushpotPool-openDraw} is the sole caller in production.
+    /// Deliberately **internal**, and in fact unreachable in production: nothing in
+    /// {HushpotPool} calls it. `openDraw` publishes the total itself, inline, once per
+    /// period. The only caller is a test harness.
     ///
     /// This used to be `external`, which meant anyone could publish the live total on
     /// demand. That is not a small leak: read it, wait for a deposit to land, read it
