@@ -40,7 +40,33 @@ type Entry = {
  * confidential rows carry •••••• where an amount would go, because there is no amount
  * field to render — and no settlement names a winner, because no winner is ever resolved.
  */
-export function ContractLog({ limit = 8 }: { limit?: number }) {
+/**
+ * Totals come from contract state; the feed comes from logs.
+ *
+ * They used to both come from logs, and the public RPC will not support that. It is load
+ * balanced across nodes with different history, so the same `eth_getLogs` returned 97
+ * entries on one call and 22 on the next, and the panel then reported "PAID OUT 922.81"
+ * beside a rail reading 2,344.33 — one settled draw found instead of three. A number that
+ * changes when you reload is worse than no number.
+ *
+ * `slotsUsed()` and `draws(i).prize` are state, so every node agrees on them. They are
+ * read by the page already and handed down here, and the log-derived figures are kept only
+ * for the two that have no state equivalent.
+ */
+export function ContractLog({
+  limit = 8,
+  depositors,
+  paid,
+  drawsSettled,
+}: {
+  limit?: number;
+  /** From `slotsUsed()`. Authoritative, unlike counting distinct depositors in logs. */
+  depositors?: number;
+  /** Summed from `draws(i).prize`. Authoritative, unlike summing `DrawSettled` logs. */
+  paid?: bigint;
+  /** From `drawCount()`. */
+  drawsSettled?: number;
+}) {
   const publicClient = usePublicClient();
   const [rows, setRows] = useState<Entry[]>();
   const [head, setHead] = useState<bigint>();
@@ -141,13 +167,29 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
       for (const l of [...(plain as unknown as Raw[]), ...shieldedOnly]) {
         accounts.add(l.args.account as string);
       }
-      setStats({
+      // Logs only ever accumulate, so a count that came back lower than one already seen
+      // is a bad read rather than news — the public endpoint is load balanced across nodes
+      // that do not all hold the same history, and the same query returned 97 entries on
+      // one call and 22 on the next. Keeping the high-water mark makes these figures stop
+      // moving backwards between polls, which is what made them untrustworthy on screen.
+      const fresh = {
         depositors: accounts.size,
         deposits: plain.length + shieldedOnly.length,
         paid: (settled as unknown as Raw[]).reduce((sum, l) => sum + (l.args.prize as bigint), 0n),
         sweeps: claims.length,
         sponsored: (sponsored as unknown as Raw[]).reduce((sum, l) => sum + (l.args.amount as bigint), 0n),
-      });
+      };
+      setStats((prev) =>
+        prev
+          ? {
+              depositors: Math.max(prev.depositors, fresh.depositors),
+              deposits: Math.max(prev.deposits, fresh.deposits),
+              paid: prev.paid > fresh.paid ? prev.paid : fresh.paid,
+              sweeps: Math.max(prev.sweeps, fresh.sweeps),
+              sponsored: prev.sponsored > fresh.sponsored ? prev.sponsored : fresh.sponsored,
+            }
+          : fresh,
+      );
 
       const shown = all.slice(0, limit);
 
@@ -187,11 +229,15 @@ export function ContractLog({ limit = 8 }: { limit?: number }) {
 
       {stats && (
         <div className={styles.stats}>
-          <Stat k="IN THE POOL" v={String(stats.depositors)} />
-          <Stat k="DEPOSITS MADE" v={String(stats.deposits)} />
-          <Stat k="PAID OUT" v={formatUnits(stats.paid)} gold />
-          <Stat k="CLAIMS CHECKED" v={String(stats.sweeps)} />
-          <Stat k="SPONSORED IN" v={formatUnits(stats.sponsored)} />
+          {/* Only figures backed by contract state survive here. Deposits made, claims
+              checked and sponsorship totals were counted from logs, and this endpoint
+              answers the same log query from nodes holding different history — so those
+              three changed on every reload and sometimes read 1. They are still visible
+              as rows in the feed below, where a partial list is obviously a recent slice
+              rather than a total that happens to be wrong. */}
+          <Stat k="IN THE POOL" v={depositors === undefined ? "—" : String(depositors)} />
+          <Stat k="DRAWS SETTLED" v={drawsSettled === undefined ? "—" : String(drawsSettled)} />
+          <Stat k="PAID OUT" v={paid === undefined ? "—" : formatUnits(paid)} gold />
         </div>
       )}
 

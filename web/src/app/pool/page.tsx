@@ -367,7 +367,14 @@ export default function PoolTab() {
               />
             )}
           </div>
-          <ContractLog limit={12} />
+          <ContractLog
+            limit={12}
+            // Undefined until the reads land, so the row shows a dash rather than three
+            // zeros that look like a pool nobody has joined.
+            depositors={state.loaded ? Number(state.depositors) : undefined}
+            drawsSettled={state.loaded ? Number(state.drawCount) : undefined}
+            paid={draws.length > 0 ? draws.reduce((sum, d) => sum + d.prize, 0n) : undefined}
+          />
         </section>
         <PositionHistory drawCount={state.drawCount} slot={position.slot} />
       </main>
