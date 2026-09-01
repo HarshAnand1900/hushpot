@@ -42,6 +42,49 @@ describe("HushpotPool — deposit cost against pool size", function () {
     poolAddress = await pool.getAddress();
   });
 
+  it("prices the copy-on-write that keeps an old claim answerable", async function () {
+    // The tree keeps one generation of history so a claim outlives its period. A node pays
+    // for that once, on its first touch in a new period, and nothing afterwards — so the
+    // honest figure is not the average, it is the first deposit after a roll compared with
+    // the second.
+    const [a, b] = signers;
+    for (const who of [a, b]) {
+      await (await usdt.mint(who.address, 3_000_000n)).wait();
+      await (await usdt.connect(who).approve(poolAddress, 3_000_000n)).wait();
+    }
+
+    await (await pool.connect(a).depositUnderlying(1_000_000n)).wait();
+    await (await pool.connect(b).depositUnderlying(1_000_000n)).wait();
+
+    // Settle a draw and roll, so every node on the path is now a period behind.
+    await ethers.provider.send("evm_increaseTime", [8 * 24 * 3600]);
+    await ethers.provider.send("evm_mine", []);
+    await (await usdt.mint(a.address, 10_000_000n)).wait();
+    await (await usdt.connect(a).approve(poolAddress, 10_000_000n)).wait();
+    await (await pool.connect(a).fundPrizeReserve(10_000_000n)).wait();
+    await (await pool.openDraw()).wait();
+    const res = await fhevm.publicDecrypt([await pool.pendingTotalHandle()]);
+    await (await pool.settleDraw(res.abiEncodedClearValues, res.decryptionProof)).wait();
+    await (await pool.startNextPeriod()).wait();
+
+    await (await usdt.mint(a.address, 2_000_000n)).wait();
+    await (await usdt.connect(a).approve(poolAddress, 2_000_000n)).wait();
+
+    const cold = (await (await pool.connect(a).depositUnderlying(1_000_000n)).wait())!.gasUsed;
+    const warm = (await (await pool.connect(a).depositUnderlying(1_000_000n)).wait())!.gasUsed;
+
+    console.log("");
+    console.log(`    first deposit after a roll   ${cold} gas  (archives the path)`);
+    console.log(`    second, same period          ${warm} gas`);
+    console.log(`    the history costs            ${cold - warm} gas, once per node per period
+`);
+
+    // The archive is a handful of plain SSTOREs against a deposit dominated by FHE work,
+    // so it must not be the deciding cost. Anything approaching a doubling means the copy
+    // is happening more often than once per node per period.
+    expect(cold).to.be.lessThan(warm * 2n);
+  });
+
   it("charges a shallow tree while the pool is small", async function () {
     const costs: { depositors: number; gas: bigint }[] = [];
 

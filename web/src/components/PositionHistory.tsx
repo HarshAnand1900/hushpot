@@ -106,11 +106,11 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
     type Raw = { blockNumber: bigint | null; transactionHash: string; args: Record<string, unknown> };
 
     try {
-      const mine = (event: ReturnType<typeof parseAbiItem>, key: string) =>
+      const mine = (event: ReturnType<typeof parseAbiItem>, key: string, value: string | number = address) =>
         publicClient.getLogs({
           address: POOL_ADDRESS,
           event: event as never,
-          args: { [key]: address } as never,
+          args: { [key]: value } as never,
           fromBlock: DEPLOY_BLOCK,
         });
 
@@ -127,7 +127,12 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
         mine(EV_PLAIN, "account"),
         mine(EV_DEPOSITED, "account"),
         mine(EV_WITHDRAWN, "account"),
-        mine(EV_CLAIM, "checkedBy"),
+        // Keyed on YOUR SLOT, not on who sent the transaction. `checkedBy` is whoever ran
+        // the check, so filtering on it meant a keeper sweep never appeared in your own
+        // history — the row read "you have not checked it" while a receipt for that draw
+        // was sitting there waiting to be opened. Being checked is the fact; who pressed
+        // the button is not.
+        slot === undefined ? Promise.resolve([]) : mine(EV_CLAIM, "slot", slot),
         transfers(EV_CTRANSFER, "from"),
         transfers(EV_CTRANSFER, "to"),
         Promise.all(

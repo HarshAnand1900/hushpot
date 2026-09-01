@@ -283,18 +283,36 @@ reserve is not an owner power — `sponsorPrize` is open to anyone, and adds to 
 **Cannot:** read any balance, influence the die, prevent a withdrawal, or move depositor funds. There is no
 owner-withdraw path in the contract.
 
-**Worth naming, and this is the sharpest one:** the owner can end the 30-day claim window early. `startNextPeriod()`
-enforces `CLAIM_GRACE` against everybody _except_ the owner, and rolling the period is what closes a claim — a draw is
-answerable only while its own period is current. So an owner who rolls early can strand an unclaimed prize.
+**Worth naming, and it used to be the sharpest one:** rolling the period is what closes a claim, because a draw is
+answerable only while its own period is current. The owner is exempt from `CLAIM_GRACE`, so an owner who rolled early
+could strand an unclaimed prize — and for most of this project's life the only thing standing in the way was the Judge
+panel declining to offer the button, which is a frontend courtesy rather than a contract rule.
 
-The exemption exists because a testnet demonstration cannot wait a month to show a second cycle, and it is the same
-exemption that lets the owner open a draw before the week is up. The Judge panel disables the roll until every slot has
-been swept, but that is a frontend courtesy, not a contract rule — the contract does not check it.
+**That hole is now closed on-chain.** `startNextPeriod` reverts with `ClaimsOutstanding` unless every slot the draw
+covered has been checked:
 
-Mitigating it in practice: a keeper sweeps every participant before the roll, so prizes land without anyone having to
-remember to claim. Mitigating it properly: enforce "all slots swept" on-chain, or drop the owner exemption once the demo
-period is over. **Until then this is a real trust assumption, and the 30-day window is a 30-day window for everyone
-except the owner.**
+```solidity
+Claims memory c = claims[drawCount - 1];
+if (c.checked < c.covered && block.timestamp < lastDrawSettledAt + CLAIM_GRACE) {
+    revert ClaimsOutstanding(c.checked, c.covered);
+}
+```
+
+Three things about that guard are deliberate:
+
+- **It is not role-gated.** Every other guard here exempts the owner; this one must not, because only the owner can
+  reach the roll early in the first place. A guard the owner could skip would bind nobody at all.
+- **`covered` is snapshotted at settlement**, so a depositor who joins afterwards cannot inflate the target and wedge
+  the period shut.
+- **The escape is the grace, not a role.** After thirty days the roll proceeds regardless, so a pool whose sweep has
+  become impractical cannot be locked forever. A claim nobody made in a month is forfeit, which is what `CLAIM_GRACE`
+  always meant.
+
+So the assumption narrows from _"the owner may strand a claim whenever they like"_ to _"an unchecked slot is forfeit
+after thirty days"_ — and the second is a rule the contract states rather than a promise the operator makes.
+
+**Still true, and worth keeping in view:** the owner may still roll early once everyone has been checked, and may still
+open a draw before the week is up. Neither strands anything.
 
 **Also worth naming:** the owner can set the yield rate to zero, which would make prizes zero. It would be visible
 immediately — the rate is public — but it is an admin power that a production deployment should put behind a timelock or

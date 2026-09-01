@@ -85,6 +85,28 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// *when*, never *how much*.
     mapping(uint256 => uint32) internal _stamp;
 
+    /// @dev One generation of history per node, so a settled draw stays answerable after
+    /// its period rolls.
+    ///
+    /// A claim recomputes a band from the tree, and the tree is period-scoped: roll, and
+    /// `_lateCredit`/`_earlyExit` age out while `_balance` keeps moving with new deposits.
+    /// The same call afterwards returns a different band, so it used to be refused outright
+    /// — which meant a depositor who did not check in time simply forfeited.
+    ///
+    /// Rather than snapshot every slot at settlement, which is O(n) encrypted storage per
+    /// draw, each node keeps the values it held before its most recent write. A node pays
+    /// one extra slot the first time it is touched in a new period and nothing thereafter,
+    /// so the cost tracks activity rather than pool size.
+    ///
+    /// One generation is enough because the claim window is one period. `_prevStamp` says
+    /// which period the archived values belong to; zero means nothing is reachable, which
+    /// is what a recycled slot is reset to so it can never read a previous occupant's
+    /// position.
+    mapping(uint256 => euint64) private _prevBalance;
+    mapping(uint256 => euint64) private _prevLate;
+    mapping(uint256 => euint64) private _prevEarly;
+    mapping(uint256 => uint32) private _prevStamp;
+
     uint32 public currentPeriod;
     uint256 public periodStart;
 
@@ -190,9 +212,16 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         if (free > 0) {
             // Reuse before growing. A recycled slot was emptied by its previous holder and
             // released at a period boundary, so its leaf is zero and its period-scoped
-            // corrections have already aged out — nothing to clear.
+            // corrections have already aged out.
+            //
+            // Its *history* has not. The leaf keeps one generation of archived values, and
+            // those belong to whoever held the slot before — so leaving them reachable
+            // would hand the next depositor a handle over a stranger's position, which they
+            // are granted decryption on. Clearing the stamp is what makes them unreachable;
+            // the values themselves are overwritten by the first write either way.
             slot = _freeSlots[free - 1];
             _freeSlots.pop();
+            delete _prevStamp[uint256(LEAF_OFFSET) + slot];
         } else {
             if (slotsUsed >= LEAF_COUNT) revert PoolFull();
             slot = slotsUsed;
@@ -280,6 +309,54 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         _stamp[node] = currentPeriod;
     }
 
+    /// @dev Shift a node's values into its history before they are overwritten.
+    ///
+    /// Called at the top of every write path, and does nothing at all in the common case:
+    /// a node already written this period has nothing to preserve, and a node never written
+    /// has nothing to preserve either. The copy happens once per node per period, on the
+    /// first touch, which is what keeps this O(1) amortised rather than O(n) per draw.
+    function _archive(uint256 node) internal {
+        uint32 was = _stamp[node];
+        if (was == currentPeriod) return;
+        if (euint64.unwrap(_balance[node]) == bytes32(0)) return;
+
+        _prevBalance[node] = _balance[node];
+        _prevLate[node] = _lateCredit[node];
+        _prevEarly[node] = _earlyExit[node];
+        // Offset by one so that zero means "nothing archived". Storing the raw period
+        // collides with period 0 being a real period: its history was written and then
+        // unreachable, the bands stopped covering the total, and a draw point could land
+        // in the gap so that nobody won at all.
+        _prevStamp[node] = was + 1;
+    }
+
+    /// @dev A node's balance as it stood in `period`.
+    ///
+    /// `_balance` carries across periods rather than resetting, so a node untouched since
+    /// before `period` still holds the right number — hence `<=` rather than `==`. That
+    /// also covers the gap case: a node written in period 5 and again in 8, asked for 6,
+    /// finds `_stamp` too new and `_prevStamp` old enough, and returns the archived value.
+    function _balanceAt(uint32 period, uint256 node) internal view returns (euint64) {
+        if (_stamp[node] <= period) return _balance[node];
+        uint32 prev = _prevStamp[node];
+        if (prev != 0 && prev - 1 <= period) return _prevBalance[node];
+        return _zero();
+    }
+
+    /// @dev Period-scoped corrections, which are only ever valid for their own period —
+    /// hence `==` here where the balance uses `<=`.
+    function _lateCreditAt(uint32 period, uint256 node) internal view returns (euint64) {
+        if (_stamp[node] == period) return _lateCredit[node];
+        if (_prevStamp[node] == period + 1) return _prevLate[node];
+        return _zero();
+    }
+
+    function _earlyExitAt(uint32 period, uint256 node) internal view returns (euint64) {
+        if (_stamp[node] == period) return _earlyExit[node];
+        if (_prevStamp[node] == period + 1) return _prevEarly[node];
+        return _zero();
+    }
+
     // -------------------------------------------------------------------------
     // Mutations
     // -------------------------------------------------------------------------
@@ -309,6 +386,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         euint64 pending = _pendingAward[slot];
         if (euint64.unwrap(pending) == bytes32(0)) return;
 
+        _archive(node);
         _balance[node] = FHE.add(_balance[node], pending);
         _lateCredit[node] = FHE.add(_lateCreditOf(node), FHE.mul(pending, minuteOfPeriod()));
         _pendingAward[slot] = _zero();
@@ -327,6 +405,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         uint256 node = uint256(LEAF_OFFSET) + slot;
 
         _foldPending(slot, node);
+        _archive(node);
         _balance[node] = FHE.add(_balance[node], amount);
         // Full credit would be amount * PERIOD_MINUTES. It only earns from minute `m`
         // onward, so it falls short by exactly `amount * m`.
@@ -349,6 +428,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         actual = FHE.min(requested, _balance[node]);
         uint64 m = minuteOfPeriod();
 
+        _archive(node);
         _balance[node] = FHE.sub(_balance[node], actual);
         // Dropping the balance strips a whole period of credit, but this stake genuinely
         // earned up to minute `m` — hand that portion back.
@@ -397,6 +477,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
             uint256 left = 2 * node;
             uint256 right = left + 1;
 
+            _archive(node);
             _balance[node] = FHE.add(_balance[left], _balance[right]);
             _lateCredit[node] = FHE.add(_lateCreditOf(left), _lateCreditOf(right));
             _earlyExit[node] = FHE.add(_earlyExitOf(left), _earlyExitOf(right));
@@ -413,8 +494,13 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// @dev Ticket-minutes under a node. Grouped as (full credit + refunds) - shortfalls so
     /// no intermediate value dips below zero, which unsigned ciphertexts cannot represent.
     function _weightOf(uint256 node) internal returns (euint64) {
-        euint64 full = FHE.mul(_balance[node], PERIOD_MINUTES);
-        return FHE.sub(FHE.add(full, _earlyExitOf(node)), _lateCreditOf(node));
+        return _weightAt(currentPeriod, node);
+    }
+
+    /// @dev Ticket-minutes under a node as of `period`, which may already have rolled.
+    function _weightAt(uint32 period, uint256 node) internal returns (euint64) {
+        euint64 full = FHE.mul(_balanceAt(period, node), PERIOD_MINUTES);
+        return FHE.sub(FHE.add(full, _earlyExitAt(period, node)), _lateCreditAt(period, node));
     }
 
     /// @notice Compute your own ticket-minutes and authorise yourself to decrypt them.
@@ -484,6 +570,11 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// The three components accumulate separately and combine once, so no partial sum can
     /// go negative along the way.
     function _prefixWeight(uint16 slot) internal returns (euint64) {
+        return _prefixWeightAt(currentPeriod, slot);
+    }
+
+    /// @dev Prefix sum as of `period`, reading each sibling through the history accessors.
+    function _prefixWeightAt(uint32 period, uint16 slot) internal returns (euint64) {
         euint64 bal = _zero();
         euint64 late = _zero();
         euint64 early = _zero();
@@ -493,9 +584,9 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         while (node > root) {
             if (node % 2 == 1) {
                 uint256 sib = node - 1;
-                bal = FHE.add(bal, _balance[sib]);
-                late = FHE.add(late, _lateCreditOf(sib));
-                early = FHE.add(early, _earlyExitOf(sib));
+                bal = FHE.add(bal, _balanceAt(period, sib));
+                late = FHE.add(late, _lateCreditAt(period, sib));
+                early = FHE.add(early, _earlyExitAt(period, sib));
             }
             node /= 2;
         }
@@ -510,10 +601,20 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// fed into a `select`, choosing between the prize and zero — so a loser's claim
     /// silently adds nothing and is indistinguishable on-chain from a winner's.
     function _checkWin(uint16 slot, euint64 drawPoint) internal returns (ebool) {
+        return _checkWinAt(currentPeriod, slot, drawPoint);
+    }
+
+    /// @dev The same question, asked of a period that may already have rolled.
+    ///
+    /// Every read goes through the period-aware accessors, so a draw settled against
+    /// period 4 is still evaluated against period 4's weights after period 5 has begun.
+    /// That is what lets a claim outlive its own period instead of being refused, and it
+    /// is why nobody has to be swept before the cycle can move on.
+    function _checkWinAt(uint32 period, uint16 slot, euint64 drawPoint) internal returns (ebool) {
         if (slot >= LEAF_COUNT) revert SlotOutOfRange();
 
-        euint64 lower = _prefixWeight(slot);
-        euint64 upper = FHE.add(lower, _weightOf(uint256(LEAF_OFFSET) + slot));
+        euint64 lower = _prefixWeightAt(period, slot);
+        euint64 upper = FHE.add(lower, _weightAt(period, uint256(LEAF_OFFSET) + slot));
 
         return FHE.and(FHE.ge(drawPoint, lower), FHE.lt(drawPoint, upper));
     }

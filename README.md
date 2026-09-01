@@ -22,7 +22,7 @@ Built for the Zama Developer Program, Mainnet Season 4.
   anyone can self-serve
 - **Judge sandbox:** [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox). The same panel
   pointed at a second, expendable pool
-  ([`0x428F…A2D6`](https://sepolia.etherscan.io/address/0x428F381a39cC8AF0B4D3B2E91b26785f1eFEA2D6#code)) whose owner is
+  ([`0xff2a…9E90`](https://sepolia.etherscan.io/address/0xff2a1253F073Cb42a03F7F3831A6190699399E90#code)) whose owner is
   a contract, so all six cycle steps are open to any wallet. No key to import, no week to wait. See
   [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md), covering what leaks and when
@@ -107,8 +107,12 @@ or an L2, useful for depositors who have wandered off, and never load-bearing.
 
 It buys that with a deadline, which is worth stating rather than burying. A claim only works while the draw's period is
 still current, because the check recomputes your band against the live tree and rolling the period moves those numbers.
-The window is thirty days and the roll is held back from everyone but the owner for its duration. Claim inside it, or
-let a sweep cover you. Miss both and the prize stays in the reserve and funds the next draw.
+
+What stops that deadline from being a trap is that **the roll waits for you**: `startNextPeriod` reverts with
+`ClaimsOutstanding` until every slot the draw covered has been answered, whether by the depositor settling their own
+claim or by a keeper sweeping them. That guard binds the owner too — deliberately, since only the owner can reach the
+roll early, so exempting them would leave it guarding nothing. The one release valve is the thirty-day grace: after a
+month the roll proceeds regardless, because a pool that can never advance is a worse failure than a forfeited prize.
 
 Finding out **whether** you won is a separate matter and has no deadline at all: the result is stored as a ciphertext
 only you can open, so it survives the sweep, the roll and the years after. See
@@ -365,7 +369,7 @@ contracts/
   SegmentTree.sol                    plaintext oracle, proven then encrypted
   TimeWeightedTree.sol               plaintext oracle for the time weighting
   mocks/                             local token pair + test-only tree harness
-test/                                136 tests
+test/                                143 tests
 tasks/hushpot.ts                     the operator + keeper flow
 deploy/01_hushpot.ts                 deployment
 web/                                 the app
@@ -406,6 +410,9 @@ can start is a pool its operator can stall.
 | `openDraw`                        | any address once the week is up  | the pool                |
 | `startNextPeriod`                 | the owner; anybody after 30 days | the pool                |
 
+…and `startNextPeriod` carries one more condition that is not about who you are: it reverts while any slot the last draw
+covered is still unchecked. That one applies to the owner as well.
+
 The two in bold are the ones that matter. A stranger can pay out your prize, for a pool they have never deposited into,
 without learning a thing in the process. Everything they touch stays encrypted, and a loser's claim costs the same gas
 as a winner's, so the act of checking gives nothing away. That is what lets a keeper sweep everyone after every draw:
@@ -439,8 +446,8 @@ Before then, use the **sandbox**: a second pool that exists for exactly this and
 |           |                                                                                                                                      |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Open it   | [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox)                                                         |
-| Pool      | [`0x428F381a39cC8AF0B4D3B2E91b26785f1eFEA2D6`](https://sepolia.etherscan.io/address/0x428F381a39cC8AF0B4D3B2E91b26785f1eFEA2D6#code) |
-| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xa612913e44374A5CC8735574F99c0EFBFfd541Ac#code), a contract, not a person  |
+| Pool      | [`0xff2a1253F073Cb42a03F7F3831A6190699399E90`](https://sepolia.etherscan.io/address/0xff2a1253F073Cb42a03F7F3831A6190699399E90#code) |
+| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xb9D0aE970458ee9CD325E1ca596fC36B1F66ef58#code), a contract, not a person  |
 
 **There is no key to import.** All six steps run from whatever wallet you already have, on a pool whose first cycle has
 never been run.
@@ -511,7 +518,7 @@ Sepolia gas fee, which is why a pool anyone can freely open draws on is not a pr
    where things stand. Every task takes a `HUSHPOT_POOL` address override, so the sandbox is drivable from the CLI too:
 
    ```bash
-   HUSHPOT_POOL=0x428F381a39cC8AF0B4D3B2E91b26785f1eFEA2D6 npx hardhat hushpot:status --network sepolia
+   HUSHPOT_POOL=0xff2a1253F073Cb42a03F7F3831A6190699399E90 npx hardhat hushpot:status --network sepolia
    ```
 
    Unset, the tasks use the deployed pool. `hushpot:sandbox` deploys a fresh one in a single command: pool, operator,
@@ -619,7 +626,7 @@ already in the pool, and pretending otherwise would be the more comfortable and 
 
 ```bash
 npm install
-npx hardhat test                 # 136 tests, no network needed
+npx hardhat test                 # 143 tests, no network needed
 ```
 
 Deploying:
@@ -707,7 +714,7 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 
 ## Invariants under test
 
-136 tests, run against the FHEVM mock. The ones worth naming:
+143 tests, run against the FHEVM mock. The ones worth naming:
 
 - exactly one depositor is paid, and exactly the prize, verified by decrypting every participant's balance before and
   after a sweep
@@ -717,6 +724,8 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 - bands tile the number line with no gaps and no overlaps, checked exhaustively against a plaintext oracle
 - a prize parked on a slot whose owner has left is never handed to whoever inherits that slot, and dropping it leaves
   the pool over-collateralised rather than under — the direction of that error is asserted, not assumed
+- a period cannot roll while any slot the last draw covered is unanswered, and the guard binds the owner too, since only
+  the owner can reach the roll early enough for it to matter
 - a withdrawal is clamped to the balance held, because a ciphertext cannot be branched on
 - no second draw can settle in the same period
 - a prize never touches principal

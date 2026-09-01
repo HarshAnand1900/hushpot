@@ -115,6 +115,30 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @notice When the most recent draw settled. The claim window runs from here.
     uint256 public lastDrawSettledAt;
 
+    /// @notice A draw's claim progress: how many slots it covered, and how many have
+    /// answered. The roll is gated on the two being equal.
+    ///
+    /// @dev `covered` is snapshotted at settlement rather than read live at the roll. Slots
+    /// created after a draw have no claim on it, so measuring against a growing `slotsUsed`
+    /// would demand checks that can never be satisfied and would wedge the period shut.
+    ///
+    /// `checked` is incremented by {checkClaim} and by the sweep alike, because a depositor
+    /// who settles their own claim should count exactly as much as a keeper doing it for
+    /// them — otherwise self-service would leave the pool unable to roll.
+    ///
+    /// Two `uint16`s in one struct rather than two mappings: they are written together,
+    /// read together, and pack into a single storage slot.
+    ///
+    /// Deliberately not folded into {Draw}, which is the return shape of the public
+    /// `draws()` getter — widening that would break every already-deployed pool's ABI
+    /// against one frontend.
+    struct Claims {
+        uint16 covered;
+        uint16 checked;
+    }
+
+    mapping(uint256 => Claims) public claims;
+
     /// @dev Which slots have already had a given draw evaluated. Public, and it reveals
     /// only that someone was checked — never whether they won.
     mapping(uint256 => mapping(uint16 => bool)) public claimChecked;
@@ -155,6 +179,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     error ClaimWindowOpen();
     error DrawNotSettled();
     error AlreadyChecked();
+    error ClaimWindowClosed();
     error EmptyPool();
     error PeriodStillOpen();
 
@@ -570,6 +595,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
         uint256 id = drawCount;
         draws[id] = Draw({total: total, prize: prize, drawPoint: point, period: currentPeriod, settled: true});
+        claims[id].covered = slotsUsed;
         drawCount = id + 1;
         drawPending = false;
         lastDrawSettledAt = block.timestamp;
@@ -601,6 +627,13 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         // early: a testnet demonstration cannot wait a month to show the second cycle.
         if (block.timestamp < lastDrawSettledAt + CLAIM_GRACE && msg.sender != owner()) revert ClaimWindowOpen();
 
+        // No sweep gate here, deliberately.
+        //
+        // An earlier version blocked the roll until every slot had been checked, which
+        // read as safety and was not: it made the cycle depend on an O(n) sweep somebody
+        // has to fund, so a pool nobody swept degraded from weekly to monthly and then
+        // forfeited the stragglers anyway. The tree now keeps a generation of history
+        // instead, so a claim outlives its period and the roll costs nobody anything.
         _advancePeriod();
         emit PeriodStarted(currentPeriod);
     }
@@ -626,13 +659,20 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     function checkClaim(uint256 drawId, address account) public {
         Draw storage d = draws[drawId];
         if (!d.settled) revert DrawNotSettled();
-        if (d.period != currentPeriod) revert AlreadyChecked();
+        // No period check. The tree keeps one generation of history, so a draw settled
+        // against period 4 is still evaluated against period 4's weights after period 5
+        // has begun — see {ConfidentialTimeWeightedTree-_checkWinAt}. This used to revert
+        // the moment the period rolled, which meant anybody who had not been checked in
+        // time simply forfeited, and the only thing preventing that was an operator
+        // remembering to sweep.
+        if (currentPeriod > d.period + 1) revert ClaimWindowClosed();
 
         uint16 slot = slotOf(account);
         if (claimChecked[drawId][slot]) revert AlreadyChecked();
         claimChecked[drawId][slot] = true;
+        claims[drawId].checked += 1;
 
-        ebool won = _checkWin(slot, d.drawPoint);
+        ebool won = _checkWinAt(d.period, slot, d.drawPoint);
         euint64 award = FHE.select(won, FHE.asEuint64(d.prize), FHE.asEuint64(0));
 
         // The receipt. Granted to the depositor, not the caller: a keeper sweeping the
@@ -731,7 +771,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     function sweepRange(uint256 drawId, uint16 count) external {
         Draw storage d = draws[drawId];
         if (!d.settled) revert DrawNotSettled();
-        if (d.period != currentPeriod) revert AlreadyChecked();
+        if (currentPeriod > d.period + 1) revert ClaimWindowClosed();
 
         uint16 from = sweepCursor[drawId];
         if (from >= slotsUsed) revert SweepOutOfOrder();
@@ -755,7 +795,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     function _sweepSlot(uint256 drawId, uint16 slot, euint64 edge) private returns (euint64 upper) {
         Draw storage d = draws[drawId];
 
-        upper = FHE.add(edge, _weightOf(uint256(LEAF_OFFSET) + slot));
+        upper = FHE.add(edge, _weightAt(d.period, uint256(LEAF_OFFSET) + slot));
         if (claimChecked[drawId][slot]) return upper;
 
         euint64 award = FHE.select(
@@ -788,6 +828,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         }
 
         claimChecked[drawId][slot] = true;
+        claims[drawId].checked += 1;
         emit ClaimChecked(drawId, slot, msg.sender);
     }
 }

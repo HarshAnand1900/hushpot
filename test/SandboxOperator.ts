@@ -85,6 +85,11 @@ describe("SandboxOperator", function () {
     const res = await fhevm.publicDecrypt([await pool.pendingTotalHandle()]);
     await (await pool.connect(stranger).settleDraw(res.abiEncodedClearValues, res.decryptionProof)).wait();
 
+    // Everyone the draw covered has to be checked first — the roll will not end a claim
+    // window that still has answers outstanding. See HushpotRollGate.ts.
+    const used = Number(await pool.slotsUsed());
+    for (let i = 0; i < used; i++) await (await pool.connect(stranger).sweepRange(0, 1)).wait();
+
     const before = await pool.currentPeriod();
     await expect(operator.connect(stranger).startNextPeriod()).to.not.be.reverted;
     expect(await pool.currentPeriod()).to.equal(before + 1n);

@@ -62,6 +62,8 @@ export default function JudgeTab() {
 
   const [owner, setOwner] = useState<string>();
   const [cursor, setCursor] = useState<number>();
+  /** Slots the latest draw covered, snapshotted at settlement. */
+  const [covered, setCovered] = useState<number>();
   const [running, setRunning] = useState<string>();
   // Persisted per pool: switching tabs to look at what a step changed used to wipe the
   // record that it had run. See useJudgeSession.
@@ -69,11 +71,12 @@ export default function JudgeTab() {
 
   const drawId = state.drawCount > 0n ? state.drawCount - 1n : 0n;
   const isOwner = !!address && !!owner && address.toLowerCase() === owner.toLowerCase();
-  const sweptAll = cursor !== undefined && cursor >= state.depositors && state.depositors > 0;
+  const target = covered ?? state.depositors;
+  const sweptAll = cursor !== undefined && target > 0 && cursor >= target;
   // How many more times step 04 has to be pressed. A sweep covers four slots, and without
   // this the panel showed progress but never said that pressing the same button again is
   // what finishes it — which reads as a stuck pool rather than an unfinished one.
-  const sweepsLeft = Math.max(0, Math.ceil((Number(state.depositors) - Number(cursor ?? 0)) / 4));
+  const sweepsLeft = Math.max(0, Math.ceil((target - Number(cursor ?? 0)) / 4));
 
   /**
    * When this period actually elapses, read from the chain rather than written down.
@@ -102,50 +105,53 @@ export default function JudgeTab() {
   const claimOpen = lastDraw !== undefined && lastDraw.period === state.currentPeriod;
 
   /** How many slots carry the checked flag for the current draw. */
+  /**
+   * How many of the draw's slots have been answered, straight from the contract.
+   *
+   * This used to read `claimChecked` once per slot and count the trues, because the only
+   * alternative was `sweepCursor`, which `sweepRange` advances and a self-settled claim
+   * does not. `checkedCount` is now maintained by both paths, so one read replaces N and
+   * — more to the point — it is the exact number the roll itself is gated on, rather than
+   * a reconstruction of it that could disagree.
+   */
   const countChecked = useCallback(async () => {
     if (!publicClient || state.drawCount === 0n) return 0;
-    const flags = await Promise.all(
-      Array.from({ length: state.depositors }, (_, slot) =>
-        publicClient.readContract({
-          address: POOL_ADDRESS,
-          abi: poolAbi,
-          functionName: "claimChecked",
-          args: [state.drawCount - 1n, slot],
-        }),
-      ),
-    );
-    return flags.filter(Boolean).length;
-  }, [publicClient, state.drawCount, state.depositors]);
+    const c = (await publicClient.readContract({
+      address: POOL_ADDRESS,
+      abi: poolAbi,
+      functionName: "claims",
+      args: [state.drawCount - 1n],
+    })) as readonly [number, number];
+    return Number(c[1]);
+  }, [publicClient, state.drawCount]);
 
   const refresh = useCallback(async () => {
     if (!publicClient) return;
     try {
-      // Progress is counted from `claimChecked`, not from `sweepCursor`.
-      //
-      // Only `sweepRange` advances that cursor. `checkClaim` does not — and that is what
-      // the CLI sweep uses, what `checkMyClaim` uses behind the "Did I win?" button, and
-      // what `checkClaimBatch` uses. So a pool swept by any of those still read 0 here,
-      // which left step 06 permanently blocked on a console whose whole purpose is running
-      // the cycle to completion. The per-slot flag is the truth whichever path set it.
-      const slots = state.depositors;
-      const [o, ...flags] = await Promise.all([
+      const id = state.drawCount > 0n ? state.drawCount - 1n : 0n;
+      const [o, c] = await Promise.all([
         publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "owner" }),
-        ...Array.from({ length: state.drawCount > 0n ? slots : 0 }, (_, slot) =>
-          publicClient.readContract({
-            address: POOL_ADDRESS,
-            abi: poolAbi,
-            functionName: "claimChecked",
-            args: [state.drawCount - 1n, slot],
-          }),
-        ),
+        state.drawCount > 0n
+          ? (publicClient.readContract({
+              address: POOL_ADDRESS,
+              abi: poolAbi,
+              functionName: "claims",
+              args: [id],
+            }) as Promise<readonly [number, number]>)
+          : Promise.resolve([0, 0] as const),
       ]);
+      const [covered, checked] = c;
 
       setOwner(o as string);
-      setCursor(flags.filter(Boolean).length);
+      setCursor(Number(checked));
+      // What the draw actually covered, not who is in the pool now. A depositor who joined
+      // after settlement has no claim on it, and measuring against the live count would
+      // show "15 of 16" for a cycle the contract considers finished.
+      setCovered(Number(covered));
     } catch {
       /* the console still renders without these */
     }
-  }, [publicClient, state.drawCount, state.depositors]);
+  }, [publicClient, state.drawCount]);
 
   useEffect(() => {
     void refresh();
@@ -407,7 +413,7 @@ export default function JudgeTab() {
       role: "ANYONE",
       title: "Pay everyone out",
       sig: "sweepRange(uint256, uint16)",
-      note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped instead of paid twice, so this is safe to repeat. ${cursor ?? 0} of ${state.depositors} covered${sweepsLeft > 1 ? ` — press Run ${sweepsLeft} more times to finish` : sweepsLeft === 1 ? " — one more Run finishes it" : ""}.`,
+      note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped instead of paid twice, so this is safe to repeat. ${cursor ?? 0} of ${target} covered${sweepsLeft > 1 ? ` — press Run ${sweepsLeft} more times to finish` : sweepsLeft === 1 ? " — one more Run finishes it" : ""}.`,
       disabled: !isConnected || state.drawCount === 0n || !claimOpen || sweptAll,
       go: () =>
         run("sweep", `sweepRange(${drawId}, 4)`, async () => {
@@ -441,7 +447,7 @@ export default function JudgeTab() {
           ? onSandbox
             ? "Ends the claim window and opens the next period, through the owner contract so it needs no key and no thirty-day wait. The pool is then back at step 01, ready to run again."
             : "Ends the claim window and opens the next period. Held back thirty days after settlement so a claim is never a race."
-          : `Locked until everyone is swept: ${cursor ?? 0} of ${state.depositors}. Rolling now would end the claim window on anybody still unpaid, so run step 04 ${sweepsLeft} more time${sweepsLeft === 1 ? "" : "s"} and this unlocks. The contract would let the owner roll regardless — this gate is the app being careful, not a rule.`,
+          : `Locked until every claim is answered: ${cursor ?? 0} of ${target}. Run step 04 ${sweepsLeft} more time${sweepsLeft === 1 ? "" : "s"} and this unlocks. The contract enforces it — \`startNextPeriod\` reverts with ClaimsOutstanding, for the owner too, because rolling ends a claim window and an unanswered claim can never be answered afterwards.`,
       disabled: !isConnected || state.drawCount === 0n || state.drawPending || !claimOpen || !sweptAll,
       go: () =>
         run("roll", onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()", async () => {
@@ -562,7 +568,7 @@ export default function JudgeTab() {
             />
             <Row
               label={`SWEPT · DRAW #${drawId}`}
-              value={cursor === undefined ? "—" : `${cursor} / ${state.depositors}`}
+              value={cursor === undefined ? "—" : `${cursor} / ${target}`}
               accent={sweptAll}
             />
 

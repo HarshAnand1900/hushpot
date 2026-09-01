@@ -91,6 +91,13 @@ describe("HushpotPool — draws and claims", function () {
     return pool.connect(alice).settleDraw(res.abiEncodedClearValues, res.decryptionProof);
   }
 
+  /** Check every slot the latest draw covered, which the roll now requires. */
+  async function sweepEveryone() {
+    const drawId = (await pool.drawCount()) - 1n;
+    const used = Number(await pool.slotsUsed());
+    for (let i = 0; i < used; i++) await (await pool.sweepRange(drawId, 1)).wait();
+  }
+
   async function runDraw() {
     await (await pool.openDraw()).wait();
     await (await relaySettle()).wait();
@@ -154,6 +161,8 @@ describe("HushpotPool — draws and claims", function () {
     it("allows the next draw once the period has rolled", async function () {
       await time.increase(PERIOD_SECONDS);
       await runDraw();
+      // The roll waits for every slot the draw covered; see HushpotRollGate.ts.
+      await sweepEveryone();
       await (await pool.connect(owner).startNextPeriod()).wait();
 
       await time.increase(PERIOD_SECONDS);
@@ -360,6 +369,8 @@ describe("HushpotPool — draws and claims", function () {
     });
 
     it("closes the window once the next period starts", async function () {
+      // Alice was checked in the beforeEach; the roll will not run until Bob is too.
+      await sweepEveryone();
       await (await pool.connect(owner).startNextPeriod()).wait();
       await expect(pool.connect(owner).checkClaim(0, alice.address)).to.be.revertedWithCustomError(
         pool,
