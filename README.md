@@ -27,12 +27,22 @@ Built for the Zama Developer Program, Mainnet Season 4.
   [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md), covering what leaks and when
 
-> **One difference between the two pools, stated rather than glossed.** The sandbox runs the current source. The main
-> pool was deployed before the fix in `_sweepSlot` that stops a prize being parked on a slot whose owner has left, so
-> its bytecode is one commit behind on that line. The bug needs a depositor to leave mid-period and their band to win,
-> and **nobody has ever left either pool** — zero `SlotRetired` and zero `Withdrawn` events across both, which anyone
-> can confirm. Redeploying the main pool would discard three settled weekly periods of history for a path that has never
-> been taken, so it was left alone deliberately. `HushpotRetiredSlotAward.ts` reproduces the bug and pins the fix.
+### What is running right now
+
+Not a description of what it would do. These are reads off the live contract, and every one of them is a public getter
+anybody can call from Etherscan:
+
+|               |                                                       |
+| ------------- | ----------------------------------------------------- |
+| Depositors    | **15**, holding encrypted balances                    |
+| Draws settled | **3**, across three consecutive weekly periods        |
+| Prizes paid   | **2,344.33 cUSDT** — 517.88, then 903.64, then 922.81 |
+| Prize reserve | 22,655.66 cUSDT                                       |
+| Currently     | period #3, accruing toward draw #3                    |
+
+The pool has run a full cycle three times: deposits accrued, a draw opened and settled against an encrypted die, every
+depositor was checked, and the period rolled. Nobody — including the contract — knows which of the fifteen won any of
+them.
 
 ---
 
@@ -550,6 +560,25 @@ The cost is real: parameters nobody thought to expose cannot be changed later, a
 **For a production deployment**, two things should change before real money is involved, and neither is built here:
 ownership should move to a multisig behind a timelock (`Ownable.transferOwnership` makes that one transaction, no
 redeploy), and the weekly cycle should be a funded keeper instead of a person.
+
+### What immutability costs, on this deployment
+
+Immutable means a fix lands in a new contract or not at all, and one has. `_sweepSlot` used to park a prize on a slot
+whose owner had left with `exitPool` — the slot keeps its earned weight until the period rolls, so its band can still
+take the draw point, and `_pendingAward` carries no period stamp, so the next depositor handed that recycled slot folded
+a stranger's prize into their balance. `HushpotRetiredSlotAward.ts` reproduces it and pins the fix; the sandbox runs the
+fixed source.
+
+The main pool does not, because it was deployed before the fix. The honest position rather than the flattering one:
+
+- Reaching the bug needs a depositor to leave mid-period **and** their band to take the draw point.
+- **Nobody has ever left either pool.** Zero `SlotRetired` and zero `Withdrawn` events across both, which anybody can
+  confirm from the logs.
+- Redeploying would discard three settled weekly periods for a path nothing has taken, and that history is the only
+  evidence the design works under real use.
+
+So it was left alone on purpose. That is what "not upgradeable" actually feels like when a fix arrives after people are
+already in the pool, and pretending otherwise would be the more comfortable and less useful thing to write.
 
 ---
 

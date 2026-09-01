@@ -491,6 +491,22 @@ export default function JudgeTab() {
                 </span>
               </a>
             )}
+
+            {/* The one difference between the pools, told to a reviewer on the pool that
+                has it rather than left in a README they may not reach. A weakness someone
+                finds is worse than the same weakness you handed them. */}
+            {!onSandbox && (
+              <p className={styles.phaseLine}>
+                <strong>One thing this pool does not have.</strong> A later fix stops a prize being parked on a slot
+                whose owner left with <code>exitPool</code>; the sandbox runs it, this pool predates it. Reaching it
+                needs a depositor to leave mid-period and their band to take the draw point, and nobody has ever left
+                either pool — zero <code>SlotRetired</code> events, which you can confirm from the logs. Redeploying
+                would discard three settled periods of history, so it was left alone deliberately.{" "}
+                <a href="https://github.com/HarshAnand1900/hushpot#what-immutability-costs-on-this-deployment">
+                  The reasoning is in the README ↗
+                </a>
+              </p>
+            )}
           </div>
 
           <div className={styles.heroSide}>
