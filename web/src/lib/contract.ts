@@ -26,7 +26,7 @@ const MAIN_POOL = "0x1EA0982e4Ed5DCD6F0329a92D01A0065F864a8a2";
  * Reached with `?pool=sandbox` on any tab. Resolved once, at module load, so every hook
  * and component sees the same address without threading it through twenty-three files.
  */
-export const SANDBOX_POOL = "0xAFf577EAD9e971862996Aa8fB72A40D1700c51F8";
+export const SANDBOX_POOL = "0x428F381a39cC8AF0B4D3B2E91b26785f1eFEA2D6";
 
 /**
  * The sandbox's owner, which is a contract rather than a person.
@@ -36,7 +36,7 @@ export const SANDBOX_POOL = "0xAFf577EAD9e971862996Aa8fB72A40D1700c51F8";
  * calls to anybody who asks and nothing else — so a judge runs all six steps from their
  * own wallet, with no key to import and no week to wait.
  */
-export const SANDBOX_OPERATOR = "0x33a72D459A762f31F96D4e1197f1029cBa628C30" as const;
+export const SANDBOX_OPERATOR = "0xa612913e44374A5CC8735574F99c0EFBFfd541Ac" as const;
 
 export const sandboxOperatorAbi = [
   { type: "function", name: "openDraw", inputs: [], outputs: [], stateMutability: "nonpayable" },

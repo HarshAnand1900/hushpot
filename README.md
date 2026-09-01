@@ -22,10 +22,17 @@ Built for the Zama Developer Program, Mainnet Season 4.
   anyone can self-serve
 - **Judge sandbox:** [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox). The same panel
   pointed at a second, expendable pool
-  ([`0xAFf5…51F8`](https://sepolia.etherscan.io/address/0xAFf577EAD9e971862996Aa8fB72A40D1700c51F8#code)) whose owner is
+  ([`0x428F…A2D6`](https://sepolia.etherscan.io/address/0x428F381a39cC8AF0B4D3B2E91b26785f1eFEA2D6#code)) whose owner is
   a contract, so all six cycle steps are open to any wallet. No key to import, no week to wait. See
   [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md), covering what leaks and when
+
+> **One difference between the two pools, stated rather than glossed.** The sandbox runs the current source. The main
+> pool was deployed before the fix in `_sweepSlot` that stops a prize being parked on a slot whose owner has left, so
+> its bytecode is one commit behind on that line. The bug needs a depositor to leave mid-period and their band to win,
+> and **nobody has ever left either pool** — zero `SlotRetired` and zero `Withdrawn` events across both, which anyone
+> can confirm. Redeploying the main pool would discard three settled weekly periods of history for a path that has never
+> been taken, so it was left alone deliberately. `HushpotRetiredSlotAward.ts` reproduces the bug and pins the fix.
 
 ---
 
@@ -391,8 +398,8 @@ Before then, use the **sandbox**: a second pool that exists for exactly this and
 |           |                                                                                                                                      |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Open it   | [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox)                                                         |
-| Pool      | [`0xAFf577EAD9e971862996Aa8fB72A40D1700c51F8`](https://sepolia.etherscan.io/address/0xAFf577EAD9e971862996Aa8fB72A40D1700c51F8#code) |
-| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0x33a72D459A762f31F96D4e1197f1029cBa628C30#code), a contract, not a person  |
+| Pool      | [`0x428F381a39cC8AF0B4D3B2E91b26785f1eFEA2D6`](https://sepolia.etherscan.io/address/0x428F381a39cC8AF0B4D3B2E91b26785f1eFEA2D6#code) |
+| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xa612913e44374A5CC8735574F99c0EFBFfd541Ac#code), a contract, not a person  |
 
 **There is no key to import.** All six steps run from whatever wallet you already have, on a pool whose first cycle has
 never been run.
@@ -463,7 +470,7 @@ Sepolia gas fee, which is why a pool anyone can freely open draws on is not a pr
    where things stand. Every task takes a `HUSHPOT_POOL` address override, so the sandbox is drivable from the CLI too:
 
    ```bash
-   HUSHPOT_POOL=0xAFf577EAD9e971862996Aa8fB72A40D1700c51F8 npx hardhat hushpot:status --network sepolia
+   HUSHPOT_POOL=0x428F381a39cC8AF0B4D3B2E91b26785f1eFEA2D6 npx hardhat hushpot:status --network sepolia
    ```
 
    Unset, the tasks use the deployed pool. `hushpot:sandbox` deploys a fresh one in a single command: pool, operator,

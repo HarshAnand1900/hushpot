@@ -87,16 +87,16 @@ prize or an encrypted zero, and on-chain those two transactions are indistinguis
 
 ## 2. What is public, by design
 
-| Value                                           | Why                                                    |
-| ----------------------------------------------- | ------------------------------------------------------ |
-| That an address deposited or withdrew, and when | Inherent to a public chain. Transactions are visible.  |
-| Which slot an address holds                     | A plain mapping. Reveals participation, never amount.  |
-| The pool total, once per draw                   | Needed to reduce the draw point into the pool's range. |
-| The prize each draw paid                        | Not anybody's balance. Identical for every depositor.  |
-| Number of depositors                            | Aggregate — and the size of the anonymity set. §3.6    |
-| That a slot was checked for a draw              | Reveals a check happened, never its outcome.           |
-| Period schedule, yield rate, prize reserve      | Protocol parameters.                                   |
-| All contract code                               | The selection rule should be readable.                 |
+| Value                                           | Why                                                       |
+| ----------------------------------------------- | --------------------------------------------------------- |
+| That an address deposited or withdrew, and when | Inherent to a public chain. Transactions are visible.     |
+| Which slot an address holds                     | A plain mapping. Reveals participation, never amount.     |
+| The pool total, once per draw                   | Needed to reduce the draw point into the pool's range.    |
+| The prize each draw paid                        | Not anybody's balance — but it inverts to the total. §3.5 |
+| Number of depositors                            | Aggregate — and the size of the anonymity set. §3.6       |
+| That a slot was checked for a draw              | Reveals a check happened, never its outcome.              |
+| Period schedule, yield rate, prize reserve      | Protocol parameters.                                      |
+| All contract code                               | The selection rule should be readable.                    |
 
 **Participation is public; position is not.** Anyone can see that you are in the pool. Nobody can see what you have in
 it.
@@ -104,7 +104,8 @@ it.
 That is the claim this protocol makes, and §3.5 is where it is weakest: the published total is an aggregate, but
 subtracted across two draws and divided by a public timestamp it reconstructs a single depositor's amount exactly. The
 guarantee holds against reading the chain; it does not hold against arithmetic on what the chain already publishes,
-whenever a period is quiet enough. That section carries the worked example and the fix.
+whenever a period is quiet enough. That section carries the worked example, and shows why the obvious fix does not close
+it.
 
 ---
 
@@ -193,23 +194,37 @@ leaves 320. Only the true multiplier divides evenly.
 - **Scope:** it recovers deposits made in a period, not balances held across many. A depositor who joined before the
   first draw, or who moves in a busy period, is not separable this way.
 
-**The fix, and why it is not deployed.** Publish a _rounded_ total rather than the exact one: round up to the next
-multiple of some granularity `G`, and draw modulo that. Two consequences follow directly, and they trade against each
-other:
+**The obvious fix does not work, and it is worth showing why.** The instinct is to publish a _blurred_ total: round up
+to some granularity `G`, or add bounded noise, and draw modulo that. Deposits smaller than the blur would vanish, since
+two consecutive published figures would no longer differ by exactly one person's weight.
 
-- Any deposit smaller than `G` disappears. The published figure moves in steps of `G`, so a period whose net activity is
-  under that threshold publishes the same number twice and the subtraction yields nothing.
-- The draw point can land in the padding above the real total, in which case nobody wins and the prize rolls over. That
-  happens with probability at most `G / roundUp(total, G)`.
+It closes nothing, because the total is published twice. `prizeFor` is a deterministic function of it:
 
-So `G` is a dial between how large a deposit stays hidden and how many draws pay nobody. At the live pool's scale,
-`G = 2 × 10^14` ticket-minutes hides deposits up to roughly 20,000 cUSDT for a dead-draw rate near 2%. Rounding to the
-next power of two — the other obvious choice — buys the same class of protection at up to 50% dead draws, which is a
-much worse trade.
+```solidity
+prizeFor(total) = total * annualRateBps / RATE_DIVISOR
+```
 
-This is a change to the draw itself, and it is not in the deployed contract. Making it days before a deadline, on a pool
-that cannot be re-tested under load, would risk the correctness the rest of this document is trying to establish. It is
-written down here instead, with the measurement that justifies it.
+`annualRateBps` and `RATE_DIVISOR` are both public, so the equation inverts. Against the live pool, reading only the
+prize and never `draws[].total`:
+
+| Draw | Real total            | Recovered from the prize alone | Error         |
+| ---- | --------------------- | ------------------------------ | ------------- |
+| 0    | 5,443,965,930,000,000 | 5,443,965,923,472,000          | 0.00065 cUSDT |
+| 1    | 9,499,068,241,296,480 | 9,499,068,231,696,000          | 0.00095 cUSDT |
+| 2    | 9,700,628,241,296,480 | 9,700,628,231,520,000          | 0.00097 cUSDT |
+
+A thousandth of a token. Blurring `draws[].total` would leave the subtraction intact through the prize, so the change
+would cost a redeploy and buy nothing. Anything sponsored is public through `PrizeSponsored` and subtracts out, so that
+does not obscure it either. The only case where the prize stops leaking the total is when the reserve is the binding
+constraint rather than the formula, which is not normal operation.
+
+**What would actually close it** is decoupling the prize from the total — quantising the prize to a coarse step, say the
+nearest hundred tokens, _and_ blurring the total, so neither figure inverts to the other. That is a change to the
+product's economics rather than a privacy tweak: it makes the prize no longer exactly the yield the pool earned, which
+is the thing the pool exists to award. It is a real option and it is not a small one.
+
+The leak is therefore **open and unmitigated**, not merely unshipped. Recording that plainly is better than recording a
+fix that a reader could check in five minutes and find hollow.
 
 ### 3.6 The anonymity set is the pool
 
