@@ -336,7 +336,7 @@ contracts/
   SegmentTree.sol                    plaintext oracle, proven then encrypted
   TimeWeightedTree.sol               plaintext oracle for the time weighting
   mocks/                             local token pair + test-only tree harness
-test/                                133 tests
+test/                                136 tests
 tasks/hushpot.ts                     the operator + keeper flow
 deploy/01_hushpot.ts                 deployment
 web/                                 the app
@@ -396,8 +396,10 @@ and is documented in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner)
 
 Two of the six steps are gated to the pool's owner, and not in the same way.
 
-`openDraw` opens to everybody the moment the seven-day period elapses. The main pool's first period ends **3 September
-2026**, so from that date any wallet can seal a draw.
+`openDraw` opens to everybody the moment the seven-day period elapses, so any wallet can seal a draw from that point.
+The date moves with every roll, and naming one here would go stale the way an earlier draft of this line did — the
+current period's end is `periodStart() + PERIOD_SECONDS`, both public getters, and the judge panel shows it read from
+the chain rather than written down.
 
 `startNextPeriod` is stricter: a non-owner also has to wait out the thirty-day claim window, so on a weekly cadence it
 stays the operator's call, run by a keeper on schedule. The owner exemption exists so a demonstration does not have to
@@ -588,7 +590,7 @@ already in the pool, and pretending otherwise would be the more comfortable and 
 
 ```bash
 npm install
-npx hardhat test                 # 133 tests, no network needed
+npx hardhat test                 # 136 tests, no network needed
 ```
 
 Deploying:
@@ -676,7 +678,7 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 
 ## Invariants under test
 
-135 tests, run against the FHEVM mock. The ones worth naming:
+136 tests, run against the FHEVM mock. The ones worth naming:
 
 - exactly one depositor is paid, and exactly the prize, verified by decrypting every participant's balance before and
   after a sweep
@@ -684,7 +686,8 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 - the pool total is published only at a draw boundary, never on demand
 - every slot is selected exactly as often as its weight, checked by enumerating every draw point rather than sampling
 - bands tile the number line with no gaps and no overlaps, checked exhaustively against a plaintext oracle
-- a prize parked on a slot whose owner has left is never handed to whoever inherits that slot
+- a prize parked on a slot whose owner has left is never handed to whoever inherits that slot, and dropping it leaves
+  the pool over-collateralised rather than under — the direction of that error is asserted, not assumed
 - a withdrawal is clamped to the balance held, because a ciphertext cannot be branched on
 - no second draw can settle in the same period
 - a prize never touches principal

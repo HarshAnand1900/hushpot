@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount } from "wagmi";
 import Link from "next/link";
 
 import { AppHeader, FAUCET_EVENT } from "@/components/AppHeader";
@@ -16,7 +16,7 @@ import { useDraws } from "@/hooks/useDraws";
 import { usePoolHref } from "@/hooks/usePoolHref";
 import { poolPhase } from "@/hooks/usePoolPhase";
 import { useLastDraw, useNow, usePoolState, useWeeklyPot } from "@/hooks/usePoolState";
-import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
+import { POOL_ADDRESS } from "@/lib/contract";
 import { formatCountdown, formatUnits, shortenAddress, splitUnits } from "@/lib/format";
 import styles from "./pool.module.css";
 
@@ -351,7 +351,7 @@ export default function PoolTab() {
               active={false}
             />
           </div>
-          <CloseDraw periodEnded={state.periodEnded} drawPending={state.drawPending} onDone={() => state.refetch()} />
+          <CloseDraw drawPending={state.drawPending} />
         </section>
 
         {/* v6 pairs the personal question with the public record, side by side: the
@@ -418,68 +418,26 @@ function EngineCell({ label, note, done, active }: { label: string; note: string
 }
 
 /**
- * Closing the week, from the app rather than from a console.
+ * What closing the week is, said where depositors stand.
  *
- * `openDraw` is permissionless by design — a pool whose draw only its operator can start
- * is a pool whose operator can stall it — so the button belongs here, where depositors
- * are, and not only on the Judge tab.
- *
- * Settlement is the second half and needs a decryption proof fetched from the relayer,
- * which is a flow rather than a button; it lives on Judge, and this points there once the
- * total is sealed.
+ * The action itself lives on Judge, which is the page that owns the whole cycle. This used
+ * to carry its own `openDraw` button as well, and a second copy of a rule is a second copy
+ * to keep correct: it gated on the elapsed period alone, so it sat greyed out for the owner
+ * who may open early and for the sandbox where the operator forwards the call to anyone,
+ * and it pointed at the pool rather than the operator, which would have reverted. One
+ * sentence and a link cannot drift out of step with the contract.
  */
-function CloseDraw({
-  periodEnded,
-  drawPending,
-  onDone,
-}: {
-  periodEnded: boolean;
-  drawPending: boolean;
-  onDone: () => void;
-}) {
-  const { isConnected } = useAccount();
-  const { writeContractAsync } = useWriteContract();
+function CloseDraw({ drawPending }: { drawPending: boolean }) {
   const withPool = usePoolHref();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
-
-  const close = async () => {
-    setError(undefined);
-    setBusy(true);
-    try {
-      await writeContractAsync({ address: POOL_ADDRESS, abi: poolAbi, functionName: "openDraw" });
-      onDone();
-    } catch (e) {
-      setError(e instanceof Error ? e.message.slice(0, 140) : "Could not close the draw.");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <div className={styles.engineFoot}>
       <span>
         One round closes the week: the pool is sealed, the network rolls an encrypted die, and the pot moves without
-        ever resolving a name.
+        ever resolving a name.{" "}
+        {drawPending ? "The total is sealed and waiting to be settled." : "Anyone can start it once the week is up."}{" "}
+        <Link href={withPool("/judge")}>{drawPending ? "Settle it on Judge" : "Run it on Judge"} →</Link>
       </span>
-
-      {drawPending ? (
-        <Link className="btnOutlineYellow" href={withPool("/judge")}>
-          Sealed · settle it on Judge
-        </Link>
-      ) : (
-        <button className="btnOutlineYellow" onClick={close} disabled={!isConnected || !periodEnded || busy}>
-          {busy
-            ? "Sealing the total…"
-            : !isConnected
-              ? "Connect a wallet to close"
-              : periodEnded
-                ? "Close this draw"
-                : "Opens when the week ends"}
-        </button>
-      )}
-
-      {error && <span className={styles.error}>{error}</span>}
     </div>
   );
 }

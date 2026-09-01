@@ -74,6 +74,23 @@ export default function JudgeTab() {
   // this the panel showed progress but never said that pressing the same button again is
   // what finishes it — which reads as a stuck pool rather than an unfinished one.
   const sweepsLeft = Math.max(0, Math.ceil((Number(state.depositors) - Number(cursor ?? 0)) / 4));
+
+  /**
+   * When this period actually elapses, read from the chain rather than written down.
+   *
+   * This was the literal string "3 September", which was true of the period it was written
+   * during and wrong by two rolls afterwards — and wrong in the worst direction, since a
+   * reviewer reading it after that date would believe a gate had lifted while the contract
+   * still held it shut.
+   */
+  const periodElapsesOn =
+    state.periodStart > 0n && state.periodSeconds > 0n
+      ? new Date(Number(state.periodStart + state.periodSeconds) * 1000).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          timeZone: "UTC",
+        })
+      : undefined;
   /**
    * Whether the last settled draw still belongs to the current period.
    *
@@ -466,10 +483,19 @@ export default function JudgeTab() {
                 early. A judge arriving before the first period elapses would find two of
                 six steps closed, so there is a throwaway pool that opens all of them,
                 and no reason to advertise it to someone already standing in it. */}
+            {/* Both halves used to be hardcoded, and both went stale: the sandbox has now
+                run cycles, and the gate date named a period that had already rolled. A
+                sentence a reviewer can check against the chain has to come from it. */}
             <p className={styles.heroCopy} suppressHydrationWarning>
               {onSandbox
-                ? "You are on the sandbox, a throwaway pool nobody has run a cycle on yet. Every step below works from the wallet you already have. No key to import, no week to wait."
-                : "Two of the six steps are gated to the owner until the period elapses on 3 September. Run those today on the sandbox instead."}
+                ? `You are on the sandbox, a throwaway pool${
+                    state.drawCount > 0n
+                      ? ` that has already run ${state.drawCount === 1n ? "a full cycle" : `${state.drawCount} full cycles`}`
+                      : " with its first cycle still to run"
+                  }. Every step below works from the wallet you already have. No key to import, no week to wait.`
+                : `Two of the six steps are gated to the owner until this period elapses${
+                    periodElapsesOn ? ` on ${periodElapsesOn}` : ""
+                  }. Run those today on the sandbox instead.`}
             </p>
 
             {/* A judge arriving before the period elapses finds two of six steps closed,

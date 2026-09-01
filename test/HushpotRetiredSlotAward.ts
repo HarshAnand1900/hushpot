@@ -119,6 +119,32 @@ describe("HushpotPool — awards on retired slots", function () {
     expect(balance, "the joiner's balance should be their own deposits and nothing else").to.eq(JOIN * 2n);
   });
 
+  it("stays solvent when a retired slot's award is dropped", async function () {
+    // Skipping the award raises a fair question about the books. The prize leaves
+    // `prizeReserve` at settlement, and with nobody to park it on it is never added to
+    // `_parkedTotal` either — so the tokens stay in the contract while the liability does
+    // not grow. That has to leave the pool over-collateralised rather than under, and the
+    // direction of the error is the whole point of asserting it.
+    await join(leaver, BIG);
+    await join(owner, JOIN);
+
+    await ethers.provider.send("evm_increaseTime", [6 * 24 * 3600]);
+    await ethers.provider.send("evm_mine", []);
+    await (await pool.connect(leaver).exitPool()).wait();
+
+    await ethers.provider.send("evm_increaseTime", [2 * 24 * 3600]);
+    await ethers.provider.send("evm_mine", []);
+    await fund(10_000_000n);
+    await (await pool.openDraw()).wait();
+    await settle();
+
+    const used = await pool.slotsUsed();
+    for (let i = 0; i < Number(used); i++) await (await pool.sweepRange(0, 1)).wait();
+
+    await (await pool.connect(owner).proveSolvency()).wait();
+    expect(await fhevm.publicDecryptEbool(await pool.solvencyHandle()), "pool must remain fully backed").to.eq(true);
+  });
+
   it("leaves every other band where it was when a retired slot is swept", async function () {
     await join(leaver, BIG);
     await join(owner, JOIN);
