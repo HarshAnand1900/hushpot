@@ -306,6 +306,35 @@ capped by whatever the reserve holds. That it scales with the pool is not cosmet
 depositor extracting value. Because the pot grows in proportion to the odds they take, every existing depositor's
 expected return is left **exactly unchanged**. A fixed pot would let latecomers dilute everyone else.
 
+### How a real yield source would plug in
+
+One function changes and nothing else does. `fundPrizeReserve` becomes a harvest step behind a seam:
+
+```solidity
+interface IYieldSource {
+  function deposit(uint64 amount) external; // idle principal out
+  function withdraw(uint64 amount) external; // principal back, on demand
+  function harvest() external returns (uint64); // realised yield, to the reserve
+}
+```
+
+The draw, the claim, the weighting and the per-slot accounting are untouched, because none of them read a strategy —
+they read `prizeReserve`, and a harvest credits the same counter the admin currently tops up. `annualRateBps` stops
+being a parameter and becomes a measurement: the prize is whatever was actually harvested since the last draw, rather
+than a rate applied to ticket-minutes.
+
+Two things genuinely change, and neither is cosmetic:
+
+- **Solvency gets harder to prove.** `proveSolvency` compares tokens held against tokens owed. Lend the principal out
+  and the pool no longer holds it, so the proof has to include the strategy's position — which means trusting the
+  strategy's own accounting for the part that is no longer in hand.
+- **Withdrawal stops being instant in the worst case.** Principal is withdrawable in every phase today because it is
+  sitting in the contract. A strategy with a redemption delay would break that, so any real source has to be one that
+  redeems on demand, or keep a liquidity buffer sized to normal outflow.
+
+That is why it is a mock here rather than an integration: the interface is a morning's work, and the solvency and
+liquidity questions behind it are the actual product.
+
 ### Sponsorship
 
 `sponsorPrize()` is callable by anyone and adds the full amount to the **very next** prize, on top of the formula. The
@@ -317,12 +346,6 @@ withdrawable principal and donates only the yield stream; `PrizePool.contributeP
 outright. Hushpot does the second. Adding the gift in full beats letting it earn for a week and donating that instead:
 at 5%, a week of yield on a sponsorship comes to about a thousandth of the sponsorship, which does not justify a second
 accumulator or a second thing to explain.
-
-**Plugging in real yield** replaces one function and nothing else. `fundPrizeReserve` becomes a harvest step: route idle
-deposits into a lending market or vault, and periodically credit realised yield to the same reserve. The draw, the
-claim, the weighting and the accounting are untouched, because they only ever read `prizeReserve`. What changes is a
-solvency question. Deposits would then be lent out instead of held, so `proveSolvency` would have to account for the
-strategy's position too.
 
 ---
 
