@@ -288,28 +288,24 @@ answerable only while its own period is current. The owner is exempt from `CLAIM
 could strand an unclaimed prize — and for most of this project's life the only thing standing in the way was the Judge
 panel declining to offer the button, which is a frontend courtesy rather than a contract rule.
 
-**That hole is now closed on-chain.** `startNextPeriod` reverts with `ClaimsOutstanding` unless every slot the draw
-covered has been checked:
+**That hole is now closed, and not with a gate.** The tree keeps one generation of history per node, so a claim is
+evaluated against its own draw's period rather than the live one:
 
 ```solidity
-Claims memory c = claims[drawCount - 1];
-if (c.checked < c.covered && block.timestamp < lastDrawSettledAt + CLAIM_GRACE) {
-    revert ClaimsOutstanding(c.checked, c.covered);
-}
+// checkClaim
+if (currentPeriod > d.period + 1) revert ClaimWindowClosed();
+ebool won = _checkWinAt(d.period, slot, d.drawPoint);
 ```
 
-Three things about that guard are deliberate:
+Rolling therefore ends nothing. An owner who rolls early strands no prize, because the answer no longer expires with the
+period — it expires one period later, and by then a second draw has come and gone.
 
-- **It is not role-gated.** Every other guard here exempts the owner; this one must not, because only the owner can
-  reach the roll early in the first place. A guard the owner could skip would bind nobody at all.
-- **`covered` is snapshotted at settlement**, so a depositor who joins afterwards cannot inflate the target and wedge
-  the period shut.
-- **The escape is the grace, not a role.** After thirty days the roll proceeds regardless, so a pool whose sweep has
-  become impractical cannot be locked forever. A claim nobody made in a month is forfeit, which is what `CLAIM_GRACE`
-  always meant.
+An earlier attempt blocked the roll until every slot had been checked. It was removed: only the owner can reach the roll
+early, so the guard bound only them, and binding them made the cycle depend on an O(n) sweep somebody has to fund. A
+pool nobody swept would have degraded from weekly to monthly and forfeited the stragglers regardless.
 
-So the assumption narrows from _"the owner may strand a claim whenever they like"_ to _"an unchecked slot is forfeit
-after thirty days"_ — and the second is a rule the contract states rather than a promise the operator makes.
+The residual limit is bounded and stated: a draw **two** periods old reverts rather than answering from weights that no
+longer exist. Keeping k generations instead of one is a parameter, not a redesign.
 
 **Still true, and worth keeping in view:** the owner may still roll early once everyone has been checked, and may still
 open a draw before the week is up. Neither strands anything.

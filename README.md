@@ -22,7 +22,7 @@ Built for the Zama Developer Program, Mainnet Season 4.
   anyone can self-serve
 - **Judge sandbox:** [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox). The same panel
   pointed at a second, expendable pool
-  ([`0xff2a…9E90`](https://sepolia.etherscan.io/address/0xff2a1253F073Cb42a03F7F3831A6190699399E90#code)) whose owner is
+  ([`0x5241…6893`](https://sepolia.etherscan.io/address/0x5241b14a8c3eAda3D3C356A2337101b8bf0b6893#code)) whose owner is
   a contract, so all six cycle steps are open to any wallet. No key to import, no week to wait. See
   [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md), covering what leaks and when
@@ -105,14 +105,42 @@ only settlement path Hushpot requires. Cost per depositor is flat, nobody funds 
 costs to run does not grow with the number of people in it. The keeper sweep is a convenience — sensible on a small pool
 or an L2, useful for depositors who have wandered off, and never load-bearing.
 
-It buys that with a deadline, which is worth stating rather than burying. A claim only works while the draw's period is
-still current, because the check recomputes your band against the live tree and rolling the period moves those numbers.
+### A claim outlives its period
 
-What stops that deadline from being a trap is that **the roll waits for you**: `startNextPeriod` reverts with
-`ClaimsOutstanding` until every slot the draw covered has been answered, whether by the depositor settling their own
-claim or by a keeper sweeping them. That guard binds the owner too — deliberately, since only the owner can reach the
-roll early, so exempting them would leave it guarding nothing. The one release valve is the thirty-day grace: after a
-month the roll proceeds regardless, because a pool that can never advance is a worse failure than a forfeited prize.
+A claim recomputes your band from the tree, and the tree is period-scoped: roll it, and the corrections age out while
+balances keep moving. The band moves with them. So the same call after a roll used to return a **different** answer
+rather than a stale one, and was refused outright — which meant anyone not swept in time simply forfeited.
+
+The obvious repair is to block the roll until everyone has been checked. That was tried here and removed, because it
+reads as safety and is not: it makes the cycle depend on the same O(n) sweep [the incidence wall](#the-incidence-wall)
+argues against. A pool nobody sweeps degrades from weekly to monthly and then forfeits the stragglers anyway.
+
+What ships instead is **one generation of history per node**, written copy-on-write:
+
+```solidity
+function _archive(uint256 node) internal {
+  uint32 was = _stamp[node];
+  if (was == currentPeriod) return; // already current
+  if (euint64.unwrap(_balance[node]) == bytes32(0)) return; // never written
+  _prevBalance[node] = _balance[node]; /* … */
+  _prevStamp[node] = was + 1;
+}
+```
+
+`checkClaim` then evaluates against `_checkWinAt(draw.period, …)`, so a draw settled in period 4 is still judged by
+period 4's weights once period 5 has begun. Snapshotting every slot at settlement would be O(n) encrypted storage per
+draw; this is O(1) amortised, because a node pays once on its first touch in a period and nothing after.
+
+**Measured**, in `HushpotDepthGas.ts` so it cannot drift: deposits inside a period cost **+0.4%**, and the first deposit
+after a roll costs **208,387 gas more** — once per node per period, never per depositor.
+
+The remaining limit is honest and bounded: one generation back. A draw two periods old reverts with `ClaimWindowClosed`
+rather than answering from weights that no longer exist. Refusing is the correct behaviour there; guessing is not.
+
+One detail worth keeping: `_prevStamp` stores `period + 1`. Storing the raw period collides with period 0 being real —
+its history was written and instantly unreachable, the bands stopped covering the total, and a draw point could land in
+the gap so that **nobody won at all**. It returned a plausible number on encrypted values, with no revert. The test that
+caught it asserts `alice + bob == prize` against a figure captured while the period was still current.
 
 Finding out **whether** you won is a separate matter and has no deadline at all: the result is stored as a ciphertext
 only you can open, so it survives the sweep, the roll and the years after. See
@@ -369,7 +397,7 @@ contracts/
   SegmentTree.sol                    plaintext oracle, proven then encrypted
   TimeWeightedTree.sol               plaintext oracle for the time weighting
   mocks/                             local token pair + test-only tree harness
-test/                                143 tests
+test/                                149 tests
 tasks/hushpot.ts                     the operator + keeper flow
 deploy/01_hushpot.ts                 deployment
 web/                                 the app
@@ -446,8 +474,8 @@ Before then, use the **sandbox**: a second pool that exists for exactly this and
 |           |                                                                                                                                      |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Open it   | [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox)                                                         |
-| Pool      | [`0xff2a1253F073Cb42a03F7F3831A6190699399E90`](https://sepolia.etherscan.io/address/0xff2a1253F073Cb42a03F7F3831A6190699399E90#code) |
-| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xb9D0aE970458ee9CD325E1ca596fC36B1F66ef58#code), a contract, not a person  |
+| Pool      | [`0x5241b14a8c3eAda3D3C356A2337101b8bf0b6893`](https://sepolia.etherscan.io/address/0x5241b14a8c3eAda3D3C356A2337101b8bf0b6893#code) |
+| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xd20ba19C10613f3d89351251bdC61B9d36fF6101#code), a contract, not a person  |
 
 **There is no key to import.** All six steps run from whatever wallet you already have, on a pool whose first cycle has
 never been run.
@@ -518,7 +546,7 @@ Sepolia gas fee, which is why a pool anyone can freely open draws on is not a pr
    where things stand. Every task takes a `HUSHPOT_POOL` address override, so the sandbox is drivable from the CLI too:
 
    ```bash
-   HUSHPOT_POOL=0xff2a1253F073Cb42a03F7F3831A6190699399E90 npx hardhat hushpot:status --network sepolia
+   HUSHPOT_POOL=0x5241b14a8c3eAda3D3C356A2337101b8bf0b6893 npx hardhat hushpot:status --network sepolia
    ```
 
    Unset, the tasks use the deployed pool. `hushpot:sandbox` deploys a fresh one in a single command: pool, operator,
@@ -626,7 +654,7 @@ already in the pool, and pretending otherwise would be the more comfortable and 
 
 ```bash
 npm install
-npx hardhat test                 # 143 tests, no network needed
+npx hardhat test                 # 149 tests, no network needed
 ```
 
 Deploying:
@@ -714,7 +742,7 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 
 ## Invariants under test
 
-143 tests, run against the FHEVM mock. The ones worth naming:
+149 tests, run against the FHEVM mock. The ones worth naming:
 
 - exactly one depositor is paid, and exactly the prize, verified by decrypting every participant's balance before and
   after a sweep

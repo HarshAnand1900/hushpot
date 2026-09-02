@@ -388,7 +388,11 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
       // about 1,040,000 in the pool. A small pool with a large prize would be a lie about
       // the yield; a larger pool with a proportional prize is simply what the arithmetic
       // says a real one looks like.
-      const amount = amounts[i - 1] * 1_000_000n * BigInt(args.scale);
+      // The table holds thirty spreads; past that it wraps rather than throwing. Asking
+      // for more depositors than there are amounts used to fail with "Cannot mix BigInt
+      // and other types" — an undefined array slot, thirty deposits into a run that had
+      // already spent real gas.
+      const amount = amounts[(i - 1) % amounts.length] * 1_000_000n * BigInt(args.scale);
 
       console.log(`--- depositor ${i}: ${who.address}`);
 
