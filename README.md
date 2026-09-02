@@ -22,7 +22,7 @@ Built for the Zama Developer Program, Mainnet Season 4.
   anyone can self-serve
 - **Judge sandbox:** [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox). The same panel
   pointed at a second, expendable pool
-  ([`0x5241…6893`](https://sepolia.etherscan.io/address/0x5241b14a8c3eAda3D3C356A2337101b8bf0b6893#code)) whose owner is
+  ([`0x08B5…d668`](https://sepolia.etherscan.io/address/0x08B5FC1CC31e2AdA0008fdef1eB04C9539cFd668#code)) whose owner is
   a contract, so all six cycle steps are open to any wallet. No key to import, no week to wait. See
   [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md), covering what leaks and when
@@ -32,17 +32,22 @@ Built for the Zama Developer Program, Mainnet Season 4.
 Not a description of what it would do. These are reads off the live contract, and every one of them is a public getter
 anybody can call from Etherscan:
 
-|               |                                                       |
-| ------------- | ----------------------------------------------------- |
-| Depositors    | **15**, holding encrypted balances                    |
-| Draws settled | **3**, across three consecutive weekly periods        |
-| Prizes paid   | **2,344.33 cUSDT** — 517.88, then 903.64, then 922.81 |
-| Prize reserve | 22,655.66 cUSDT                                       |
-| Currently     | period #3, accruing toward draw #3                    |
+|                  |                                       |
+| ---------------- | ------------------------------------- |
+| Depositors       | **30**, holding encrypted balances    |
+| Pooled principal | **~842,134 cUSDT**                    |
+| Draws settled    | **1** — draw #0 paid **807.53 cUSDT** |
+| Claims answered  | **30 of 30**                          |
+| Prize reserve    | 59,192.47 cUSDT                       |
+| Currently        | period #0, accruing toward draw #1    |
 
-The pool has run a full cycle three times: deposits accrued, a draw opened and settled against an encrypted die, every
-depositor was checked, and the period rolled. Nobody — including the contract — knows which of the fifteen won any of
-them.
+A full cycle has run end to end: thirty deposits accrued, a draw opened and settled against an encrypted die, and every
+depositor was checked. The prize is in one of those thirty balances and **nobody — including the contract — knows
+which**. Each of them can open their own receipt with a signature and no gas; nobody can open anyone else's.
+
+The prize is derived, not chosen: `pooled × 5% ÷ 52` on 842,134 gives 807.53. That proportionality is the point — a
+large late depositor grows the pot exactly as much as they grow their own odds, so arriving late dilutes nobody. It also
+means a small pool must show a small prize, or the yield figure would be a lie.
 
 **Three of the four cycle steps are permissionless.** Once the week is up, any wallet can open the draw, settle it, and
 pay every depositor out — the operator is not in that path and cannot stall it. Only the roll is the operator's, and
@@ -474,8 +479,8 @@ Before then, use the **sandbox**: a second pool that exists for exactly this and
 |           |                                                                                                                                      |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Open it   | [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox)                                                         |
-| Pool      | [`0x5241b14a8c3eAda3D3C356A2337101b8bf0b6893`](https://sepolia.etherscan.io/address/0x5241b14a8c3eAda3D3C356A2337101b8bf0b6893#code) |
-| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xd20ba19C10613f3d89351251bdC61B9d36fF6101#code), a contract, not a person  |
+| Pool      | [`0x08B5FC1CC31e2AdA0008fdef1eB04C9539cFd668`](https://sepolia.etherscan.io/address/0x08B5FC1CC31e2AdA0008fdef1eB04C9539cFd668#code) |
+| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0x160c69e46853ED1DC4BD7cb31c0dD55093b33b4F#code), a contract, not a person  |
 
 **There is no key to import.** All six steps run from whatever wallet you already have, on a pool whose first cycle has
 never been run.
@@ -546,7 +551,7 @@ Sepolia gas fee, which is why a pool anyone can freely open draws on is not a pr
    where things stand. Every task takes a `HUSHPOT_POOL` address override, so the sandbox is drivable from the CLI too:
 
    ```bash
-   HUSHPOT_POOL=0x5241b14a8c3eAda3D3C356A2337101b8bf0b6893 npx hardhat hushpot:status --network sepolia
+   HUSHPOT_POOL=0x08B5FC1CC31e2AdA0008fdef1eB04C9539cFd668 npx hardhat hushpot:status --network sepolia
    ```
 
    Unset, the tasks use the deployed pool. `hushpot:sandbox` deploys a fresh one in a single command: pool, operator,
@@ -705,11 +710,11 @@ On Sepolia, against the live coprocessor:
 | Read a receipt       | 1 signature, no transaction | works after the period rolls      |
 | Reveal your position | 1 signature + 1 transaction | signature cached for the visit    |
 
-Deploy, deposit and claim figures are read back off the live Sepolia deployment above, measured when it held fourteen
-seeded depositors with one settled draw and one full sweep, averaged over all fourteen claim transactions. The pool has
-grown since; the figures are the conditions they were taken under, not a description of it today. The paged-sweep and
-depth figures come from `HushpotSweepGas.ts` and `HushpotDepthGas.ts`, which print them on every run so they cannot
-drift silently.
+Deploy, deposit and claim figures are read back off a live Sepolia deployment, measured when it held fourteen seeded
+depositors with one settled draw and one full sweep, averaged over all fourteen claim transactions. They are the
+conditions those measurements were taken under rather than a description of the pool today, which is larger — a claim
+scales with tree depth, and the ladder in `HushpotDepthGas.ts` is what tracks that. The paged-sweep and depth figures
+come from `HushpotSweepGas.ts` and `HushpotDepthGas.ts`, which print them on every run so they cannot drift silently.
 
 **Claims went from 2.4M to 650k, a factor of 3.7.** Crediting a prize used to repair every ancestor sum between the slot
 and the root, three encrypted additions per level, for everyone. For all but one person the amount being added was an

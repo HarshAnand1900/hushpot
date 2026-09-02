@@ -20,7 +20,15 @@ type Mode = "deposit" | "withdraw";
 const SCALE = 10n ** BigInt(TOKEN_DECIMALS);
 
 /** Round numbers a depositor actually reaches for, rather than fractions of a balance. */
-const QUICK = [100, 500, 1_000, 2_500];
+/**
+ * Deposit presets, sized against the pool rather than against a round number.
+ *
+ * These were 100–2,500 while the faucet handed out 10,000, so a newcomer was nudged toward
+ * depositing a quarter of what they held — into a pool two orders of magnitude larger,
+ * for odds around half a percent. Odds are your share of the pool, so a preset that is
+ * negligible beside it is a preset that makes the product look pointless.
+ */
+const QUICK = [10_000, 25_000, 50_000, 100_000];
 
 export function DepositSheet({
   mode: initialMode,
@@ -127,7 +135,10 @@ export function DepositSheet({
     if (!address) return;
     setMinting(shield ? "confidential" : "plain");
     try {
-      const amount = 10_000n * SCALE;
+      // Enough to take a real share of a pool this size. The mock's `mint` is open and
+      // the token is worthless, so the only thing a small faucet buys is a visitor whose
+      // odds round to zero.
+      const amount = 100_000n * SCALE;
 
       const mint = await writeContractAsync({
         address: UNDERLYING_ADDRESS,
