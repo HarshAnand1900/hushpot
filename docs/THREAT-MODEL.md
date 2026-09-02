@@ -223,8 +223,28 @@ nearest hundred tokens, _and_ blurring the total, so neither figure inverts to t
 product's economics rather than a privacy tweak: it makes the prize no longer exactly the yield the pool earned, which
 is the thing the pool exists to award. It is a real option and it is not a small one.
 
-The leak is therefore **open and unmitigated**, not merely unshipped. Recording that plainly is better than recording a
-fix that a reader could check in five minutes and find hollow.
+**The design that removes it entirely, and what it costs.** There is one, and it is worth naming precisely rather than
+gesturing at, because it was considered and rejected on the merits.
+
+Publish nothing. Give every depositor a public fixed-width slot `[i·S, (i+1)·S)` and hold their weight as an encrypted
+_fill_ inside it. The draw range is then `n · S`, where `n` is the depositor count — already public — and `S` is a
+constant. `FHE.rem` gets its plaintext divisor without any total being decrypted, so there is no aggregate to subtract
+across draws and §3.2, §3.3 and this section all cease to exist. Sotto, another Season 4 submission, ships exactly this.
+
+The price is proportional odds. A balance above `S` buys no additional chance, so every depositor past the cap has
+identical odds regardless of what they hold. Raising `S` does not fix it: set it high enough for the largest saver and
+almost everyone sits far below, which flattens the odds from the other direction. **Encrypted totals and
+deposit-proportional odds are in direct tension, and one has to go.**
+
+Hushpot keeps proportionality, for a reason narrower than taste: the brief this was built against requires winner
+selection "weighted by deposit size", and PoolTogether — the thing being made confidential — publishes both its prize
+and its pool size. A cap does not implement a weighted lottery; it implements a raffle with an entry fee. So the
+aggregate is published and the cost is carried here, in the open, rather than in the odds where a depositor would never
+see it.
+
+The leak is therefore **open and unmitigated**, not merely unshipped. Recording that plainly — alongside the design that
+would close it and the property that design would break — is better than recording a fix that a reader could check in
+five minutes and find hollow.
 
 ### 3.6 The anonymity set is the pool
 
