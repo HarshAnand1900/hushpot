@@ -22,7 +22,7 @@ Built for the Zama Developer Program, Mainnet Season 4.
   anyone can self-serve
 - **Judge sandbox:** [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox). The same panel
   pointed at a second, expendable pool
-  ([`0x08B5…d668`](https://sepolia.etherscan.io/address/0x08B5FC1CC31e2AdA0008fdef1eB04C9539cFd668#code)) whose owner is
+  ([`0x4350…96DB`](https://sepolia.etherscan.io/address/0x4350b2a3957aE8a24f0cF264e818088b809096DB#code)) whose owner is
   a contract, so all six cycle steps are open to any wallet. No key to import, no week to wait. See
   [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md), covering what leaks and when
@@ -402,7 +402,7 @@ contracts/
   SegmentTree.sol                    plaintext oracle, proven then encrypted
   TimeWeightedTree.sol               plaintext oracle for the time weighting
   mocks/                             local token pair + test-only tree harness
-test/                                149 tests
+test/                                153 tests
 tasks/hushpot.ts                     the operator + keeper flow
 deploy/01_hushpot.ts                 deployment
 web/                                 the app
@@ -479,8 +479,8 @@ Before then, use the **sandbox**: a second pool that exists for exactly this and
 |           |                                                                                                                                      |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Open it   | [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox)                                                         |
-| Pool      | [`0x08B5FC1CC31e2AdA0008fdef1eB04C9539cFd668`](https://sepolia.etherscan.io/address/0x08B5FC1CC31e2AdA0008fdef1eB04C9539cFd668#code) |
-| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0x160c69e46853ED1DC4BD7cb31c0dD55093b33b4F#code), a contract, not a person  |
+| Pool      | [`0x4350b2a3957aE8a24f0cF264e818088b809096DB`](https://sepolia.etherscan.io/address/0x4350b2a3957aE8a24f0cF264e818088b809096DB#code) |
+| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xF7B8eAb79b83bEfe6DAacc4F5fc69817aD563ef2#code), a contract, not a person  |
 
 **There is no key to import.** All six steps run from whatever wallet you already have, on a pool whose first cycle has
 never been run.
@@ -551,7 +551,7 @@ Sepolia gas fee, which is why a pool anyone can freely open draws on is not a pr
    where things stand. Every task takes a `HUSHPOT_POOL` address override, so the sandbox is drivable from the CLI too:
 
    ```bash
-   HUSHPOT_POOL=0x08B5FC1CC31e2AdA0008fdef1eB04C9539cFd668 npx hardhat hushpot:status --network sepolia
+   HUSHPOT_POOL=0x4350b2a3957aE8a24f0cF264e818088b809096DB npx hardhat hushpot:status --network sepolia
    ```
 
    Unset, the tasks use the deployed pool. `hushpot:sandbox` deploys a fresh one in a single command: pool, operator,
@@ -632,24 +632,35 @@ The cost is real: parameters nobody thought to expose cannot be changed later, a
 ownership should move to a multisig behind a timelock (`Ownable.transferOwnership` makes that one transaction, no
 redeploy), and the weekly cycle should be a funded keeper instead of a person.
 
-### What immutability costs, on this deployment
+### What immutability costs, and what it cost here
 
-Immutable means a fix lands in a new contract or not at all, and one has. `_sweepSlot` used to park a prize on a slot
-whose owner had left with `exitPool` — the slot keeps its earned weight until the period rolls, so its band can still
-take the draw point, and `_pendingAward` carries no period stamp, so the next depositor handed that recycled slot folded
-a stranger's prize into their balance. `HushpotRetiredSlotAward.ts` reproduces it and pins the fix; the sandbox runs the
-fixed source.
+Immutable means a fix lands in a new contract or not at all. Three did, and all three were found the same way: by
+writing the test that would catch the bug rather than the test that would pass.
 
-The main pool does not, because it was deployed before the fix. The honest position rather than the flattering one:
+**A prize parked on a slot whose owner had left.** `_sweepSlot` credited an award to a retired slot, and `_pendingAward`
+carried no period stamp — so the next depositor handed that recycled slot folded a stranger's prize into their balance.
+Reproduced in `HushpotRetiredSlotAward.ts`, where the joiner's balance came back 821,917 too high.
 
-- Reaching the bug needs a depositor to leave mid-period **and** their band to take the draw point.
-- **Nobody has ever left either pool.** Zero `SlotRetired` and zero `Withdrawn` events across both, which anybody can
-  confirm from the logs.
-- Redeploying would discard three settled weekly periods for a path nothing has taken, and that history is the only
-  evidence the design works under real use.
+**The same bug again, through a different door.** Keeping a generation of tree history removed `checkClaim`'s period
+gate, and nothing then checked that the account holding a slot _today_ was the account that earned its band _then_. The
+`slotOwner != address(0)` guard from the first fix does not fire, because a recycled slot does have an owner — just a
+different one. `slotAssignedAt` is what actually closes it: the band is still counted, so no later edge shifts, but the
+award is an encrypted zero unless the holder was there when the draw settled.
 
-So it was left alone on purpose. That is what "not upgradeable" actually feels like when a fix arrives after people are
-already in the pool, and pretending otherwise would be the more comfortable and less useful thing to write.
+**An archived handle with no ACL grant.** `_foldPending` archives a node, mutates the balance into a fresh handle, and
+leaves the grant to `_persist` — but `_creditSlot` then archives _again_ before the stamp advances, storing that
+intermediate handle. `_persist` grants only the final one, so the archived handle has no ACL entry and every later claim
+whose band crosses that node reverts with `ACLNotAllowed()`. Unrecoverable: the prize becomes permanently unclaimable
+for everyone whose prefix includes that leaf. An idempotence guard in `_archive` fixes it.
+
+That third one is worth dwelling on, because it is the one that would have shipped. It needs no `exitPool` and no
+unusual sequence — a winner making an ordinary second deposit is enough. The first two could be argued away on a pool
+where nobody had ever left, and that argument was made here, once, honestly. It was not available for this one.
+
+**Both pools now run this source.** There is no divergence to disclose: the addresses in
+[`web/src/lib/contract.ts`](web/src/lib/contract.ts) are the deployments these contracts compile to, and Etherscan
+carries the verified source for each. What immutability cost was four deployments in two days and a pool's worth of
+history discarded each time — which is the real price of not being able to patch, paid rather than described.
 
 ---
 
@@ -659,7 +670,7 @@ already in the pool, and pretending otherwise would be the more comfortable and 
 
 ```bash
 npm install
-npx hardhat test                 # 149 tests, no network needed
+npx hardhat test                 # 153 tests, no network needed
 ```
 
 Deploying:
@@ -701,14 +712,18 @@ Point `POOL_ADDRESS` in `web/src/lib/contract.ts` at your deployment.
 
 On Sepolia, against the live coprocessor:
 
-| Operation            | Gas                         | Note                              |
-| -------------------- | --------------------------- | --------------------------------- |
-| Deploy               | 3,726,024                   |                                   |
-| Deposit              | 861k–1.56M                  | grows with pool size, see below   |
-| Claim, per depositor | **649,774**                 | was 2.4M; includes the receipt    |
-| Sweep, per depositor | **364,090**                 | paged, 1.44× cheaper than a claim |
-| Read a receipt       | 1 signature, no transaction | works after the period rolls      |
-| Reveal your position | 1 signature + 1 transaction | signature cached for the visit    |
+| Operation              | Gas                         | Note                                        |
+| ---------------------- | --------------------------- | ------------------------------------------- |
+| Deploy                 | 3,938,775                   |                                             |
+| Deposit                | 570k–1.34M                  | grows with pool size, see below             |
+| First deposit a period | 785,401                     | archives the path; 576,428 for the next one |
+| Claim, per depositor   | **533,159**                 | was 2.4M; includes the receipt              |
+| Sweep, per depositor   | **368,025**                 | paged, 1.45× cheaper than a claim           |
+| Read a receipt         | 1 signature, no transaction | works after the period rolls                |
+| Reveal your position   | 1 signature + 1 transaction | signature cached for the visit              |
+
+Every figure above is printed by `HushpotDepthGas.ts` and `HushpotSweepGas.ts` on each run, so a stale number here is
+one `npx hardhat test` away from being caught.
 
 Deploy, deposit and claim figures are read back off a live Sepolia deployment, measured when it held fourteen seeded
 depositors with one settled draw and one full sweep, averaged over all fourteen claim transactions. They are the
@@ -747,7 +762,7 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 
 ## Invariants under test
 
-149 tests, run against the FHEVM mock. The ones worth naming:
+153 tests, run against the FHEVM mock. The ones worth naming:
 
 - exactly one depositor is paid, and exactly the prize, verified by decrypting every participant's balance before and
   after a sweep

@@ -100,8 +100,10 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     ///
     /// One generation is enough because the claim window is one period. `_prevStamp` says
     /// which period the archived values belong to; zero means nothing is reachable, which
-    /// is what a recycled slot is reset to so it can never read a previous occupant's
-    /// position.
+    /// is what a recycled slot is reset to. That reset is defence-in-depth rather than the
+    /// thing that stops a handover paying the wrong person: `_archive` re-populates it on
+    /// the new holder's first write, because `_stamp` still carries the old period. What
+    /// actually stops it is {slotAssignedAt}, checked at award time.
     mapping(uint256 => euint64) private _prevBalance;
     mapping(uint256 => euint64) private _prevLate;
     mapping(uint256 => euint64) private _prevEarly;
@@ -114,6 +116,18 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     mapping(address => uint16) private _slotOfPlusOne;
     mapping(uint16 => address) public slotOwner;
     uint16 public slotsUsed;
+
+    /// @notice The period in which a slot's current holder took it.
+    ///
+    /// @dev A slot outlives its holder. It is retired on {exitPool}, released at the roll,
+    /// and handed to somebody new — while the tree still carries the weight the previous
+    /// holder earned, because that weight is what a settled draw was measured against and
+    /// erasing it would shift every later band off the total.
+    ///
+    /// So the band has to stay and the *award* has to not. Comparing this against a draw's
+    /// period says whether the account holding the slot today is the account that earned
+    /// its band then. Public, and it discloses nothing: `SlotAssigned` already says when.
+    mapping(uint16 => uint32) public slotAssignedAt;
 
     /// @dev Results of the last refresh, cached so they can be decrypted off-chain.
     mapping(uint16 => euint64) private _weightCache;
@@ -230,6 +244,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
 
         _slotOfPlusOne[account] = slot + 1;
         slotOwner[slot] = account;
+        slotAssignedAt[slot] = currentPeriod;
         emit SlotAssigned(account, slot);
         return slot;
     }
@@ -319,6 +334,16 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         uint32 was = _stamp[node];
         if (was == currentPeriod) return;
         if (euint64.unwrap(_balance[node]) == bytes32(0)) return;
+        // Already taken for this generation. `_stamp` is not advanced until {_persist}, so
+        // a path that writes twice before persisting — {_foldPending} followed by the
+        // credit or debit that called it — would otherwise archive a second time, over
+        // values the first write had already moved on from. That second copy is wrong
+        // twice over: it records a mid-transaction figure as the period's history, and the
+        // handle it records was never granted to this contract, because {_persist} grants
+        // the *final* handle and never the intermediate one. Reading it in a later
+        // transaction reverts `ACLNotAllowed`, which strands every claim whose band
+        // crosses this node.
+        if (_prevStamp[node] == was + 1) return;
 
         _prevBalance[node] = _balance[node];
         _prevLate[node] = _lateCredit[node];

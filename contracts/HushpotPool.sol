@@ -116,7 +116,9 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     uint256 public lastDrawSettledAt;
 
     /// @notice A draw's claim progress: how many slots it covered, and how many have
-    /// answered. The roll is gated on the two being equal.
+    /// answered. Reported, not enforced — the roll is deliberately *not* gated on these
+    /// being equal, because a claim now outlives its period and waiting for a sweep would
+    /// make the cycle depend on one. See {startNextPeriod}.
     ///
     /// @dev `covered` is snapshotted at settlement rather than read live at the roll. Slots
     /// created after a draw have no claim on it, so measuring against a growing `slotsUsed`
@@ -672,8 +674,20 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         claimChecked[drawId][slot] = true;
         claims[drawId].checked += 1;
 
-        ebool won = _checkWinAt(d.period, slot, d.drawPoint);
-        euint64 award = FHE.select(won, FHE.asEuint64(d.prize), FHE.asEuint64(0));
+        // The band belongs to the slot, not to whoever holds it now. A slot retired with
+        // {exitPool} is released at the roll and handed to somebody new, while the previous
+        // holder's weight still stands in the tree — it has to, or the bands would stop
+        // summing to the total this draw was settled against. So the band is left alone and
+        // the award is not written: the new holder answers for a draw they were not in, and
+        // the answer is no.
+        //
+        // A slot that simply did not exist yet is the same question with an easier answer.
+        // Its weight for that period reads zero, so the range test would fail anyway; going
+        // straight to the encrypted zero saves the comparison rather than changing it.
+        euint64 award =
+            slotAssignedAt[slot] <= d.period
+                ? FHE.select(_checkWinAt(d.period, slot, d.drawPoint), FHE.asEuint64(d.prize), FHE.asEuint64(0))
+                : FHE.asEuint64(0);
 
         // The receipt. Granted to the depositor, not the caller: a keeper sweeping the
         // pool must not be able to read what it just handed out.
@@ -773,11 +787,20 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         if (!d.settled) revert DrawNotSettled();
         if (currentPeriod > d.period + 1) revert ClaimWindowClosed();
 
+        // Bounded by what the draw actually covered, not by who is in the pool now.
+        //
+        // Reading `slotsUsed` live meant that every depositor who joined after settlement
+        // was swept for a draw they had no claim on: `checked` could climb past `covered`
+        // and render as "35 / 30", a finished sweep became resumable each time somebody
+        // new arrived, and each pointless slot still paid for a `_weightAt` and two
+        // storage writes. Their awards were always zero, so nothing was ever mispaid —
+        // the cost was gas and a counter that stopped meaning anything.
+        uint16 covered = claims[drawId].covered;
         uint16 from = sweepCursor[drawId];
-        if (from >= slotsUsed) revert SweepOutOfOrder();
+        if (from >= covered) revert SweepOutOfOrder();
 
         uint16 to = from + count;
-        if (to > slotsUsed) to = slotsUsed;
+        if (to > covered) to = covered;
 
         euint64 edge = from == 0 ? _zero() : _sweepEdge[drawId];
 
@@ -798,11 +821,17 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         upper = FHE.add(edge, _weightAt(d.period, uint256(LEAF_OFFSET) + slot));
         if (claimChecked[drawId][slot]) return upper;
 
-        euint64 award = FHE.select(
-            FHE.and(FHE.ge(d.drawPoint, edge), FHE.lt(d.drawPoint, upper)),
-            FHE.asEuint64(d.prize),
-            FHE.asEuint64(0)
-        );
+        // Same test {checkClaim} applies: a slot handed on since this draw carries a band
+        // its current holder did not earn, so it is answered with an encrypted zero rather
+        // than the range test. The band above is still counted either way.
+        euint64 award =
+            slotAssignedAt[slot] <= d.period
+                ? FHE.select(
+                    FHE.and(FHE.ge(d.drawPoint, edge), FHE.lt(d.drawPoint, upper)),
+                    FHE.asEuint64(d.prize),
+                    FHE.asEuint64(0)
+                )
+                : FHE.asEuint64(0);
 
         // A slot given up with {exitPool} keeps its place until the period rolls, so it
         // still has weight from the days it was held and its band can still take the draw

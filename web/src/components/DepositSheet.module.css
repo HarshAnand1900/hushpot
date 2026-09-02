@@ -506,3 +506,16 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* Sits under the leave control. Quiet, because it is a caution rather than an error —
+   but present, because the loss it describes is silent and permanent. */
+.exitNote {
+  margin: 8px 0 0;
+  color: var(--text-3);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.exitNote strong {
+  color: var(--text-2);
+}

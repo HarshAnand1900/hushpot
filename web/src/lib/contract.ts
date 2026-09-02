@@ -12,7 +12,7 @@
 export const CHAIN_ID = 11155111;
 
 /** The pool this app talks to. */
-const MAIN_POOL = "0x06140491d078215B7D9b34B0C633B7b0B2488639";
+const MAIN_POOL = "0x87d43a872fbf4Ba73758bCEB9a16e1C200E41822";
 
 /**
  * A second, expendable pool that anyone can run the whole cycle on.
@@ -26,7 +26,7 @@ const MAIN_POOL = "0x06140491d078215B7D9b34B0C633B7b0B2488639";
  * Reached with `?pool=sandbox` on any tab. Resolved once, at module load, so every hook
  * and component sees the same address without threading it through twenty-three files.
  */
-export const SANDBOX_POOL = "0x08B5FC1CC31e2AdA0008fdef1eB04C9539cFd668";
+export const SANDBOX_POOL = "0x4350b2a3957aE8a24f0cF264e818088b809096DB";
 
 /**
  * The sandbox's owner, which is a contract rather than a person.
@@ -36,7 +36,7 @@ export const SANDBOX_POOL = "0x08B5FC1CC31e2AdA0008fdef1eB04C9539cFd668";
  * calls to anybody who asks and nothing else — so a judge runs all six steps from their
  * own wallet, with no key to import and no week to wait.
  */
-export const SANDBOX_OPERATOR = "0x160c69e46853ED1DC4BD7cb31c0dD55093b33b4F" as const;
+export const SANDBOX_OPERATOR = "0xF7B8eAb79b83bEfe6DAacc4F5fc69817aD563ef2" as const;
 
 export const sandboxOperatorAbi = [
   { type: "function", name: "openDraw", inputs: [], outputs: [], stateMutability: "nonpayable" },
@@ -61,7 +61,7 @@ export const IS_SANDBOX = POOL_ADDRESS.toLowerCase() === SANDBOX_POOL.toLowerCas
  * Block the pool was deployed in. Log scans start here rather than at genesis — public
  * Sepolia endpoints reject unbounded ranges, and nothing about this pool exists before it.
  */
-export const DEPLOY_BLOCK = 11617693n;
+export const DEPLOY_BLOCK = 11620999n;
 
 /** cUSDTMock — "Confidential USDT (Mock)", 6 decimals, rate 1. */
 export const TOKEN_ADDRESS = "0x4E7B06D78965594eB5EF5414c357ca21E1554491" as const;

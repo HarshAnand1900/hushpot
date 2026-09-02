@@ -516,10 +516,23 @@ export function DepositSheet({
               className={styles.exit}
               onClick={() => void exitPool()}
               disabled={busy}
-              title="Withdraw everything and release your slot"
+              title="Withdraw everything and release your slot. Check any settled draw first — leaving gives up an unclaimed prize."
             >
               Or leave the pool entirely, which takes the whole balance and gives the slot back
             </button>
+          )}
+
+          {/* Leaving surrenders the slot, and a sweep skips a slot with no owner — so a
+              depositor who won a settled draw and leaves before anybody checks them loses
+              the prize silently. The money simply stays in the contract, unawarded. The
+              thirty-day window and a keeper that normally sweeps first make it unlikely,
+              which is exactly why it would go unnoticed if it happened. */}
+          {mode === "withdraw" && (
+            <p className={styles.exitNote}>
+              If a draw has settled and nobody has checked you for it yet, open{" "}
+              <strong>Did I win?</strong> before leaving — a slot with no owner is skipped by the sweep, so an unclaimed
+              prize is given up rather than paid out.
+            </p>
           )}
 
           <button className={styles.submit} onClick={submit} disabled={!canSubmit}>
