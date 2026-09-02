@@ -10,8 +10,8 @@ Built for the Zama Developer Program, Mainnet Season 4.
 
 - **Live app:** <https://hushpot-fhevm.vercel.app>
 - **Contract:**
-  [`0x1EA0982e4Ed5DCD6F0329a92D01A0065F864a8a2`](https://sepolia.etherscan.io/address/0x1EA0982e4Ed5DCD6F0329a92D01A0065F864a8a2)
-  (Sepolia). [Verified source](https://sepolia.etherscan.io/address/0x1EA0982e4Ed5DCD6F0329a92D01A0065F864a8a2#code).
+  [`0x87d43a872fbf4Ba73758bCEB9a16e1C200E41822`](https://sepolia.etherscan.io/address/0x87d43a872fbf4Ba73758bCEB9a16e1C200E41822)
+  (Sepolia). [Verified source](https://sepolia.etherscan.io/address/0x87d43a872fbf4Ba73758bCEB9a16e1C200E41822#code).
   The address in [`web/src/lib/contract.ts`](web/src/lib/contract.ts) is always the live one
 - **Judge panel:** [`/judge`](https://hushpot-fhevm.vercel.app/judge). Run a whole draw cycle from the browser, no
   terminal needed

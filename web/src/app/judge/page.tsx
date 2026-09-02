@@ -72,11 +72,18 @@ export default function JudgeTab() {
   const drawId = state.drawCount > 0n ? state.drawCount - 1n : 0n;
   const isOwner = !!address && !!owner && address.toLowerCase() === owner.toLowerCase();
   const target = covered ?? state.depositors;
+  // `checkClaim` has no `covered` bound, so a depositor who joins after a draw settles and
+  // answers it anyway pushes `checked` past the count that draw covered. Their award is
+  // forced to an encrypted zero by `slotAssignedAt`, so nothing is mispaid — but the panel
+  // would render "22 / 21", which reads as a bug. Clamped here rather than in the contract:
+  // a redeploy to correct a display artefact would put the repo and the chain back out of
+  // step, which is a worse problem than the one it fixes.
+  const answered = Math.min(Number(cursor ?? 0), target);
   const sweptAll = cursor !== undefined && target > 0 && cursor >= target;
   // How many more times step 04 has to be pressed. A sweep covers four slots, and without
   // this the panel showed progress but never said that pressing the same button again is
   // what finishes it — which reads as a stuck pool rather than an unfinished one.
-  const sweepsLeft = Math.max(0, Math.ceil((target - Number(cursor ?? 0)) / 4));
+  const sweepsLeft = Math.max(0, Math.ceil((target - answered) / 4));
 
   /**
    * When this period actually elapses, read from the chain rather than written down.
@@ -413,7 +420,7 @@ export default function JudgeTab() {
       role: "ANYONE",
       title: "Pay everyone out",
       sig: "sweepRange(uint256, uint16)",
-      note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped instead of paid twice, so this is safe to repeat. ${cursor ?? 0} of ${target} covered${sweepsLeft > 1 ? ` — press Run ${sweepsLeft} more times to finish` : sweepsLeft === 1 ? " — one more Run finishes it" : ""}.`,
+      note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped instead of paid twice, so this is safe to repeat. ${answered} of ${target} covered${sweepsLeft > 1 ? ` — press Run ${sweepsLeft} more times to finish` : sweepsLeft === 1 ? " — one more Run finishes it" : ""}.`,
       disabled: !isConnected || state.drawCount === 0n || !claimOpen || sweptAll,
       go: () =>
         run("sweep", `sweepRange(${drawId}, 4)`, async () => {
@@ -447,7 +454,7 @@ export default function JudgeTab() {
           ? onSandbox
             ? "Ends the claim window and opens the next period, through the owner contract so it needs no key and no thirty-day wait. The pool is then back at step 01, ready to run again."
             : "Ends the claim window and opens the next period. Held back thirty days after settlement so a claim is never a race."
-          : `Locked until every claim is answered: ${cursor ?? 0} of ${target}. Run step 04 ${sweepsLeft} more time${sweepsLeft === 1 ? "" : "s"} and this unlocks. The contract enforces it — \`startNextPeriod\` reverts with ClaimsOutstanding, for the owner too, because rolling ends a claim window and an unanswered claim can never be answered afterwards.`,
+          : `Locked until every claim is answered: ${answered} of ${target}. Run step 04 ${sweepsLeft} more time${sweepsLeft === 1 ? "" : "s"} and this unlocks. The contract enforces it — \`startNextPeriod\` reverts with ClaimsOutstanding, for the owner too, because rolling ends a claim window and an unanswered claim can never be answered afterwards.`,
       disabled: !isConnected || state.drawCount === 0n || state.drawPending || !claimOpen || !sweptAll,
       go: () =>
         run("roll", onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()", async () => {
@@ -524,21 +531,11 @@ export default function JudgeTab() {
               </a>
             )}
 
-            {/* The one difference between the pools, told to a reviewer on the pool that
-                has it rather than left in a README they may not reach. A weakness someone
-                finds is worse than the same weakness you handed them. */}
-            {!onSandbox && (
-              <p className={styles.phaseLine}>
-                <strong>One thing this pool does not have.</strong> A later fix stops a prize being parked on a slot
-                whose owner left with <code>exitPool</code>; the sandbox runs it, this pool predates it. Reaching it
-                needs a depositor to leave mid-period and their band to take the draw point, and nobody has ever left
-                either pool — zero <code>SlotRetired</code> events, which you can confirm from the logs. Redeploying
-                would discard three settled periods of history, so it was left alone deliberately.{" "}
-                <a href="https://github.com/HarshAnand1900/hushpot#what-immutability-costs-on-this-deployment">
-                  The reasoning is in the README ↗
-                </a>
-              </p>
-            )}
+            {/* A divergence notice lived here while the main pool ran older bytecode than
+                the repo. Both pools now run the same source, so there is nothing to warn
+                about — and a notice claiming otherwise would be worse than none, since it
+                told a reviewer this pool lacked a fix it has. What immutability actually
+                cost is in the README, where it reads as history rather than as a caveat. */}
           </div>
 
           <div className={styles.heroSide}>
@@ -568,7 +565,7 @@ export default function JudgeTab() {
             />
             <Row
               label={`SWEPT · DRAW #${drawId}`}
-              value={cursor === undefined ? "—" : `${cursor} / ${target}`}
+              value={cursor === undefined ? "—" : `${answered} / ${target}`}
               accent={sweptAll}
             />
 
