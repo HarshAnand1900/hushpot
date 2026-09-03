@@ -448,14 +448,17 @@ export default function JudgeTab() {
       role: onSandbox ? "ANYONE" : "OWNER EARLY · ANYONE AFTER 30 DAYS",
       title: "Roll the period",
       sig: onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()",
+      // No sweep gate, and the note used to claim one. It said the contract reverts with
+      // `ClaimsOutstanding` "for the owner too" — an error that no longer exists, guarding
+      // a rule that was removed, for a reason that stopped being true when the tree started
+      // keeping a generation of history. Rolling ends nothing now: a claim outlives its
+      // period, so a slot nobody has answered yet is not a slot about to lose anything.
       note: !claimOpen
-        ? "Already done for this period. The last draw settled in an earlier one, its claim window is shut, and the pool is waiting for the next draw before there is anything to roll."
-        : sweptAll
-          ? onSandbox
-            ? "Ends the claim window and opens the next period, through the owner contract so it needs no key and no thirty-day wait. The pool is then back at step 01, ready to run again."
-            : "Ends the claim window and opens the next period. Held back thirty days after settlement so a claim is never a race."
-          : `Locked until every claim is answered: ${answered} of ${target}. Run step 04 ${sweepsLeft} more time${sweepsLeft === 1 ? "" : "s"} and this unlocks. The contract enforces it — \`startNextPeriod\` reverts with ClaimsOutstanding, for the owner too, because rolling ends a claim window and an unanswered claim can never be answered afterwards.`,
-      disabled: !isConnected || state.drawCount === 0n || state.drawPending || !claimOpen || !sweptAll,
+        ? "Already done for this period. The last draw settled in an earlier one, and the pool is waiting for the next draw before there is anything to roll."
+        : onSandbox
+          ? `Opens the next period, through the owner contract so it needs no key and no thirty-day wait. ${answered} of ${target} claims answered — the roll does not wait for the rest, because a claim stays answerable for a period after its own. The pool is then back at step 01.`
+          : `Opens the next period. ${answered} of ${target} claims answered, and the roll does not wait for the rest: the tree keeps a generation of history, so a claim outlives the period it belongs to. Held back thirty days from everybody but the owner all the same, so nobody else can shorten the window.`,
+      disabled: !isConnected || state.drawCount === 0n || state.drawPending || !claimOpen,
       go: () =>
         run("roll", onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()", async () => {
           const out = await sendGated("startNextPeriod");
@@ -464,7 +467,7 @@ export default function JudgeTab() {
             abi: poolAbi,
             functionName: "currentPeriod",
           })) as number;
-          return { ...out, note: `claim window closed · period #${period} now open · back to step 01` };
+          return { ...out, note: `period #${period} now open · earlier claims stay answerable · back to step 01` };
         }),
     },
   ];

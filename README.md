@@ -273,17 +273,20 @@ from the one address it was granted to.
 forward instead of rederiving it per person, which makes it about 1.6× cheaper each. Either path credits the same
 encrypted award, and a slot already checked is skipped, never credited twice.
 
-A sweep is worth running before the period rolls, because rolling ends every open claim. That is what stops a winner who
-never came back from losing the prize.
+A sweep is a convenience rather than a deadline. Rolling used to end every open claim, which made sweeping before the
+roll the only thing standing between an absent winner and a forfeited prize — the tree now keeps a generation of
+history, so a claim outlives its own period and nobody has to be swept in time.
 
-Claims stay open for **30 days** after settlement (`CLAIM_GRACE`). The window costs nothing to provide: weights freeze
-on their own when a period ends, so holding the roll back is the whole mechanism. No snapshots, no per-slot state.
+Claims stay open for **30 days** after settlement (`CLAIM_GRACE`), and — the part that matters — **a roll does not end
+them**. Each tree node keeps one generation of history, so a draw settled in period 4 is still evaluated against period
+4's weights once period 5 has begun. A depositor nobody swept in time has lost nothing.
 
-> ⚠️ **With one exception, and it is a real one.** `startNextPeriod()` enforces the grace against everybody _except_ the
-> owner, and rolling the period is what closes a claim. So the owner can end the window early and strand an unclaimed
-> prize. The exemption exists so a testnet demo does not have to wait a month to show a second cycle; the Judge panel
-> refuses to roll until every slot is swept, but that is frontend courtesy, not a contract rule. Treated as a trust
-> assumption and documented in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
+> ⚠️ **What that changed, and what it did not.** The grace used to be the entire protection, because a claim was
+> answerable only while its own period was current — so an owner rolling early could strand an unclaimed prize, and the
+> only thing in the way was the Judge panel declining to offer the button. That hole is closed in the contract now, not
+> in the interface. What remains is bounded and stated: a draw **two** periods old reverts with `ClaimWindowClosed`
+> rather than answering from weights that no longer exist. Keeping more than one generation is a parameter, not a
+> redesign. See [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
 
 ### Weights freeze on their own
 
@@ -596,9 +599,10 @@ the pool needs, which most of the time is nothing at all:
    slot instead of a batch.
 4. **The roll** happens on Monday at `--roll-hour` (06:00 UTC), and _only once every slot is swept_.
 
-That last condition is the whole reason the keeper exists. Rolling ends the claim window for good, because `checkClaim`
-reverts once `draw.period != currentPeriod`. A prize not swept by then is deducted from the reserve and credited to
-nobody, for ever. It has already happened once on the live pool, done by hand. The keeper cannot make that mistake.
+That condition is now tidiness rather than necessity. It was the whole reason the keeper existed: `checkClaim` used to
+revert once `draw.period != currentPeriod`, so a prize not swept before the roll was deducted from the reserve and
+credited to nobody, permanently — and that happened once on a live pool, by hand. Claims survive a roll now, so the
+keeper sweeps to save depositors the transaction, not to save them the prize.
 
 Deposits need no attention at the boundary: balances live in the tree across periods, and the period-scoped corrections
 read as zero once the stamp moves on, so everyone's principal carries into the new week at full credit without a single

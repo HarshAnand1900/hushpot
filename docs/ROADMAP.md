@@ -138,12 +138,12 @@ single-tier claim already measures ~2.4M gas on Sepolia, with five batched toget
 tiers need the per-claim HCU measured before any of it is committed to — if one tier is 2.4M, four tiers is not
 obviously affordable.
 
-**Enforce the sweep on-chain before a period may roll.** Rolling ends every open claim, so a prize not checked by then
-is deducted from the reserve and credited to nobody, permanently. The Judge panel refuses to roll until every slot is
-swept, but that is a frontend courtesy — the contract does not check it, and a prize has already been lost this way on
-the live pool by someone rolling from the terminal. The fix is a counter of unchecked slots per draw and a require in
-`startNextPeriod`; the cost is that a pool with an unreachable depositor can never roll, so it needs an owner override
-and that override is the trust assumption again.
+**~~Enforce the sweep on-chain before a period may roll.~~ Done, then undone, and neither is what shipped.** Rolling
+used to end every open claim, so a prize not checked by then was credited to nobody — which happened once on a live
+pool, by hand. The gate was built: a counter per draw and a require in `startNextPeriod`. It was then removed, because
+it made the cycle depend on an O(n) sweep somebody has to fund, so a pool nobody swept degraded to monthly and forfeited
+the stragglers anyway. What shipped instead is a generation of tree history, so a claim outlives its period and the roll
+costs nobody anything. See "A claim outlives its period" in the README.
 
 **Snapshot the bands at settlement.** `_checkWin` derives each band from the live tree, which is safe only once the
 period has elapsed and weights freeze. Draw early with the owner's `--force` and deposits made afterwards still shift

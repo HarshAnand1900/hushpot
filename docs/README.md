@@ -39,8 +39,9 @@ none.
 
 Stated plainly rather than buried, and covered in full in [`THREAT-MODEL.md`](THREAT-MODEL.md):
 
-- The **owner can end the 30-day claim window early**, because rolling the period is what closes a claim and the grace
-  check exempts the owner.
+- The **owner can roll a period early**, because the grace check exempts them. It used to be the sharpest assumption
+  here, since a claim died with its period — the tree now keeps a generation of history, so rolling early strands
+  nothing. What is left is bounded: a draw two periods old can no longer be answered.
 - **A griefer's slots cannot be reclaimed.** A depositor can give their own slot back with `exitPool`, but nobody can
   take one from an attacker — that case is priced rather than prevented. See [§9](THREAT-MODEL.md#9-slot-exhaustion).
 - **Acquiring cUSDT publishes that amount**, because wrapping plain tUSDT is an ordinary ERC-20 transfer. It happens at
