@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useConfig, usePublicClient, useWriteContract } from "wagmi";
+import { waitForTransactionReceipt } from "wagmi/actions";
 import Link from "next/link";
 
 import { AppHeader, FAUCET_EVENT } from "@/components/AppHeader";
@@ -16,8 +17,9 @@ import { useDraws } from "@/hooks/useDraws";
 import { usePoolHref } from "@/hooks/usePoolHref";
 import { poolPhase, type Phase } from "@/hooks/usePoolPhase";
 import { useLastDraw, useNow, usePoolState, useWeeklyPot } from "@/hooks/usePoolState";
-import { POOL_ADDRESS } from "@/lib/contract";
+import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { formatCountdown, formatUnits, shortenAddress, splitUnits } from "@/lib/format";
+import { describeError, toast } from "@/lib/toast";
 import styles from "./pool.module.css";
 
 export default function PoolTab() {
@@ -441,45 +443,95 @@ function EngineCell({ label, note, done, active }: { label: string; note: string
 }
 
 /**
- * What the cycle needs next, said where depositors stand.
+ * What the cycle needs next, said where depositors stand — with a button, not just a link.
  *
- * The action itself lives on Judge, which owns the whole cycle. This used to carry its own
- * `openDraw` button as well, and a second copy of a rule is a second copy to keep correct:
- * it gated on the elapsed period alone, so it sat greyed out for the owner who may open
- * early and on the sandbox where the operator forwards the call to anyone. One sentence
- * cannot drift out of step with the contract — but it can at least say which step is next,
- * rather than describing the mechanism in general while the pool waits on something
- * specific.
+ * There used to be a button here that gated on the elapsed period alone, so it sat greyed
+ * out for the owner opening early and never worked at all on the sandbox, where the pool's
+ * owner is a forwarding contract rather than the caller. It was pulled rather than fixed in
+ * place.
+ *
+ * Both buttons below are safe from that trap for the same reason: `due` only exists once
+ * `periodEnded()` is already true, and `sealed` only exists once a draw is already pending
+ * — and `openDraw` past that point, and `settleDraw` always, take no owner check at all.
+ * There is no early-open case to get wrong, because a button offered from either state was
+ * never gated on ownership to begin with. Nothing here needs the sandbox's forwarding
+ * contract, so the same two buttons work unmodified on both pools.
  */
 function CloseDraw({ phase }: { phase: Phase }) {
   const withPool = usePoolHref();
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const config = useConfig();
+  const { writeContractAsync } = useWriteContract();
+  const [busy, setBusy] = useState(false);
 
-  const next: Record<Phase["id"], { says: string; cta: string }> = {
-    accruing: {
-      says: "Nothing to do yet. When the week is up, any wallet can open the draw — the operator is not in that path.",
-      cta: "See the cycle on Judge",
-    },
-    due: {
-      says: "The week is up and nobody has sealed the total yet. This needs no permission now; it is waiting on somebody to press it.",
-      cta: "Open the draw on Judge",
-    },
-    sealed: {
-      says: "The total is sealed and published. Settling relays the decrypted total back with its proof, and the die is rolled in that same transaction.",
-      cta: "Settle it on Judge",
-    },
-    settling: {
-      says: "The die is rolled and prizes are being credited. Every depositor is checked in turn, winner or loser, and the checks cost the same.",
-      cta: "Run the payout on Judge",
-    },
+  const said: Record<Phase["id"], string> = {
+    accruing: "Odds are accruing. Nothing to do until the week is up.",
+    due: "The week is up. Sealing the total needs no permission.",
+    sealed: "Sealed. Settling rolls the die and needs one confirmation.",
+    settling: "Rolled. Check your own result below, or sweep others on Judge.",
   };
-  const step = next[phase.id];
+
+  const openIt = async () => {
+    setBusy(true);
+    try {
+      const tx = await writeContractAsync({ address: POOL_ADDRESS, abi: poolAbi, functionName: "openDraw" });
+      await waitForTransactionReceipt(config, { hash: tx });
+      toast({ kind: "success", title: "Draw opened", detail: "The total is sealed and published for decryption." });
+    } catch (e) {
+      toast({ kind: "error", title: "Could not open the draw", detail: describeError(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const settleIt = async () => {
+    if (!publicClient) return;
+    setBusy(true);
+    try {
+      const handle = await publicClient.readContract({
+        address: POOL_ADDRESS,
+        abi: poolAbi,
+        functionName: "pendingTotalHandle",
+      });
+      const { publicDecryptRetry } = await import("@/lib/fhe");
+      const res = (await publicDecryptRetry([handle as string])) as {
+        abiEncodedClearValues: string;
+        decryptionProof: string;
+      };
+      const tx = await writeContractAsync({
+        address: POOL_ADDRESS,
+        abi: poolAbi,
+        functionName: "settleDraw",
+        args: [res.abiEncodedClearValues, res.decryptionProof],
+      } as never);
+      await waitForTransactionReceipt(config, { hash: tx });
+      toast({
+        kind: "success",
+        title: "Draw settled",
+        detail: "The die is rolled. Every depositor can now be checked.",
+      });
+    } catch (e) {
+      toast({ kind: "error", title: "Could not settle the draw", detail: describeError(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className={styles.engineFoot}>
-      <span>
-        One round closes the week: the pool is sealed, the network rolls an encrypted die, and the pot moves without
-        ever resolving a name. {step.says} <Link href={withPool("/judge")}>{step.cta} →</Link>
-      </span>
+      <span>{said[phase.id]}</span>
+      {phase.id === "due" && (
+        <button className="btnPrimary" onClick={openIt} disabled={busy || !address}>
+          {busy ? "Opening…" : "Open the draw"}
+        </button>
+      )}
+      {phase.id === "sealed" && (
+        <button className="btnPrimary" onClick={settleIt} disabled={busy || !address}>
+          {busy ? "Settling…" : "Settle it"}
+        </button>
+      )}
+      {phase.id === "settling" && <Link href={withPool("/judge")}>Sweep on Judge →</Link>}
     </div>
   );
 }

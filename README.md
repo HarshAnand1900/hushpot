@@ -677,14 +677,13 @@ anything in the contract. Held to this cadence it never drifts:
 | Monday 00:00 → 06:00        | `hushpot:sweep --draw N`, and prizes land             |
 | **Monday 06:00**            | roll again, and the next week starts exactly on time  |
 
-The six-hour gap is the maintenance window: the draw is opened six hours before the nominal seven-day boundary, using
-the owner's `--force` exemption, so that settling and sweeping finish before the next period is due to start. Without it
-the roll would slip by however long the sweep took, and the schedule would walk forward every week.
-
-**Sweep before you roll, every time.** Rolling closes the claim window permanently, since `checkClaim` reverts once
-`draw.period != currentPeriod`. A prize that has not been checked by then is stranded: deducted from the reserve,
-credited to nobody, unrecoverable by anyone including the owner. This has already happened once on the live pool, to
-draw #0, which is why it is stated twice.
+The six-hour gap is a courtesy, not a safety margin: the draw is opened six hours before the nominal seven-day boundary
+so that settling and a prompt sweep both finish before the next period is due to start, and prizes land in balances the
+same day rather than sitting parked. Nothing here is time-pressured. The tree keeps five generations of history and the
+claim window is thirty days of wall-clock time, independent of how many times the period has rolled since — and
+`startNextPeriod` itself refuses to roll past a draw still inside its grace if doing so would push it beyond that
+history depth, so there is no sequence of calls that can orphan a live claim. Rolling on schedule without sweeping first
+is a legitimate way to run this; sweeping promptly is good practice, not insurance against a stranded prize.
 
 ### Keeping it running
 
