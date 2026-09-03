@@ -334,6 +334,13 @@ export default function PoolTab() {
               One signature opens a session for this visit. Your balance is recomputed on-chain, then decrypted in this
               browser with a key that never leaves it.
             </div>
+            {/* Withdrawing does not have to wait on this. It was gated behind the reveal
+                button above for no reason beyond convenience — the withdraw sheet has its
+                own reveal step now, so opening it straight from here just moves the same
+                signature to where someone actually asked for it. */}
+            <button className="btnQuiet" style={{ width: "100%", marginTop: 8 }} onClick={() => setSheet("withdraw")}>
+              Withdraw without revealing first
+            </button>
           </div>
         </PositionPanel>
 
@@ -403,6 +410,14 @@ export default function PoolTab() {
           lockMode={sheet === "join"}
           drawNumber={drawNumber}
           inPool={position.balance}
+          // Withdraw has no decrypt path of its own — it borrows this one, the same
+          // signature-then-transaction flow the position panel's own reveal button runs.
+          // `reveal()` writes into shared state (`position`, above), so a reveal
+          // triggered from inside the sheet updates `inPool` the same way the panel's
+          // own button would, and the sheet re-renders with the real balance.
+          onRevealPosition={reveal}
+          revealingPosition={busy}
+          revealConnected={isConnected}
           onClose={() => setSheet(null)}
           onDone={() => {
             state.refetch();

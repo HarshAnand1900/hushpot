@@ -176,7 +176,11 @@ export function PositionPanel({
   const maxAdd = 50_000;
 
   const projected = useMemo(() => {
-    if (odds === undefined || weight === undefined || !poolTotal || poolTotal === 0n) return undefined;
+    // Not gated on `odds` — a stale *current* position must not blank out the projection
+    // too. The two are independent questions: "is my position bigger than the last total"
+    // and "would adding this amount still be." A deposit large enough to fix the first
+    // can leave the second still true, or the reverse.
+    if (weight === undefined || !poolTotal || poolTotal === 0n) return undefined;
 
     // Money added now earns only the minutes left in the period, on both sides of the
     // ratio — it enlarges the pot exactly as much as it enlarges your share.
@@ -185,13 +189,16 @@ export function PositionPanel({
 
     const mine = Number(weight) + extra;
     const all = Number(poolTotal) + extra;
-    const p = all > 0 ? (mine / all) * 100 : undefined;
+    return all > 0 ? (mine / all) * 100 : undefined;
+  }, [weight, poolTotal, minuteOfPeriod, add]);
 
-    // Same staleness, same answer: no projection is better than a confident wrong one.
-    return p !== undefined && p <= 100.5 ? p : undefined;
-  }, [add, odds, weight, poolTotal, minuteOfPeriod]);
+  /** Same rule as the current figure: past 100% of a frozen total, show what grew rather
+   * than a number that claims to be live odds it cannot be. */
+  const projectedStale = projected !== undefined && projected > 100.5;
 
-  const delta = projected !== undefined && odds !== undefined ? projected - odds : 0;
+  // `rawOdds`, not the capped `odds` — a delta against `undefined` would silently read as
+  // zero in exactly the state this is most worth showing correctly.
+  const delta = projected !== undefined && rawOdds !== undefined ? projected - rawOdds : 0;
 
   /** Odds after the projected deposit, times the prize: what the week is worth on average. */
   const expectedWeekly =
@@ -387,8 +394,21 @@ export function PositionPanel({
               not merely hidden. It does not exist yet, and saying so beats a mask that
               looks identical to "you have not revealed", which is what it looked like. */}
           <div className={`num ${styles.value} ${isUnlocked && odds !== undefined ? "" : styles.valueMasked}`}>
-            {odds !== undefined && isUnlocked ? `${odds.toFixed(2)}%` : oddsStale && isUnlocked ? "—" : masked}
+            {odds !== undefined && isUnlocked
+              ? `${odds.toFixed(2)}%`
+              : oddsStale && isUnlocked && rawOdds !== undefined
+                ? // Not a percentage, deliberately — 100%+ next to the word "odds" reads as
+                  // a certain win, which this is not: the pool has grown since the total
+                  // this is measured against was published, so the true current share is
+                  // smaller than this figure implies. A multiple of the *old* total says
+                  // something true and useful — how far the position has outgrown the last
+                  // snapshot — without claiming to be the number it cannot compute.
+                  `${(rawOdds / 100).toFixed(2)}×`
+                : masked}
           </div>
+          {oddsStale && isUnlocked && (
+            <div className={styles.oddsPending}>of the pool as it stood at the last draw, not live odds</div>
+          )}
 
           {!hasDenominator && (
             <div className={styles.oddsPending}>
@@ -420,7 +440,7 @@ export function PositionPanel({
             {!hasDenominator
               ? "waiting on the first draw"
               : oddsStale
-                ? `out of date: the pool has grown past the total published at draw #${Math.max(0, drawNumber - 1)}, and the live one is encrypted. Your real share is recalculable only when the next draw publishes a new total.`
+                ? `your weight has outgrown the total published at draw #${Math.max(0, drawNumber - 1)} — the pool has taken in more since, and that live total stays encrypted, so this is as close as your true share can be shown. Recalculable exactly once the next draw publishes a fresh one.`
                 : isUnlocked
                   ? "your share of the pool, against the total published at the last draw. It climbs through the period because that denominator is frozen while your weight accrues — not because holding beats holding. If everyone stays, everyone's weight grows together and the real shares barely move. Computed here, never transmitted."
                   : "computed here, never transmitted"}
@@ -459,8 +479,12 @@ export function PositionPanel({
             <div className={styles.projTop}>
               <span className={styles.label}>ODDS AFTER</span>
               <span className={`num ${styles.projValue}`}>
-                {projected !== undefined ? `${projected.toFixed(2)}%` : "—"}
-                {projected !== undefined && (
+                {projected === undefined
+                  ? "—"
+                  : projectedStale
+                    ? `${(projected / 100).toFixed(2)}×`
+                    : `${projected.toFixed(2)}%`}
+                {projected !== undefined && !projectedStale && (
                   <span className={styles.projDelta}>
                     {delta >= 0 ? "+" : ""}
                     {delta.toFixed(2)} pts
@@ -469,12 +493,28 @@ export function PositionPanel({
               </span>
             </div>
             <div className={styles.projTrack}>
-              <span className={styles.projFill} style={{ width: `${Math.min(100, ((projected ?? 0) / 10) * 100)}%` }} />
+              <span
+                className={styles.projFill}
+                // A bar scaled 0–10% has nothing to show past 100%, so it fills rather
+                // than stretches off the edge of its own track — the number beside it
+                // already says the real story.
+                style={{ width: `${projectedStale ? 100 : Math.min(100, ((projected ?? 0) / 10) * 100)}%` }}
+              />
             </div>
             <div className={styles.projFoot}>
-              <span>NOW {odds !== undefined ? `${odds.toFixed(2)}%` : "—"}</span>
+              <span>
+                NOW{" "}
+                {odds !== undefined
+                  ? `${odds.toFixed(2)}%`
+                  : oddsStale && rawOdds !== undefined
+                    ? `${(rawOdds / 100).toFixed(2)}×`
+                    : "—"}
+              </span>
               <span>SCALE 0–10%</span>
             </div>
+            {projectedStale && (
+              <div className={styles.oddsPending}>of the pool as it stood at the last draw, not live odds</div>
+            )}
 
             {/* Odds alone read as a verdict on the deposit, and a small percentage in a
                 large pool looks like a bad deal. It is not: expected return is odds times

@@ -37,6 +37,9 @@ export function DepositSheet({
   inPool,
   drawNumber,
   lockMode = false,
+  onRevealPosition,
+  revealingPosition,
+  revealConnected,
 }: {
   mode: Mode;
   onClose: () => void;
@@ -45,6 +48,12 @@ export function DepositSheet({
   drawNumber?: number;
   /** Hide the other tab. Used by the "take your shot" entry, which is only ever a way in. */
   lockMode?: boolean;
+  /** Withdraw's own reveal step. Runs the same signature-then-transaction flow the
+   * position panel's reveal button does; `inPool` updates on its own once it resolves,
+   * since both read from the same shared position state. */
+  onRevealPosition?: () => void | Promise<void>;
+  revealingPosition?: boolean;
+  revealConnected?: boolean;
 }) {
   const { address } = useAccount();
   const config = useConfig();
@@ -339,13 +348,14 @@ export function DepositSheet({
               </label>
               <span className={styles.avail}>
                 {mode === "withdraw" ? (
-                  // Withdraw has no decrypt flow of its own — `inPool` only ever exists
-                  // here because the position panel it was opened from already unlocked
-                  // it. Showing the figure with no framing at all made that invisible: it
-                  // looked like the amount had been revealed by default rather than
-                  // carried over from a reveal the visitor already did. Labelling it
-                  // "revealed" says which, honestly, rather than leaving the two
-                  // explanations to look identical on screen.
+                  // Withdraw used to have no decrypt flow of its own: `inPool` only ever
+                  // arrived already-known, because the only way in was a button gated
+                  // behind the position panel's own reveal. That made the amount look
+                  // revealed by default the moment someone reached this sheet at all — it
+                  // had already happened, just somewhere else. Now that withdraw can be
+                  // opened directly, the same reveal button deposit has for the wallet
+                  // balance belongs here too, wired to the same signature-then-transaction
+                  // flow the panel runs, not a copy of it.
                   balanceKnown ? (
                     <>
                       In pool: <strong>{formatUnits(available)}</strong>{" "}
@@ -354,7 +364,15 @@ export function DepositSheet({
                   ) : (
                     <>
                       In pool: <strong>encrypted</strong>{" "}
-                      <span className={styles.revealedTag}>reveal your position on the panel first</span>
+                      {onRevealPosition && (
+                        <button
+                          className={styles.reveal}
+                          onClick={() => void onRevealPosition()}
+                          disabled={revealingPosition || busy || revealConnected === false}
+                        >
+                          {revealConnected === false ? "connect a wallet" : revealingPosition ? "opening…" : "reveal"}
+                        </button>
+                      )}
                     </>
                   )
                 ) : !balanceKnown ? (
@@ -386,7 +404,11 @@ export function DepositSheet({
                 placeholder="0.00"
                 value={raw}
                 onChange={(e) => setRaw(e.target.value.replace(/[^0-9.]/g, ""))}
-                disabled={busy}
+                // A contract-side clamp already makes an unrevealed withdrawal safe —
+                // `_debitSlot` never returns more than the balance actually held — but
+                // typing an amount before there is a figure to check it against would
+                // still read as acting on a guess. Disabled until there is one.
+                disabled={busy || (mode === "withdraw" && !balanceKnown)}
                 autoFocus
               />
               <span className={styles.unit}>cUSDT</span>
