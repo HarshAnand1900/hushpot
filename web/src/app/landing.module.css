@@ -136,6 +136,12 @@
 
 /* ------------------------------------------------------------- side rails -- */
 
+/* Both this and .stats float over the 3D exhibit, whose brightness runs from near-black
+   to the pot's full gold depending on where the rig has turned. No single text colour
+   survives that: light grey vanishes into the gold, and black vanishes into everything
+   else. So each carries its own scrim, bled well past the text and faded to nothing at the
+   far edge, which fixes the background the type is read against without drawing a panel
+   the design does not have. */
 .edgeLeft {
   position: absolute;
   left: 46px;
@@ -145,8 +151,17 @@
   font-family: var(--font-mono), monospace;
   font-size: 10px;
   letter-spacing: 0.2em;
-  color: var(--text-3);
+  color: #c4c4c4;
   z-index: 3;
+}
+
+.edgeLeft::before {
+  content: "";
+  position: absolute;
+  inset: -26px -18px;
+  z-index: -1;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.66) 55%, transparent 100%);
+  pointer-events: none;
 }
 
 .stats {
@@ -161,6 +176,16 @@
   z-index: 3;
 }
 
+/* See the note on .edgeLeft. Fades leftward so the pot is never boxed in. */
+.stats::before {
+  content: "";
+  position: absolute;
+  inset: -26px -34px -26px -70px;
+  z-index: -1;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.68) 50%, transparent 100%);
+  pointer-events: none;
+}
+
 .stat {
   display: flex;
   flex-direction: column;
@@ -171,7 +196,7 @@
   font-family: var(--font-mono), monospace;
   font-size: 10.5px;
   letter-spacing: 0.2em;
-  color: #b0b0b0;
+  color: #c4c4c4;
 }
 
 .statValue {

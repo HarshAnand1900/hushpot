@@ -101,15 +101,17 @@ export default function Landing() {
               )}
             </span>
           </div>
-          {/* Was "LIVE · THIS WEEK'S POT · THE ONLY PUBLIC NUMBER", and both halves were
-              wrong. The figure is `prizeFor(lastDraw.total) + sponsored` — an estimate
-              carried from the last settled draw, never a live reading, because a live pool
-              total would let anyone recover a deposit by subtraction. And it is not the
-              only public number: the pooled total and the prize sit in the panel beside it.
-              Calling an estimate "live" is the one mislabel this design cannot afford. */}
+          {/* "LIVE" belongs to the feed, not to the figure, and the distinction is the
+              whole product. The reads behind this panel really are live — polled off
+              Sepolia every twelve seconds. The pot itself cannot be: it is
+              `prizeFor(lastDraw.total) + sponsored`, carried from the last settled draw,
+              because a live pool total would let anyone recover a deposit by subtraction.
+              So the word sits on the source and the qualifier sits on the number. It also
+              used to claim "the only public number", which the pooled total and the prize
+              in the panel beside it plainly contradict. */}
           <div className={styles.potStrap}>
             <span className="liveDot" />
-            THIS WEEK&apos;S POT · ESTIMATED FROM THE LAST DRAW
+            LIVE FROM SEPOLIA · THIS WEEK&apos;S POT, ESTIMATED FROM THE LAST DRAW
           </div>
         </section>
 
