@@ -53,6 +53,24 @@ export function PositionPanel({
   // needs. An estimate honestly labelled beats a wrong number stated plainly.
   const rawOdds = weight !== undefined && hasDenominator ? (Number(weight) / Number(poolTotal)) * 100 : undefined;
 
+  /**
+   * How much of full credit this position is currently earning.
+   *
+   * Odds are weighted by amount AND time, so two people holding the same balance can have
+   * different weights: `weight = balance × (PERIOD_MINUTES − minuteDeposited)`. Divide by
+   * what a full period would have earned and the result is a plain multiplier — 1.00× for
+   * somebody who was there when the week opened, 0.50× for somebody who arrived halfway.
+   *
+   * It resets every week, and deliberately so. There is no bonus for staying multiple
+   * periods: `_advancePeriod` lets the period-scoped corrections age out, so everyone
+   * returns to full credit together. A depositor of five weeks and one who arrives at the
+   * top of this week have identical odds for the same balance. Showing a "loyalty"
+   * multiplier would be inventing a mechanic the contract does not have.
+   */
+  const fullCredit = balance !== undefined ? balance * PERIOD_MINUTES : undefined;
+  const timeCredit =
+    weight !== undefined && fullCredit !== undefined && fullCredit > 0n ? Number(weight) / Number(fullCredit) : undefined;
+
   // Past 100% the denominator is provably out of date — your weight has outgrown the total
   // that was published at the last draw, because you deposited or won since. Capping it at
   // 100 was worse than useless: it reads as "you will certainly win", which is false and
@@ -179,6 +197,29 @@ export function PositionPanel({
               </div>
             ))}
 
+            {/* The multiplier the contract actually applies, rather than the loyalty one
+                it does not. Yellow because it is the number that moves your odds and the
+                only one here you can act on: deposit earlier next week and it goes up. */}
+            <div className={styles.row}>
+              <dt>
+                TIME CREDIT <span className={styles.rowNote}>this period only, resets weekly</span>
+              </dt>
+              <dd className={isUnlocked ? styles.rowValue : styles.rowMasked}>
+                {isUnlocked && timeCredit !== undefined ? (
+                  <span className={styles.credit}>
+                    {timeCredit.toFixed(2)}×{" "}
+                    <span className={styles.creditNote}>
+                      {timeCredit > 0.995 ? "full week" : `joined at minute ${Math.round((1 - timeCredit) * 10080)}`}
+                    </span>
+                  </span>
+                ) : isUnlocked ? (
+                  "—"
+                ) : (
+                  masked
+                )}
+              </dd>
+            </div>
+
             <div className={styles.row}>
               <dt>
                 DRAWS ENTERED <span className={styles.rowNote}>since first deposit</span>
@@ -192,7 +233,7 @@ export function PositionPanel({
                 actually weighted by, so time is what belongs here. */}
             <div className={styles.row}>
               <dt>
-                BLOCKS HELD <span className={styles.rowNote}>earning the whole time</span>
+                HELD FOR <span className={styles.rowNote}>blocks, since your first deposit</span>
               </dt>
               <dd className={isUnlocked ? styles.rowValue : styles.rowMasked}>
                 {isUnlocked ? (history.heldFor ?? "—") : masked}

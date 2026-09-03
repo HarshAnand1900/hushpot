@@ -329,3 +329,17 @@
 .lock:hover {
   background: rgba(255, 210, 8, 0.1);
 }
+
+/* The time multiplier — the one number in the record a depositor can act on.
+   Yellow because it moves your odds; the note beside it says why it is what it is. */
+.credit {
+  color: var(--yellow);
+  font-variant-numeric: tabular-nums;
+}
+
+.creditNote {
+  color: var(--text-3);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

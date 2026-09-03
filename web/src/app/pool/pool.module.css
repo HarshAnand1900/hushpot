@@ -701,3 +701,40 @@
     justify-self: start;
   }
 }
+
+/* The phase reasoning, folded away.
+   It is four or five lines and it changes as the week moves, so leaving it open made the
+   hero resize under the reader. The headline stays; the argument is one click down. */
+.phaseMore {
+  margin-top: 6px;
+}
+
+.phaseMore > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.5);
+  transition: color 0.15s;
+}
+
+.phaseMore > summary::-webkit-details-marker {
+  display: none;
+}
+
+.phaseMore > summary::after {
+  content: " +";
+}
+
+.phaseMore[open] > summary::after {
+  content: " −";
+}
+
+.phaseMore > summary:hover {
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.phaseMore[open] .phaseDetail {
+  margin-top: 6px;
+}

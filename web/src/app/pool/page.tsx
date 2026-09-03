@@ -113,10 +113,16 @@ export default function PoolTab() {
                 coming next, the figure is what the last one actually paid. Saying only
                 "PUBLIC BY DESIGN" left that unexplained and read as a contradiction
                 against PERIOD #0 in the status strip. */}
+            {/* Naming the next draw is only honest while it can actually be opened. In the
+                settling phase the last draw has landed but the period has not rolled, and
+                the contract allows one draw per period — so "THIS WEEK'S POT · DRAW #1"
+                described a draw that could not start, beside a countdown reading zero. */}
             <div className={styles.potKicker}>
-              {drawNumber > 0
-                ? `THIS WEEK'S POT · DRAW #${drawNumber} · ESTIMATED FROM PUBLIC FIGURES`
-                : "THE POT · DRAW #0 · PUBLIC BY DESIGN"}
+              {drawNumber === 0
+                ? "THE POT · DRAW #0 · PUBLIC BY DESIGN"
+                : phase.id === "settling"
+                  ? `DRAW #${drawNumber} OPENS ONCE THE PERIOD ROLLS · ESTIMATED FROM PUBLIC FIGURES`
+                  : `THIS WEEK'S POT · DRAW #${drawNumber} · ESTIMATED FROM PUBLIC FIGURES`}
             </div>
             {/* An em dash, not 0.00: with no settled draw and nothing sponsored there is
                 no published total to estimate from, so there is no pot yet rather than an
@@ -159,9 +165,16 @@ export default function PoolTab() {
                 <span className={styles.phaseDot} aria-hidden="true" />
                 {phase.tag}
               </span>
+              {/* The detail runs to four or five lines and changes with the phase, so the
+                  hero grew and shrank as the pool moved through its week. Collapsed to the
+                  headline, which is the part that answers "what is happening"; the
+                  reasoning is a click away for anyone who wants it. */}
               <div className={styles.phaseBody}>
                 <div className={styles.phaseHeadline}>{phase.headline}</div>
-                <div className={styles.phaseDetail}>{phase.detail}</div>
+                <details className={styles.phaseMore}>
+                  <summary>Why</summary>
+                  <div className={styles.phaseDetail}>{phase.detail}</div>
+                </details>
               </div>
             </div>
 
@@ -227,38 +240,36 @@ export default function PoolTab() {
               </div>
             </div>
 
-            {/* Real prizes from settled draws. This was a sine wave dressed up as data —
-                fabricated history on a page that asks people to verify everything else.
-                Empty slots stay empty rather than inventing a shape. */}
+            {/* The pot filling across the week, not one bar per settled draw.
+                Draws are weekly, so a fourteen-draw history takes three months to fill and
+                showed thirteen empty boxes beside a cell headed "BUILDING TOWARD DRAW #N" —
+                a chart about the wrong axis. This is the axis the heading names, it is full
+                from the first block, and it is computed from the same figures the contract
+                uses rather than recorded: the pot for a full period, spread over its
+                minutes, plus whatever has been sponsored outright. */}
             <div className={styles.bars}>
               {Array.from({ length: 14 }, (_, i) => {
-                const recent = draws.slice(0, 14).reverse();
-                const offset = 14 - recent.length;
-                const d = i >= offset ? recent[i - offset] : undefined;
-                const peak = recent.reduce((m, x) => (x.prize > m ? x.prize : m), 1n);
-                const h = d ? Math.max(8, (Number(d.prize) / Number(peak)) * 100) : 0;
-                const newest = d !== undefined && i === 13;
+                const atMinute = Math.round(((i + 1) / 14) * 10080);
+                const done = Number(state.minuteOfPeriod) >= atMinute;
+                const soFar = (yieldEstimate * BigInt(atMinute)) / 10080n + state.sponsoredThisDraw;
+                const height = pot > 0n ? Math.max(6, (Number(soFar) / Number(pot)) * 100) : 3;
 
                 return (
                   <span
                     key={i}
                     className={styles.bar}
                     style={{
-                      height: d ? `${h}%` : "3%",
-                      background: !d
-                        ? "rgba(255,255,255,.06)"
-                        : newest
-                          ? "var(--yellow)"
-                          : `rgba(255,210,8,${0.3 + 0.03 * i})`,
+                      height: `${height}%`,
+                      background: done ? "var(--yellow)" : "rgba(255,210,8,.18)",
                     }}
-                    title={d ? `Draw #${d.id} · ${formatUnits(d.prize)} cUSDT` : "no draw yet"}
+                    title={`${done ? "reached" : "projected"} · minute ${atMinute.toLocaleString()} of 10,080 · ${formatUnits(soFar, 2)} cUSDT`}
                   />
                 );
               })}
             </div>
             <div className={styles.yieldFoot}>
-              <span>PRIZE PER DRAW · LAST 14</span>
-              <span className={styles.yieldFootHi}>PERIOD #{state.currentPeriod}</span>
+              <span>THE POT, ACROSS THE WEEK · SOLID IS EARNED</span>
+              <span className={styles.yieldFootHi}>MINUTE {String(state.minuteOfPeriod)}</span>
             </div>
 
             {/* v6 shows STRATEGY / NET APY at the foot of this cell. There is no ERC-4626
