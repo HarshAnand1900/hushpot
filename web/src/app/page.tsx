@@ -101,9 +101,15 @@ export default function Landing() {
               )}
             </span>
           </div>
+          {/* Was "LIVE · THIS WEEK'S POT · THE ONLY PUBLIC NUMBER", and both halves were
+              wrong. The figure is `prizeFor(lastDraw.total) + sponsored` — an estimate
+              carried from the last settled draw, never a live reading, because a live pool
+              total would let anyone recover a deposit by subtraction. And it is not the
+              only public number: the pooled total and the prize sit in the panel beside it.
+              Calling an estimate "live" is the one mislabel this design cannot afford. */}
           <div className={styles.potStrap}>
             <span className="liveDot" />
-            LIVE · THIS WEEK&apos;S POT · THE ONLY PUBLIC NUMBER
+            THIS WEEK&apos;S POT · ESTIMATED FROM THE LAST DRAW
           </div>
         </section>
 

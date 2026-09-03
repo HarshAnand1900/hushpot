@@ -478,6 +478,21 @@
   max-width: 70ch;
 }
 
+/* Deposit and withdraw, offered while the position is still sealed. Both sheets reveal
+   on their own, so these are ordinary actions rather than an exception to the button
+   above — sized as a pair so neither reads as the recommended one. */
+.revealActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 560px) {
+  .revealActions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .error {
   font-family: var(--font-mono), monospace;
   font-size: 10.5px;

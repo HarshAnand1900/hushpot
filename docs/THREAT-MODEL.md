@@ -72,6 +72,16 @@ handed out plain tokens only, so a newcomer could not use the private path at al
 and the confidential route is the only one the app has — the public route was removed from the frontend rather than left
 as an option, because an option to publish your own deposit is one somebody takes by accident.
 
+**The loyalty boost was offered when the contract would refuse it — fixed.** Not a leak, but the same shape as the
+claim-window bug below: the interface asserting something the contract does not agree with. `boostStreak` reverts with
+`PeriodEnded` once the period has a draw — pending or already settled — because weight must not move against a draw
+already committed. The panel's Apply button asked only whether you had a streak and had not yet used it, so in the
+window between a draw settling and the period rolling it offered an action guaranteed to fail. Confirmed by bare
+`eth_call` from a real depositor on the live pool: `streakOf` 1, not yet boosted, button shown, call reverts
+`PeriodEnded`. The button now mirrors the contract's own condition and says when it reopens. The multiplier arithmetic
+itself was never wrong — `streakOf` is `currentPeriod − slotAssignedAt − 1`, capped at four, and it was correct
+throughout.
+
 **The seeding tasks were still publishing amounts — fixed.** Removing the public route from the frontend did not remove
 it from `tasks/hushpot.ts`, which seeded demo depositors with `depositUnderlying` and put 58 amounts in the clear on a
 pool advertised as confidential. Every task now uses the encrypted path. The lesson generalises: the leak was not in the
@@ -187,7 +197,15 @@ runs the other way as well: **knowing the product and the multiplier gives the a
 - §3.3 gives the multiplier. `Deposited` names the address, and the block timestamp fixes the minute.
 - Divide, and the deposit falls out in the clear.
 
-This is not theoretical. It works on the live deployment, and the arithmetic can be re-run by anybody:
+This is not theoretical. It was run end to end against a real deployment of this contract, and the arithmetic below is
+the recorded measurement.
+
+> **Which deployment.** These readings were taken on an earlier deployment of the same contract, before the pool was
+> redeployed to carry the `minuteOfPeriod` fix in §4.3. Calling `draws(1).total` on the **current** pool returns a
+> different number, because it is a different pool with a different deposit history — not because the leak was closed.
+> It was not closed, and §3.5 is still open on the deployment running today. The arithmetic is reproducible in shape on
+> any deployment; what is not reproducible is this exact table, which is why it is dated to the pool it came from rather
+> than presented as something to re-read off the current one.
 
 | Reading                           | Value                                  | Where from                |
 | --------------------------------- | -------------------------------------- | ------------------------- |
@@ -262,8 +280,9 @@ five minutes and find hollow.
 
 ### 3.6 The anonymity set is the pool
 
-A winner is one of the depositors, and the number of depositors is public. At fifteen slots that is a one-in-fifteen
-set, and the app says so on its face rather than implying better.
+A winner is one of the depositors, and the number of depositors is public. Whatever `slotsUsed` reads at the time is the
+size of the set — twenty-one on the live pool as this is written, so one in twenty-one — and the app shows that figure
+on its face rather than implying better.
 
 This is inherent rather than incidental: slots are public because public slots are what let anyone settle a draw for
 anyone, which is what removes the operator from the payout path. The set grows with the pool and cannot be improved by
@@ -279,13 +298,13 @@ figure climbs at once. Summed across the pool they can exceed 100%.
 
 Nothing is inconsistent underneath: at draw time the real shares are computed fresh — `openDraw()` reads
 `_weightOf(_treeRoot())` live, not the figure it published last time — and sum to exactly 100%. The drift in the
-*displayed* number is an artifact of refusing to publish a live denominator, and the alternative leaks far more —
-anyone could divide their own odds into a live total, recover it, and take §3.2 from once a week to once a block.
+_displayed_ number is an artifact of refusing to publish a live denominator, and the alternative leaks far more — anyone
+could divide their own odds into a live total, recover it, and take §3.2 from once a week to once a block.
 
 - **Severity:** none to confidentiality; a presentation cost paid deliberately. Past 100.5% the panel switches to a `×`
   multiple of the last total rather than capping it at 100%, since a capped 100% reads as certainty and this figure
-  never was one — every odds readout carries an `· ESTIMATE` qualifier for the same reason. See [`docs/HOW-IT-WORKS.md`
-  § Odds are measured against the last published total](HOW-IT-WORKS.md#odds-are-measured-against-the-last-published-total-and-that-is-not-what-decides-the-draw).
+  never was one — every odds readout carries an `· ESTIMATE` qualifier for the same reason. See
+  [`docs/HOW-IT-WORKS.md` § Odds are measured against the last published total](HOW-IT-WORKS.md#odds-are-measured-against-the-last-published-total-and-that-is-not-what-decides-the-draw).
 
 ### 3.8 What does _not_ leak
 

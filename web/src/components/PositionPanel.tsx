@@ -17,6 +17,7 @@ export function PositionPanel({
   weight,
   slot,
   isUnlocked,
+  boostOpen,
   drawNumber,
   poolTotal,
   minuteOfPeriod,
@@ -30,6 +31,13 @@ export function PositionPanel({
   weight?: bigint;
   slot?: number;
   isUnlocked: boolean;
+  /**
+   * Whether {@link boostStreak} would actually succeed right now.
+   *
+   * Mirrors the contract's own guard — no draw pending, and no draw already settled in
+   * this period — rather than approximating it. See the note on the Apply button.
+   */
+  boostOpen: boolean;
   drawNumber: number;
   /** Pool ticket-minutes published at the last draw. Frozen — never a live figure. */
   poolTotal?: bigint;
@@ -67,11 +75,15 @@ export function PositionPanel({
    * what a full period would have earned and the result is a plain multiplier — 1.00× for
    * somebody who was there when the week opened, 0.50× for somebody who arrived halfway.
    *
-   * It resets every week, and deliberately so. There is no bonus for staying multiple
-   * periods: `_advancePeriod` lets the period-scoped corrections age out, so everyone
-   * returns to full credit together. A depositor of five weeks and one who arrives at the
-   * top of this week have identical odds for the same balance. Showing a "loyalty"
-   * multiplier would be inventing a mechanic the contract does not have.
+   * It resets every week, and deliberately so: `_advancePeriod` lets the period-scoped
+   * corrections age out, so everyone returns to full credit together rather than one
+   * person's late arrival following them forever.
+   *
+   * This figure is *only* about when you arrived in the current week. Staying across weeks
+   * is a separate mechanic with its own control — `boostStreak`, drawn as the loyalty
+   * ladder below — and it is opt-in, so it is not folded in here. Two depositors with the
+   * same balance and the same arrival minute have the same time credit whether one has
+   * been here five weeks or one.
    */
   const fullCredit = balance !== undefined ? balance * PERIOD_MINUTES : undefined;
   const timeCredit =
@@ -301,6 +313,11 @@ export function PositionPanel({
                   Applied for this week — {streak} week{streak > 1 ? "s" : ""} held.{" "}
                   {streak < 4 ? `${(1 + (streak + 1) * 0.05).toFixed(2)}× next week.` : "This is the top rung."}
                 </>
+              ) : !boostOpen ? (
+                <>
+                  {streak} week{streak > 1 ? "s" : ""} held. This period&apos;s draw has already been opened, and the
+                  boost is closed until the period rolls — weight cannot move once a draw is committed against it.
+                </>
               ) : (
                 <>
                   {streak} week{streak > 1 ? "s" : ""} held, unclaimed. It expires with the week, and taking it commits
@@ -309,9 +326,21 @@ export function PositionPanel({
               )}
             </div>
 
+            {/* `boostStreak` reverts with PeriodEnded once this period has a draw — open or
+                settled — because every write to the tree after that point has to be neutral
+                for a draw already committed. The button did not know that, so in the window
+                between a draw settling and the roll it offered an action the contract was
+                guaranteed to refuse. Confirmed with a bare eth_call from a real depositor:
+                streakOf 1, not yet boosted, button shown, call reverts PeriodEnded. Same
+                class of bug as the judge panel's, and the same fix — ask the contract's
+                actual condition rather than a convenient approximation of it. */}
             {streak !== undefined && streak > 0 && !boosted && (
-              <button className={styles.boost} onClick={boost} disabled={boosting}>
-                {boosting ? "applying…" : `Apply ${(1 + streak * 0.05).toFixed(2)}×`}
+              <button className={styles.boost} onClick={boost} disabled={boosting || !boostOpen}>
+                {boosting
+                  ? "applying…"
+                  : boostOpen
+                    ? `Apply ${(1 + streak * 0.05).toFixed(2)}×`
+                    : "Reopens when the period rolls"}
               </button>
             )}
           </div>

@@ -304,6 +304,10 @@ export default function PoolTab() {
           weight={position.weight}
           slot={position.slot}
           isUnlocked={isUnlocked}
+          // The contract's own guard on boostStreak, not an approximation of it: it reverts
+          // with PeriodEnded while a draw is pending OR once this period has already
+          // settled one, because weight must not move against a committed draw.
+          boostOpen={!state.drawPending && !(lastDraw !== undefined && lastDraw.period === state.currentPeriod)}
           drawNumber={drawNumber}
           poolTotal={lastDraw?.total}
           minuteOfPeriod={state.minuteOfPeriod}
@@ -334,13 +338,19 @@ export default function PoolTab() {
               One signature opens a session for this visit. Your balance is recomputed on-chain, then decrypted in this
               browser with a key that never leaves it.
             </div>
-            {/* Withdrawing does not have to wait on this. It was gated behind the reveal
-                button above for no reason beyond convenience — the withdraw sheet has its
-                own reveal step now, so opening it straight from here just moves the same
-                signature to where someone actually asked for it. */}
-            <button className="btnQuiet" style={{ width: "100%", marginTop: 8 }} onClick={() => setSheet("withdraw")}>
-              Withdraw without revealing first
-            </button>
+            {/* Neither of these has to wait on the reveal above. Both sheets open fine on
+                an encrypted balance and carry their own inline reveal — the one the deposit
+                tab has always had — so gating them here only moved a signature to a place
+                nobody asked for it. Offered as the ordinary pair rather than as a caveat:
+                "withdraw without revealing first" described the plumbing, not the action. */}
+            <div className={styles.revealActions}>
+              <button className="btnSecondary" onClick={() => setSheet("deposit")}>
+                Put it in the pot
+              </button>
+              <button className="btnSecondary" onClick={() => setSheet("withdraw")}>
+                Withdraw
+              </button>
+            </div>
           </div>
         </PositionPanel>
 

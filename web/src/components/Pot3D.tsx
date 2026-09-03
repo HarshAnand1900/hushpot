@@ -877,10 +877,17 @@ export function Pot3D({
     // lands on its own every couple of seconds and the body pumps with it. Only on
     // the landing's full scene: behind the app tabs it would pull the eye off the
     // panels, and the small inline pot has no room for it.
+    // The comment above described a coin landing, and for a while nothing dropped one:
+    // the interval pumped the body and `dropCoinRef` was assigned but never called from
+    // anywhere in the app, so the pot breathed over an empty slot. The coin is the half
+    // that reads as a deposit — the pump on its own is just an idle animation.
     let ambient = 0;
     const stillPreferred = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (exhibit && !dim && !stillPreferred) {
-      ambient = window.setInterval(() => pumpRef.current?.(), 1300);
+      ambient = window.setInterval(() => {
+        dropCoinRef.current?.();
+        pumpRef.current?.();
+      }, 1300);
     }
 
     // ---- the exhibit -------------------------------------------------------

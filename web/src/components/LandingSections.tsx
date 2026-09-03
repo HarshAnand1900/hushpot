@@ -55,8 +55,12 @@ const FLOW: { tag: string; title: string; body: string; cols: number; gap: strin
 
 const TERMS: { label: string; body: string; value: string; accent?: boolean }[] = [
   {
+    // The one exception is real and belongs here rather than in a footnote: taking the
+    // optional loyalty boost makes `withdraw` and `exitPool` revert with BoostLocked
+    // until the period rolls. Claiming an unqualified "no lockup" beside a contract that
+    // has one is the kind of thing a reviewer checks and does not forgive.
     label: "WITHDRAWABLE",
-    body: "of principal, any second. No lockup, no exit fee, no queue.",
+    body: "of principal, no exit fee, no queue. The loyalty boost, if taken, holds until the roll.",
     value: "100%",
   },
   {
@@ -75,7 +79,7 @@ const TERMS: { label: string; body: string; value: string; accent?: boolean }[] 
 const FAQ: [string, string][] = [
   [
     "Can I lose my deposit?",
-    "No. Principal sits in the pool and is withdrawable in full at any time. Only the yield is ever put up as a prize, so a losing week costs you the interest you would have earned, and nothing beyond that.",
+    "No. Principal sits in the pool and is withdrawable in full. Only the yield is ever put up as a prize, so a losing week costs you the interest you would have earned, and nothing beyond that. The one thing that delays a withdrawal is the optional loyalty boost, which holds your stake until the period rolls — it never puts the principal at risk, and you only get it if you ask for it.",
   ],
   [
     "If nobody can see the winner, how is it fair?",

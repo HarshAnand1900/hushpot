@@ -2,9 +2,9 @@
 
 **A no-loss prize pool. Nobody learns who won, the contract included.**
 
-Deposit a confidential token. Keep your principal, withdrawable in full at any time. The yield the pool generates is
-awarded to one depositor each week, weighted by how much they deposited and how long they left it. Balances, odds and
-winnings are encrypted end to end, and the draw is still something a stranger can verify.
+Deposit a confidential token. Keep your principal, withdrawable in full. The yield the pool generates is awarded to one
+depositor each week, weighted by how much they deposited and how long they left it. Balances, odds and winnings are
+encrypted end to end, and the draw is still something a stranger can verify.
 
 Built for the Zama Developer Program, Mainnet Season 4.
 
@@ -32,32 +32,35 @@ Built for the Zama Developer Program, Mainnet Season 4.
 Not a description of what it would do. These are reads off the live contract, and every one of them is a public getter
 anybody can call from Etherscan:
 
-|                  |                                                 |
-| ---------------- | ----------------------------------------------- |
-| Depositors       | **20**, holding encrypted balances              |
-| Pooled principal | **~276,000 cUSDT**                              |
-| Draws settled    | **2** — #0 **505.00**, #1 **264.66** cUSDT      |
-| Claims answered  | 20/20, **0/20** — both still claimable to 4 Oct |
-| Prize reserve    | 9,471.20 cUSDT                                  |
-| Currently        | period #2, accruing toward draw #2              |
+|                  |                                                              |
+| ---------------- | ------------------------------------------------------------ |
+| Depositors       | **21**, holding encrypted balances                           |
+| Pooled principal | **~285,000 cUSDT**                                           |
+| Draws settled    | **3** — #0 **505.00**, #1 **264.66**, #2 **1,273.75** cUSDT  |
+| Claims answered  | 20/21, 5/21, 1/21 — all three still claimable to 3 Oct       |
+| Prize reserve    | 9,197.45 cUSDT                                               |
+| Currently        | period #2, draw #2 settled, waiting on the roll to period #3 |
 
-Both cycles have run end to end: deposits accrued, draws opened and settled against an encrypted die, depositors were
-checked, and the period has rolled since. Each prize is in one of those balances and **nobody — including the contract —
-knows which**. Each depositor can open their own receipt with a signature and no gas; nobody can open anyone else's.
+All three cycles have run end to end: deposits accrued, draws opened and settled against an encrypted die, depositors
+were checked, and the period rolled between them. Each prize is in one of those balances and **nobody — including the
+contract — knows which**. Each depositor can open their own receipt with a signature and no gas; nobody can open anyone
+else's.
 
-**Draw #1 is deliberately left unswept.** It settled in period 1, the pool has since rolled to period 2, and it is still
-claimable — the thirty-day window feature, live rather than described. Press _Did I win?_ on it and the contract answers
-from period 1's weights, a roll later. Under the old rule it would have been refused.
+**Draws #1 and #2 are deliberately left part-swept.** Draw #1 settled in period 1, the pool has since rolled to period
+2, and it is still claimable — the thirty-day window feature, live rather than described. Press _Did I win?_ on it and
+the contract answers from period 1's weights, a roll later. Under the old rule it would have been refused.
 
-The prize is derived, not chosen: `pooled × 5% ÷ 52`. Draw #1 shows that undisguised — 276,000 pooled derived **264.66**
-with no sponsorship at all. Draw #0 was topped up to 505.00 by `sponsorPrize`, reserve-neutral over one draw and the
-sanctioned way to lift a prize without touching the derivation. A large late depositor grows the pot exactly as much as
-they grow their own odds, so arriving late dilutes nobody, and a small pool must show a small prize or the yield figure
-would be a lie.
+The prize is derived, not chosen: `prize = total × 5% ÷ 52`, computed on ticket-minutes. Draw #1 shows that undisguised
+— 276,000 pooled derived **264.657534** with no sponsorship at all, which is the formula to the last decimal. Draws #0
+and #2 were topped up by `sponsorPrize`, reserve-neutral over one draw and the sanctioned way to lift a prize without
+touching the derivation: draw #2's 1,273.747431 is 273.747431 derived plus exactly **1,000.00 sponsored**. A large late
+depositor grows the pot exactly as much as they grow their own odds, so arriving late dilutes nobody, and a small pool
+must show a small prize or the yield figure would be a lie.
 
-The pool is deliberately kept near 300,000, where one press of the faucet is worth about **3.6%** of the next draw — the
-number a visitor actually cares about. Staying pushes it further, modestly: four weeks of loyalty is 1.20×, so the same
-deposit held a month is worth about **4.3%**.
+The pool is deliberately kept near 300,000, where one press of the faucet — 10,000 cUSDT — is worth about **3.5%** of
+the next draw, the number a visitor actually cares about. Staying pushes it further, modestly: four weeks of loyalty is
+1.20×, so the same deposit held a month is worth about **4.2%**. Both move with the pool, so treat them as the current
+reading rather than a constant.
 
 **Two fixes this deployment exists to prove — both run live, not just in tests.** A depositor could previously boost
 their loyalty streak between a draw settling and anyone checking it, widening their own band for a total already fixed;

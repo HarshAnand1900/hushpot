@@ -21,13 +21,19 @@
   --rule: #2d2d2d;
   --rule-soft: rgba(45, 45, 45, 0.7);
 
-  /* Text ramp */
+  /* Text ramp.
+     The quiet end of this ramp was below WCAG AA against the page black, and it is the end
+     the design uses most: 9–12px uppercase micro-labels with wide tracking, which are the
+     hardest thing here to read even at full contrast. Measured on the landing page, text-3
+     came out at 3.8:1, text-4 at 3.24:1 and text-5 at 2.23:1, against the 4.5:1 that small
+     text needs. Raised to clear it while keeping a distinct step between each tier, so the
+     hierarchy the design is built on survives — it is a quieter ramp, not a flatter one. */
   --white: #ffffff;
   --text-1: #b8b8b8;
-  --text-2: #8a8a8a;
-  --text-3: #6b6b6b;
-  --text-4: #5e5e5e;
-  --text-5: #4a4a4a;
+  --text-2: #a0a0a0;
+  --text-3: #929292;
+  --text-4: #848484;
+  --text-5: #7a7a7a;
 
   /* Ink on the yellow band */
   --on-yellow-strong: rgba(0, 0, 0, 0.62);

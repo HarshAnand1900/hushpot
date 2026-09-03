@@ -15,7 +15,7 @@ Six documents, each with one job. Start wherever your question sits.
 
 Everyone deposits into a shared pool. The pool earns yield. Once a week the entire yield goes to one depositor at
 random, weighted by how much they put in and how long they left it. Principal is never at stake — every deposit
-withdraws in full, any time.
+withdraws in full.
 
 What is new is that the amounts are encrypted end to end. Balances, odds, the prize, and the die that decides it are all
 `euint64` ciphertext under Zama's FHEVM. The contract adds and compares them without ever holding a key that could open
