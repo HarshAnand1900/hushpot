@@ -1,28 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { parseAbiItem } from "viem";
 import { usePublicClient } from "wagmi";
 
-import { DEPLOY_BLOCK, POOL_ADDRESS, poolAbi } from "@/lib/contract";
-
-const EV_SETTLED = parseAbiItem("event DrawSettled(uint256 indexed drawId, uint64 total, uint64 prize)");
+import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 
 /**
- * When each draw was actually settled, and how long its claim window still has to run.
+ * When each draw was settled, and the length of the claim grace.
  *
- * The `Draw` struct stores no timestamp, so everything that wanted one reached for
- * `lastDrawSettledAt` — a single value describing only the newest draw. Read per draw it
- * is simply wrong: every draw showed the same settle time, and every draw inherited the
- * newest draw's countdown, so an older window looked as fresh as the current one no matter
- * how much of its thirty days had already gone.
+ * Everything that wanted a settle time used to reach for `lastDrawSettledAt` — a single
+ * value describing only the newest draw. Read per draw it is simply wrong: every draw
+ * showed the same moment, and every draw inherited the newest draw's countdown, so an
+ * older window looked as fresh as the current one however much of its thirty days had
+ * gone. This walked the `DrawSettled` logs to get a real answer, which worked but made the
+ * flakiest read in the app load-bearing for a countdown.
  *
- * The honest source is the log. `DrawSettled` is emitted in the settling transaction, so
- * its block timestamp *is* the settle time, per draw, with nothing to store on-chain.
- *
- * A missing draw is left missing rather than guessed at. Log queries are the flakiest read
- * this app makes — nodes behind one endpoint disagree about how much history they hold —
- * and a countdown that quietly falls back to another draw's clock is the bug this replaces.
+ * The draw now records its own `settledAt`, because the contract needs it too: the claim
+ * window is thirty days of wall-clock time, not a count of rolls. So this is an ordinary
+ * multicall over state, and the interface and the contract are reading the same field.
  */
 export function useSettledAt(drawCount: bigint) {
   const publicClient = usePublicClient();
@@ -30,7 +25,7 @@ export function useSettledAt(drawCount: bigint) {
   const [grace, setGrace] = useState<number>();
 
   useEffect(() => {
-    if (!publicClient) return;
+    if (!publicClient || drawCount === 0n) return;
     let live = true;
 
     void (async () => {
@@ -42,28 +37,24 @@ export function useSettledAt(drawCount: bigint) {
         })) as bigint;
         if (live) setGrace(Number(window));
 
-        const logs = await publicClient.getLogs({
-          address: POOL_ADDRESS,
-          event: EV_SETTLED,
-          fromBlock: DEPLOY_BLOCK,
+        const rows = await publicClient.multicall({
+          contracts: Array.from({ length: Number(drawCount) }, (_, i) => ({
+            address: POOL_ADDRESS,
+            abi: poolAbi,
+            functionName: "draws" as const,
+            args: [BigInt(i)],
+          })),
+          allowFailure: true,
         });
-
-        // One `getBlock` per distinct block, not per log: draws settle in their own
-        // transactions, but two settled in the same block would otherwise be fetched twice.
-        const blocks = [...new Set(logs.map((l) => l.blockNumber))];
-        const times = new Map<bigint, number>();
-        for (const blockNumber of blocks) {
-          const block = await publicClient.getBlock({ blockNumber });
-          times.set(blockNumber, Number(block.timestamp));
-        }
         if (!live) return;
 
         const next: Record<string, number> = {};
-        for (const log of logs) {
-          const id = (log.args as { drawId?: bigint }).drawId;
-          const time = times.get(log.blockNumber);
-          if (id !== undefined && time !== undefined) next[String(id)] = time;
-        }
+        rows.forEach((row, i) => {
+          if (row.status !== "success") return;
+          // total, prize, drawPoint, period, settledAt, settled
+          const settledAt = (row.result as readonly unknown[])[4] as bigint;
+          if (settledAt > 0n) next[String(i)] = Number(settledAt);
+        });
         setAt(next);
       } catch {
         /* leave the map empty; callers show no countdown rather than a borrowed one */

@@ -1,6 +1,7 @@
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { FhevmType } from "@fhevm/hardhat-plugin";
 import { expect } from "chai";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { ethers, fhevm } from "hardhat";
 
 import {
@@ -20,9 +21,10 @@ import {
  * call after a roll used to return a *different* answer rather than a stale one — which is
  * why it was refused outright, and why anybody not swept in time simply forfeited.
  *
- * Each node now keeps one generation of history, written copy-on-write on its first touch
- * in a new period. These tests pin the property that buys: an answer given after the roll
- * is the same answer that would have been given before it.
+ * Each node now keeps five generations of history, written copy-on-write on its first
+ * touch in a new period. These tests pin the property that buys: an answer given after the
+ * roll is the same answer that would have been given before it, for the whole thirty days
+ * the contract promises rather than for the single roll it used to allow.
  *
  * The failure modes this is aimed at are all silent — they return a plausible number on
  * encrypted values nobody can eyeball — so every assertion here compares against a figure
@@ -65,6 +67,18 @@ describe("HushpotPool — claims across a roll", function () {
     await (await usdt.mint(owner.address, amount)).wait();
     await (await usdt.connect(owner).approve(poolAddress, amount)).wait();
     await (await pool.connect(owner).fundPrizeReserve(amount)).wait();
+  }
+
+  /**
+   * A draw with no time passing. The owner may open early and roll early, so this drives
+   * the period counter without burning any of the thirty-day grace — which is the only way
+   * to reach the far end of the tree's history while a claim is still live.
+   */
+  async function fastDraw() {
+    await fund(10_000_000n);
+    await (await pool.openDraw()).wait();
+    const res = await fhevm.publicDecrypt([await pool.pendingTotalHandle()]);
+    await (await pool.settleDraw(res.abiEncodedClearValues, res.decryptionProof)).wait();
   }
 
   async function runDraw() {
@@ -138,20 +152,59 @@ describe("HushpotPool — claims across a roll", function () {
     expect(await award(0, carol), "a latecomer wins nothing from a draw they missed").to.eq(0n);
   });
 
-  it("refuses a draw more than one period old, rather than answering it wrongly", async function () {
+  it("still answers a draw four rolls later, inside its thirty days", async function () {
     await join(alice);
     await join(bob);
     await runDraw();
-    await (await pool.startNextPeriod()).wait();
-    await runDraw();
-    await (await pool.startNextPeriod()).wait();
+    const prize = (await pool.draws(0)).prize;
 
-    // Two generations back is past what the tree keeps. Refusing is correct; returning a
-    // number computed from weights that no longer exist would not be.
+    // Four rolls is past what one generation of history could reach, and comfortably more
+    // than the fortnight the old rule allowed. No time passes, so all of it is inside the
+    // thirty-day grace and all of it must still answer — the promise CLAIM_GRACE makes.
+    for (let i = 0; i < 4; i++) {
+      await (await pool.startNextPeriod()).wait();
+      await fastDraw();
+    }
+
+    await (await pool.connect(owner).checkClaim(0, alice.address)).wait();
+    await (await pool.connect(owner).checkClaim(0, bob.address)).wait();
+    const total = (await award(0, alice)) + (await award(0, bob));
+    expect(total, "draw 0's own weights, four rolls after they stopped being current").to.eq(prize);
+  });
+
+  it("refuses a draw once its thirty days have run out", async function () {
+    await join(alice);
+    await join(bob);
+    await runDraw();
+
+    // The window is wall-clock now, so this is what closes it — not the roll count.
+    await time.increase(31n * 24n * 60n * 60n);
+
     await expect(pool.connect(owner).checkClaim(0, alice.address)).to.be.revertedWithCustomError(
       pool,
       "ClaimWindowClosed",
     );
+  });
+
+  it("will not roll past a draw that is still claimable", async function () {
+    await join(alice);
+    await join(bob);
+    await runDraw();
+
+    // MAX_HISTORY rolls is as far as the tree can answer. The owner may roll early, but
+    // not so early that draw 0 falls out of history while its grace is still running —
+    // otherwise the thirty days would hold only for as long as the operator allowed.
+    // MAX_HISTORY rolls is exactly as far as the tree can answer, so the fifth is allowed
+    // and the sixth is not.
+    for (let i = 0; i < 5; i++) {
+      await (await pool.startNextPeriod()).wait();
+      await fastDraw();
+    }
+    await expect(pool.startNextPeriod()).to.be.revertedWithCustomError(pool, "ClaimWindowOpen");
+
+    // Once the grace has expired the draw is nobody's claim any more, and the roll is free.
+    await time.increase(31n * 24n * 60n * 60n);
+    await expect(pool.startNextPeriod()).to.not.be.reverted;
   });
 
   it("never lets a recycled slot read the previous occupant's position", async function () {

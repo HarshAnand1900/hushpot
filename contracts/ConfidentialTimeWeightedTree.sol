@@ -98,16 +98,42 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// one extra slot the first time it is touched in a new period and nothing thereafter,
     /// so the cost tracks activity rather than pool size.
     ///
-    /// One generation is enough because the claim window is one period. `_prevStamp` says
-    /// which period the archived values belong to; zero means nothing is reachable, which
-    /// is what a recycled slot is reset to. That reset is defence-in-depth rather than the
-    /// thing that stops a handover paying the wrong person: `_archive` re-populates it on
-    /// the new holder's first write, because `_stamp` still carries the old period. What
-    /// actually stops it is {slotAssignedAt}, checked at award time.
-    mapping(uint256 => euint64) private _prevBalance;
-    mapping(uint256 => euint64) private _prevLate;
-    mapping(uint256 => euint64) private _prevEarly;
-    mapping(uint256 => uint32) private _prevStamp;
+    /// {MAX_HISTORY} generations are kept rather than one. A single generation expired a
+    /// claim at the second roll — a fortnight — while `CLAIM_GRACE` promised thirty days,
+    /// so the contract contradicted its own constant by more than half the window.
+    ///
+    /// Archives are keyed by the period they were *taken* in, not the period whose values
+    /// they hold. That is what bounds the lookup: the values a node held in period P sit in
+    /// the earliest archive taken after P, so a reader walks forward from P + 1 and stops
+    /// at the first hit, {MAX_HISTORY} steps at worst. Keying by the period the values
+    /// belonged to would mean walking backwards an unbounded distance, because a node left
+    /// untouched for a year has history a year old and nothing in between.
+    ///
+    /// `_histWas` records which period the archived values were current in. `_balance`
+    /// carries across periods, so it stands from `_histWas` up to the archive; the two
+    /// corrections do not, and read as zero from any period but their own.
+    ///
+    /// A non-zero balance handle is what marks an archive present. `_archive` never runs on
+    /// a zero balance, so that marker cannot collide with a real entry. Clearing it is what
+    /// makes a recycled slot's history unreachable, so its next holder is never granted
+    /// decryption over a stranger's position; {slotAssignedAt}, checked at award time, is
+    /// the thing that stops a handover paying them.
+    uint32 public constant MAX_HISTORY = 5;
+
+    /// @dev Period in which a slot last took a loyalty boost, offset by one so that zero
+    /// means none. Public knowledge by construction: taking one is a transaction.
+    mapping(uint16 => uint32) private _boostStamp;
+
+    struct Archive {
+        euint64 balance;
+        euint64 late;
+        euint64 early;
+        /// @dev The period these values were current in.
+        uint32 was;
+    }
+
+    /// @dev node => the period the archive was taken in => what the node held before it.
+    mapping(uint256 => mapping(uint32 => Archive)) private _hist;
 
     uint32 public currentPeriod;
     uint256 public periodStart;
@@ -228,14 +254,17 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
             // released at a period boundary, so its leaf is zero and its period-scoped
             // corrections have already aged out.
             //
-            // Its *history* has not. The leaf keeps one generation of archived values, and
-            // those belong to whoever held the slot before — so leaving them reachable
-            // would hand the next depositor a handle over a stranger's position, which they
-            // are granted decryption on. Clearing the stamp is what makes them unreachable;
-            // the values themselves are overwritten by the first write either way.
+            // Its *history* has not. The leaf keeps {MAX_HISTORY} generations of archived
+            // values, and those belong to whoever held the slot before — so leaving them
+            // reachable would hand the next depositor a handle over a stranger's position,
+            // which they are granted decryption on. Clearing the balance handle is what
+            // makes each unreachable; the values are overwritten by the first write anyway.
             slot = _freeSlots[free - 1];
             _freeSlots.pop();
-            delete _prevStamp[uint256(LEAF_OFFSET) + slot];
+            uint256 leaf = uint256(LEAF_OFFSET) + slot;
+            uint32 oldest = currentPeriod > MAX_HISTORY ? currentPeriod - MAX_HISTORY : 0;
+            for (uint32 c = oldest; c <= currentPeriod; ++c) _hist[leaf][c].balance = _zero();
+            delete _boostStamp[slot];
         } else {
             if (slotsUsed >= LEAF_COUNT) revert PoolFull();
             slot = slotsUsed;
@@ -343,16 +372,14 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         // the *final* handle and never the intermediate one. Reading it in a later
         // transaction reverts `ACLNotAllowed`, which strands every claim whose band
         // crosses this node.
-        if (_prevStamp[node] == was + 1) return;
+        if (euint64.unwrap(_hist[node][currentPeriod].balance) != bytes32(0)) return;
 
-        _prevBalance[node] = _balance[node];
-        _prevLate[node] = _lateCredit[node];
-        _prevEarly[node] = _earlyExit[node];
-        // Offset by one so that zero means "nothing archived". Storing the raw period
-        // collides with period 0 being a real period: its history was written and then
-        // unreachable, the bands stopped covering the total, and a draw point could land
-        // in the gap so that nobody won at all.
-        _prevStamp[node] = was + 1;
+        _hist[node][currentPeriod] = Archive({
+            balance: _balance[node],
+            late: _lateCredit[node],
+            early: _earlyExit[node],
+            was: was
+        });
     }
 
     /// @dev A node's balance as it stood in `period`.
@@ -360,25 +387,44 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// `_balance` carries across periods rather than resetting, so a node untouched since
     /// before `period` still holds the right number — hence `<=` rather than `==`. That
     /// also covers the gap case: a node written in period 5 and again in 8, asked for 6,
-    /// finds `_stamp` too new and `_prevStamp` old enough, and returns the archived value.
+    /// finds `_stamp` too new, walks forward to the first archive taken after it, and
+    /// returns the values that archive preserved.
     function _balanceAt(uint32 period, uint256 node) internal view returns (euint64) {
         if (_stamp[node] <= period) return _balance[node];
-        uint32 prev = _prevStamp[node];
-        if (prev != 0 && prev - 1 <= period) return _prevBalance[node];
+        uint32 c = _archivedAfter(period, node);
+        // `_histWas` is the period those values became current. A node first written after
+        // `period` held nothing at `period`, and its archive must not be read back over
+        // that gap — which is the whole of the difference between a balance that carried
+        // and one that did not exist yet.
+        if (c != 0 && _hist[node][c].was <= period) return _hist[node][c].balance;
         return _zero();
+    }
+
+    /// @dev The earliest archive of `node` taken after `period`, or zero if there is none
+    /// inside {MAX_HISTORY}. Zero cannot be mistaken for an answer: the walk starts at
+    /// `period + 1`, so a real one is always at least one.
+    function _archivedAfter(uint32 period, uint256 node) private view returns (uint32) {
+        uint32 last = currentPeriod;
+        if (last > period + MAX_HISTORY) return 0;
+        for (uint32 c = period + 1; c <= last; ++c) {
+            if (euint64.unwrap(_hist[node][c].balance) != bytes32(0)) return c;
+        }
+        return 0;
     }
 
     /// @dev Period-scoped corrections, which are only ever valid for their own period —
     /// hence `==` here where the balance uses `<=`.
     function _lateCreditAt(uint32 period, uint256 node) internal view returns (euint64) {
         if (_stamp[node] == period) return _lateCredit[node];
-        if (_prevStamp[node] == period + 1) return _prevLate[node];
+        uint32 c = _archivedAfter(period, node);
+        if (c != 0 && _hist[node][c].was == period) return _hist[node][c].late;
         return _zero();
     }
 
     function _earlyExitAt(uint32 period, uint256 node) internal view returns (euint64) {
         if (_stamp[node] == period) return _earlyExit[node];
-        if (_prevStamp[node] == period + 1) return _prevEarly[node];
+        uint32 c = _archivedAfter(period, node);
+        if (c != 0 && _hist[node][c].was == period) return _hist[node][c].early;
         return _zero();
     }
 
@@ -464,6 +510,42 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         _repairPath(node);
 
         FHE.allowThis(actual);
+    }
+
+    /// @dev Add `factor` ticket-minutes per unit of balance to a slot's weight.
+    ///
+    /// The credit lands in the same accumulator an early exit uses, because it is the same
+    /// kind of thing: weight this slot has earned that `balance * PERIOD_MINUTES` does not
+    /// describe. That accumulator is period-scoped, so the boost expires with the period
+    /// and has to be taken again — which is what keeps it O(1) per depositor rather than a
+    /// pass over everybody at the roll.
+    ///
+    /// Nothing here is a new disclosure. `factor` is public, the transaction is public, and
+    /// the balance it multiplies stays a ciphertext, so what an observer learns is that
+    /// this slot claimed a boost — which they watched happen.
+    function _creditBonus(uint16 slot, uint64 factor) internal {
+        if (slot >= LEAF_COUNT) revert SlotOutOfRange();
+
+        uint256 node = uint256(LEAF_OFFSET) + slot;
+        _foldPending(slot, node);
+
+        _archive(node);
+        _earlyExit[node] = FHE.add(_earlyExitOf(node), FHE.mul(_balance[node], factor));
+        _lateCredit[node] = _lateCreditOf(node);
+        _persist(node);
+
+        _repairPath(node);
+
+        _boostStamp[slot] = currentPeriod + 1;
+    }
+
+    /// @notice Whether `slot` has taken its loyalty boost in the current period.
+    /// @dev The stake behind a boost is committed until the period ends. Without that,
+    /// boosting and then withdrawing would buy a full period of odds and take the capital
+    /// straight back out, which is a strictly better move than staying and so would be the
+    /// only move anyone made.
+    function boostedThisPeriod(uint16 slot) public view returns (bool) {
+        return _boostStamp[slot] == currentPeriod + 1;
     }
 
     /// @dev The highest node that still covers every slot in use — the tree's real root.

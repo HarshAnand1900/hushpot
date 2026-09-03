@@ -5,7 +5,7 @@ What is encrypted, what is public, what leaks, and what you have to trust.
 This document is deliberately unflattering. A confidential system that only advertises its strengths is harder to
 evaluate than one that names its edges, and every claim below can be checked against the deployed contract.
 
-**Contract:** `HushpotPool` · Sepolia · `0x87d43a872fbf4Ba73758bCEB9a16e1C200E41822`
+**Contract:** `HushpotPool` · Sepolia · `0xdF7d4C4e08A6C76f75D6A7d74bEc5a6C3Fdd24a6`
 
 > The live address always matches [`web/src/lib/contract.ts`](../web/src/lib/contract.ts). Earlier deployments
 > referenced in git history are superseded.
@@ -308,24 +308,29 @@ answerable only while its own period is current. The owner is exempt from `CLAIM
 could strand an unclaimed prize — and for most of this project's life the only thing standing in the way was the Judge
 panel declining to offer the button, which is a frontend courtesy rather than a contract rule.
 
-**That hole is now closed, and not with a gate.** The tree keeps one generation of history per node, so a claim is
-evaluated against its own draw's period rather than the live one:
+**That hole is now closed.** The tree keeps five generations of history per node, so a claim is evaluated against its
+own draw's period rather than the live one, and the window is thirty days of wall-clock time rather than a count of
+rolls the owner sets the pace of:
 
 ```solidity
 // checkClaim
-if (currentPeriod > d.period + 1) revert ClaimWindowClosed();
+if (block.timestamp > d.settledAt + CLAIM_GRACE) revert ClaimWindowClosed();
+if (currentPeriod > d.period + MAX_HISTORY) revert ClaimWindowClosed();
 ebool won = _checkWinAt(d.period, slot, d.drawPoint);
 ```
 
 Rolling therefore ends nothing. An owner who rolls early strands no prize, because the answer no longer expires with the
-period — it expires one period later, and by then a second draw has come and gone.
+period — it expires thirty days after the draw was settled, whatever the owner does in between.
 
 An earlier attempt blocked the roll until every slot had been checked. It was removed: only the owner can reach the roll
 early, so the guard bound only them, and binding them made the cycle depend on an O(n) sweep somebody has to fund. A
 pool nobody swept would have degraded from weekly to monthly and forfeited the stragglers regardless.
 
-The residual limit is bounded and stated: a draw **two** periods old reverts rather than answering from weights that no
-longer exist. Keeping k generations instead of one is a parameter, not a redesign.
+The residual limit is bounded and stated: the tree answers `MAX_HISTORY` periods back, five, and `startNextPeriod`
+refuses to roll past a draw still inside its grace. Five periods is thirty-five days against a thirty-day window, so at
+the seven-day cadence the time test always binds first and the period test is unreachable. That roll guard is not the
+sweep gate above: it costs nobody an O(n) pass, it asks the owner to wait rather than asking somebody to pay, and it
+clears itself as the grace expires.
 
 **Still true, and worth keeping in view:** the owner may still roll early once everyone has been checked, and may still
 open a draw before the week is up. Neither strands anything.

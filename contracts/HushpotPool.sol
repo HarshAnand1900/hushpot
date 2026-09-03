@@ -74,6 +74,9 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         euint64 drawPoint;
         /// @notice The period whose weights this draw was settled against.
         uint32 period;
+        /// @notice When settlement happened. The claim window is measured from here, so it
+        /// is thirty real days rather than a count of rolls the owner controls the pace of.
+        uint64 settledAt;
         bool settled;
     }
 
@@ -111,6 +114,14 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// collects; the old behaviour let the prize evaporate the moment anyone advanced the
     /// period, which could be minutes after settlement.
     uint256 public constant CLAIM_GRACE = 30 days;
+
+    /// @notice Extra ticket-minutes per full period held, in basis points of a full stake.
+    /// @dev Ten percent a period, four periods deep, so a stake left alone for a month
+    /// carries forty percent more weight than the same money deposited this morning.
+    uint64 public constant BOOST_BPS_PER_PERIOD = 1000;
+
+    /// @notice How many periods of loyalty count. Beyond this the boost stops growing.
+    uint32 public constant MAX_BOOST_PERIODS = 4;
 
     /// @notice When the most recent draw settled. The claim window runs from here.
     uint256 public lastDrawSettledAt;
@@ -167,6 +178,8 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
     event DrawOpened(uint256 indexed drawId, bytes32 totalHandle);
     event DrawSettled(uint256 indexed drawId, uint64 total, uint64 prize);
+    /// @notice A slot took its loyalty boost. The weight added stays encrypted.
+    event StreakBoosted(address indexed account, uint16 indexed slot, uint32 periods, uint64 factor);
     event PeriodStarted(uint32 indexed period);
     event ClaimChecked(uint256 indexed drawId, uint16 indexed slot, address indexed checkedBy);
     event ReserveFunded(uint64 amount, uint64 newReserve);
@@ -182,6 +195,10 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     error DrawNotSettled();
     error AlreadyChecked();
     error ClaimWindowClosed();
+    /// @dev Boosting commits the stake for the period; see {boostStreak}.
+    error BoostLocked();
+    error AlreadyBoosted();
+    error NoStreakYet();
     error EmptyPool();
     error PeriodStillOpen();
 
@@ -293,6 +310,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// you the remaining time, not the time you already served.
     function withdraw(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
         uint16 slot = slotOf(msg.sender);
+        if (boostedThisPeriod(slot)) revert BoostLocked();
 
         euint64 requested = FHE.fromExternal(encryptedAmount, inputProof);
         euint64 actual = _debitSlot(slot, requested);
@@ -306,6 +324,50 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     // -------------------------------------------------------------------------
     // Reading your own position
     // -------------------------------------------------------------------------
+
+    /// @notice How many full periods `account` has held its slot without leaving.
+    ///
+    /// @dev Public, and already was: a slot is taken in a transaction anyone can see, and
+    /// {slotAssignedAt} has always recorded when. What it deliberately does not say is how
+    /// much is in there.
+    function streakOf(address account) public view returns (uint32) {
+        uint16 slot = slotOf(account);
+        uint32 since = slotAssignedAt[slot];
+        if (currentPeriod <= since) return 0;
+        uint32 held = currentPeriod - since;
+        return held > MAX_BOOST_PERIODS ? MAX_BOOST_PERIODS : held;
+    }
+
+    /// @notice Claim this period's loyalty boost: more weight for having stayed.
+    ///
+    /// @dev Opt-in and self-funded, which is the whole point. The obvious design applies
+    /// the boost to everybody at the roll, and that is an O(n) encrypted pass somebody has
+    /// to pay for every period — the same incidence wall that made a mandatory sweep
+    /// unworkable. Here each depositor pays for their own, once, and a pool nobody boosts
+    /// costs nobody anything.
+    ///
+    /// The boost expires with the period, so it is claimed again each time. That is what
+    /// makes "held for four periods" mean four periods of *continuous* holding rather than
+    /// a number that keeps climbing after the money has gone.
+    ///
+    /// Taking it commits the stake until the period ends. Boost-then-withdraw would
+    /// otherwise buy a full period of odds and hand the capital straight back, which beats
+    /// staying and would therefore be the only thing anyone did.
+    function boostStreak() external {
+        uint16 slot = slotOf(msg.sender);
+        if (boostedThisPeriod(slot)) revert AlreadyBoosted();
+
+        uint32 periods = streakOf(msg.sender);
+        if (periods == 0) revert NoStreakYet();
+
+        // Ticket-minutes per unit of balance. A full period is PERIOD_MINUTES, so this is
+        // that multiplied by the bonus rate — the arithmetic is plaintext, and only the
+        // balance it scales is encrypted.
+        uint64 factor = (PERIOD_MINUTES * BOOST_BPS_PER_PERIOD * uint64(periods)) / 10_000;
+        _creditBonus(slot, factor);
+
+        emit StreakBoosted(msg.sender, slot, periods, factor);
+    }
 
     /// @notice Take everything out and give up your slot.
     ///
@@ -331,6 +393,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// and that one stays priced rather than prevented. See `docs/THREAT-MODEL.md`.
     function exitPool() external {
         uint16 slot = slotOf(msg.sender);
+        if (boostedThisPeriod(slot)) revert BoostLocked();
 
         euint64 all = _debitSlot(slot, FHE.asEuint64(type(uint64).max));
         FHE.allowTransient(all, address(token));
@@ -596,7 +659,14 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         FHE.allowThis(point);
 
         uint256 id = drawCount;
-        draws[id] = Draw({total: total, prize: prize, drawPoint: point, period: currentPeriod, settled: true});
+        draws[id] = Draw({
+            total: total,
+            prize: prize,
+            drawPoint: point,
+            period: currentPeriod,
+            settledAt: uint64(block.timestamp),
+            settled: true
+        });
         claims[id].covered = slotsUsed;
         drawCount = id + 1;
         drawPending = false;
@@ -629,6 +699,25 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         // early: a testnet demonstration cannot wait a month to show the second cycle.
         if (block.timestamp < lastDrawSettledAt + CLAIM_GRACE && msg.sender != owner()) revert ClaimWindowOpen();
 
+        // The roll may not outrun the tree's memory.
+        //
+        // A claim is promised thirty days, and the tree can answer {MAX_HISTORY} periods
+        // back. At the seven-day cadence thirty days is four and a bit periods, so the two
+        // agree on their own and this never fires. It exists because the owner may roll
+        // early: without it, five quick rolls would push a draw out of history while its
+        // window was still open, and the promise would hold only as long as the operator
+        // chose to honour it.
+        //
+        // This is not the sweep gate that used to live here. That one blocked the roll
+        // until somebody funded an O(n) pass over every slot, which made the whole cycle
+        // depend on work nobody was paid to do. This asks the owner to wait, costs no gas
+        // to anybody, and clears itself as the grace expires.
+        for (uint256 i = drawCount; i > 0; --i) {
+            Draw storage d = draws[i - 1];
+            if (block.timestamp > d.settledAt + CLAIM_GRACE) break;
+            if (currentPeriod + 1 > d.period + MAX_HISTORY) revert ClaimWindowOpen();
+        }
+
         // No sweep gate here, deliberately.
         //
         // An earlier version blocked the roll until every slot had been checked, which
@@ -658,6 +747,18 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// Safe to run while the period is over but not yet rolled: once `minuteOfPeriod`
     /// saturates, deposits and withdrawals cancel out of the weight arithmetic exactly, so
     /// the numbers this draw was settled against cannot move underneath it.
+    ///
+    /// The claim window is thirty days of wall-clock time, not a count of rolls. It was
+    /// `currentPeriod > d.period + 1` — a single roll of grace — which expired a claim
+    /// after a fortnight while {CLAIM_GRACE} promised a month, and let the owner bring
+    /// even that forward by rolling early. Time is the promise that was made, so time is
+    /// what is checked.
+    ///
+    /// The {MAX_HISTORY} test beside it is the tree's reach rather than a second policy.
+    /// History runs that many generations deep and {startNextPeriod} will not roll past a
+    /// draw still inside its grace, so at the seven-day cadence only a draw whose thirty
+    /// days are already gone can reach it. It is there so a claim can never read a period
+    /// the tree has forgotten and quietly compute a band from nothing.
     function checkClaim(uint256 drawId, address account) public {
         Draw storage d = draws[drawId];
         if (!d.settled) revert DrawNotSettled();
@@ -667,7 +768,9 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         // the moment the period rolled, which meant anybody who had not been checked in
         // time simply forfeited, and the only thing preventing that was an operator
         // remembering to sweep.
-        if (currentPeriod > d.period + 1) revert ClaimWindowClosed();
+        // Thirty days of wall-clock time; see the note on this function.
+        if (block.timestamp > d.settledAt + CLAIM_GRACE) revert ClaimWindowClosed();
+        if (currentPeriod > d.period + MAX_HISTORY) revert ClaimWindowClosed();
 
         uint16 slot = slotOf(account);
         if (claimChecked[drawId][slot]) revert AlreadyChecked();
@@ -785,7 +888,9 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     function sweepRange(uint256 drawId, uint16 count) external {
         Draw storage d = draws[drawId];
         if (!d.settled) revert DrawNotSettled();
-        if (currentPeriod > d.period + 1) revert ClaimWindowClosed();
+        // Same window as {checkClaim}; see the note there.
+        if (block.timestamp > d.settledAt + CLAIM_GRACE) revert ClaimWindowClosed();
+        if (currentPeriod > d.period + MAX_HISTORY) revert ClaimWindowClosed();
 
         // Bounded by what the draw actually covered, not by who is in the pool now.
         //

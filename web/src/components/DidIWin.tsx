@@ -5,6 +5,7 @@ import { useAccount, useConfig, usePublicClient, useSignTypedData, useWriteContr
 import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { DEPLOY_BLOCK, POOL_ADDRESS, poolAbi } from "@/lib/contract";
+import { isClaimable } from "@/lib/claim";
 import { useReceipts } from "@/hooks/useReceipts";
 import { useSettledAt } from "@/hooks/useSettledAt";
 import { currentSession, decryptHandle, openSession } from "@/lib/fhe";
@@ -93,19 +94,9 @@ export function DidIWin({
   /** Which draw the resolve effect last settled, so a re-run does not blank a good answer. */
   const resolved = useRef<string>(undefined);
 
-  /** Whether a claim would still be accepted on-chain for this draw. */
-  // Matches the contract, which allows a claim one period back — `checkClaim` reverts only
-  // on `currentPeriod > d.period + 1`. This tested `period === currentPeriod`, the rule from
-  // before the tree kept a generation of history, so the panel called a draw closed while
-  // the chain would still have answered it. The whole point of that feature is that a claim
-  // outlives its period; saying otherwise threw the feature away in the interface.
-  const windowOpen = draw !== undefined && currentPeriod <= draw.period + 1;
-
-  // How long *this* draw's 30-day window still has to run. The grace is the contract's,
-  // read from it rather than hard-coded — a countdown that disagrees with the chain is
-  // worse than none. The settle time is this draw's own, from its `DrawSettled` log; it
-  // used to be `lastDrawSettledAt`, which describes only the newest draw and so gave every
-  // older draw a countdown belonging to a settlement that happened after it.
+  // How long *this* draw's thirty days still have to run. Both halves come from the
+  // contract — the draw's own `settledAt` and `CLAIM_GRACE` — rather than being counted in
+  // rolls here, because a countdown that disagrees with the chain is worse than none.
   const { at: settledAt, grace } = useSettledAt(BigInt(draws.length));
   const drawSettledAt = drawId !== undefined ? settledAt[String(drawId)] : undefined;
 
@@ -116,6 +107,9 @@ export function DidIWin({
   }, []);
 
   const claimLeft = drawSettledAt !== undefined && grace !== undefined ? drawSettledAt + grace - now : undefined;
+
+  /** Whether a claim would still be accepted on-chain for this draw. */
+  const windowOpen = draw !== undefined && isClaimable(draw.period, currentPeriod, drawSettledAt, now);
 
   /**
    * Resolve which state this draw is in, from public reads only.
@@ -380,7 +374,7 @@ export function DidIWin({
   /** A one-glance marker per draw, so the strip carries the state and prose need not. */
   const markFor = (d: CheckableDraw) => {
     if (openedByDraw[String(d.id)] !== undefined) return { mark: "✓", cls: styles.pickDone };
-    if (d.period === currentPeriod) return { mark: "!", cls: styles.pickLive };
+    if (isClaimable(d.period, currentPeriod, settledAt[String(d.id)], now)) return { mark: "!", cls: styles.pickLive };
     return { mark: "·", cls: styles.pickShut };
   };
 
@@ -431,7 +425,7 @@ export function DidIWin({
                   title={
                     openedByDraw[String(d.id)] !== undefined
                       ? "You have opened this one"
-                      : d.period === currentPeriod
+                      : isClaimable(d.period, currentPeriod, settledAt[String(d.id)], now)
                         ? "Claimable now"
                         : "Claim window closed"
                   }
@@ -573,10 +567,10 @@ export function DidIWin({
                 </p>
               ) : (
                 <p>
-                  Period #{draw?.period} rolled before anybody checked your slot, and the roll is what ends a claim: a
-                  check recomputes your band from the live tree, and those numbers have moved on. Claiming inside the
-                  window, or leaving a keeper to sweep, both prevent it — the pool blocks the roll until every depositor
-                  is covered, so reaching this at all takes the owner cutting the window short.
+                  This draw&rsquo;s thirty days ran out before anybody checked your slot. Rolling does not end a claim —
+                  the pool keeps five periods of history and will not roll past a draw still inside its window — so the
+                  only thing that closes one is the clock. Claiming any time in that month, or leaving a keeper to
+                  sweep, both prevent this.
                 </p>
               )}
             </details>

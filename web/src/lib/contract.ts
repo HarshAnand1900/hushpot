@@ -12,7 +12,7 @@
 export const CHAIN_ID = 11155111;
 
 /** The pool this app talks to. */
-const MAIN_POOL = "0x87d43a872fbf4Ba73758bCEB9a16e1C200E41822";
+const MAIN_POOL = "0xdF7d4C4e08A6C76f75D6A7d74bEc5a6C3Fdd24a6";
 
 /**
  * A second, expendable pool that anyone can run the whole cycle on.
@@ -61,7 +61,7 @@ export const IS_SANDBOX = POOL_ADDRESS.toLowerCase() === SANDBOX_POOL.toLowerCas
  * Block the pool was deployed in. Log scans start here rather than at genesis — public
  * Sepolia endpoints reject unbounded ranges, and nothing about this pool exists before it.
  */
-export const DEPLOY_BLOCK = 11620999n;
+export const DEPLOY_BLOCK = 11625897n;
 
 /** cUSDTMock — "Confidential USDT (Mock)", 6 decimals, rate 1. */
 export const TOKEN_ADDRESS = "0x4E7B06D78965594eB5EF5414c357ca21E1554491" as const;
@@ -145,6 +145,7 @@ export const poolAbi = [
       { name: "prize", type: "uint64" },
       { name: "drawPoint", type: "bytes32" },
       { name: "period", type: "uint32" },
+      { name: "settledAt", type: "uint64" },
       { name: "settled", type: "bool" },
     ],
     stateMutability: "view",
@@ -211,6 +212,39 @@ export const poolAbi = [
   { type: "function", name: "refreshMyBalance", inputs: [], outputs: [], stateMutability: "nonpayable" },
   { type: "function", name: "exitPool", inputs: [], outputs: [], stateMutability: "nonpayable" },
   { type: "function", name: "refreshMyWeight", inputs: [], outputs: [], stateMutability: "nonpayable" },
+  { type: "function", name: "boostStreak", inputs: [], outputs: [], stateMutability: "nonpayable" },
+  {
+    type: "function",
+    name: "streakOf",
+    inputs: [{ type: "address" }],
+    outputs: [{ type: "uint32" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "boostedThisPeriod",
+    inputs: [{ type: "uint16" }],
+    outputs: [{ type: "bool" }],
+    stateMutability: "view",
+  },
+  { type: "function", name: "MAX_BOOST_PERIODS", inputs: [], outputs: [{ type: "uint32" }], stateMutability: "view" },
+  {
+    type: "function",
+    name: "BOOST_BPS_PER_PERIOD",
+    inputs: [],
+    outputs: [{ type: "uint64" }],
+    stateMutability: "view",
+  },
+  {
+    type: "event",
+    name: "StreakBoosted",
+    inputs: [
+      { name: "account", type: "address", indexed: true },
+      { name: "slot", type: "uint16", indexed: true },
+      { name: "periods", type: "uint32" },
+      { name: "factor", type: "uint64" },
+    ],
+  },
   // Balance and odds in one transaction, so revealing your position costs a signature
   // and a single wallet prompt rather than three.
   { type: "function", name: "refreshMyPosition", inputs: [], outputs: [], stateMutability: "nonpayable" },

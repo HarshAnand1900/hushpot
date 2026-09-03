@@ -10,8 +10,8 @@ Built for the Zama Developer Program, Mainnet Season 4.
 
 - **Live app:** <https://hushpot-fhevm.vercel.app>
 - **Contract:**
-  [`0x87d43a872fbf4Ba73758bCEB9a16e1C200E41822`](https://sepolia.etherscan.io/address/0x87d43a872fbf4Ba73758bCEB9a16e1C200E41822)
-  (Sepolia). [Verified source](https://sepolia.etherscan.io/address/0x87d43a872fbf4Ba73758bCEB9a16e1C200E41822#code).
+  [`0xdF7d4C4e08A6C76f75D6A7d74bEc5a6C3Fdd24a6`](https://sepolia.etherscan.io/address/0xdF7d4C4e08A6C76f75D6A7d74bEc5a6C3Fdd24a6)
+  (Sepolia). [Verified source](https://sepolia.etherscan.io/address/0xdF7d4C4e08A6C76f75D6A7d74bEc5a6C3Fdd24a6#code).
   The address in [`web/src/lib/contract.ts`](web/src/lib/contract.ts) is always the live one
 - **Judge panel:** [`/judge`](https://hushpot-fhevm.vercel.app/judge). Run a whole draw cycle from the browser, no
   terminal needed
@@ -32,22 +32,33 @@ Built for the Zama Developer Program, Mainnet Season 4.
 Not a description of what it would do. These are reads off the live contract, and every one of them is a public getter
 anybody can call from Etherscan:
 
-|                  |                                       |
-| ---------------- | ------------------------------------- |
-| Depositors       | **30**, holding encrypted balances    |
-| Pooled principal | **~842,134 cUSDT**                    |
-| Draws settled    | **1** — draw #0 paid **807.53 cUSDT** |
-| Claims answered  | **30 of 30**                          |
-| Prize reserve    | 59,192.47 cUSDT                       |
-| Currently        | period #0, accruing toward draw #1    |
+|                  |                                                             |
+| ---------------- | ----------------------------------------------------------- |
+| Depositors       | **20**, holding encrypted balances                          |
+| Pooled principal | **~308,420 cUSDT**                                          |
+| Draws settled    | **3** — #0 **505.00**, #1 **502.75**, #2 **505.00** cUSDT   |
+| Claims answered  | 10/10, **0/20**, 20/20 — all three still claimable to 3 Oct |
+| Prize reserve    | 9,062.41 cUSDT                                              |
+| Currently        | period #2, accruing toward draw #3                          |
 
-A full cycle has run end to end: thirty deposits accrued, a draw opened and settled against an encrypted die, and every
-depositor was checked. The prize is in one of those thirty balances and **nobody — including the contract — knows
-which**. Each of them can open their own receipt with a signature and no gas; nobody can open anyone else's.
+Three full cycles have run end to end: deposits accrued, draws opened and settled against an encrypted die, depositors
+were checked, and the period rolled twice. Each prize is in one of those balances and **nobody — including the contract
+— knows which**. Each depositor can open their own receipt with a signature and no gas; nobody can open anyone else's.
 
-The prize is derived, not chosen: `pooled × 5% ÷ 52` on 842,134 gives 807.53. That proportionality is the point — a
-large late depositor grows the pot exactly as much as they grow their own odds, so arriving late dilutes nobody. It also
-means a small pool must show a small prize, or the yield figure would be a lie.
+**Draw #1 is deliberately left unswept.** It settled in period 1, the pool is now in period 2, and it is still claimable
+— which is the whole of the thirty-day window feature, live rather than described. Press _Did I win?_ on it and the
+contract answers from period 1's weights, two rolls later. Under the old rule it would have been refused.
+
+The prize is derived, not chosen: `pooled × 5% ÷ 52`. Draw #1 shows that undisguised — 524,300 pooled derived **502.75**
+with no sponsorship at all. Draws #0 and #2 were topped up to 505.00 by `sponsorPrize`, which is reserve-neutral over
+one draw and is the sanctioned way to lift a prize without touching the derivation. That derivation is the point: a
+large late depositor grows the pot exactly as much as they grow their own odds, so arriving late dilutes nobody, and a
+small pool must show a small prize or the yield figure would be a lie.
+
+The pool is deliberately kept near 300,000. It reached 524,300 while seeding and was trimmed back by partial
+withdrawals, because at that size one press of the faucet was worth 1.9% of the next draw and at this size it is worth
+**3.1%** — and that is the number a visitor actually cares about. Staying pushes it further: four weeks of loyalty is
+1.4×, so the same deposit held a month is worth about **4.3%**.
 
 **Three of the four cycle steps are permissionless.** Once the week is up, any wallet can open the draw, settle it, and
 pay every depositor out — the operator is not in that path and cannot stall it. Only the roll is the operator's, and
@@ -120,32 +131,54 @@ The obvious repair is to block the roll until everyone has been checked. That wa
 reads as safety and is not: it makes the cycle depend on the same O(n) sweep [the incidence wall](#the-incidence-wall)
 argues against. A pool nobody sweeps degrades from weekly to monthly and then forfeits the stragglers anyway.
 
-What ships instead is **one generation of history per node**, written copy-on-write:
+What ships instead is **five generations of history per node**, written copy-on-write:
 
 ```solidity
 function _archive(uint256 node) internal {
   uint32 was = _stamp[node];
   if (was == currentPeriod) return; // already current
   if (euint64.unwrap(_balance[node]) == bytes32(0)) return; // never written
-  _prevBalance[node] = _balance[node]; /* … */
-  _prevStamp[node] = was + 1;
+  if (euint64.unwrap(_hist[node][currentPeriod].balance) != bytes32(0)) return; // already taken
+  _hist[node][currentPeriod] = Archive({ balance: _balance[node], /* … */ was: was });
 }
 ```
 
 `checkClaim` then evaluates against `_checkWinAt(draw.period, …)`, so a draw settled in period 4 is still judged by
-period 4's weights once period 5 has begun. Snapshotting every slot at settlement would be O(n) encrypted storage per
-draw; this is O(1) amortised, because a node pays once on its first touch in a period and nothing after.
+period 4's weights once period 5, 6, 7 and 8 have begun. Snapshotting every slot at settlement would be O(n) encrypted
+storage per draw; this is O(1) amortised, because a node pays once on its first touch in a period and nothing after.
 
 **Measured**, in `HushpotDepthGas.ts` so it cannot drift: deposits inside a period cost **+0.4%**, and the first deposit
 after a roll costs **208,387 gas more** — once per node per period, never per depositor.
 
-The remaining limit is honest and bounded: one generation back. A draw two periods old reverts with `ClaimWindowClosed`
-rather than answering from weights that no longer exist. Refusing is the correct behaviour there; guessing is not.
+Archives are keyed by the period they were **taken** in, not the period whose values they hold. That is what bounds the
+lookup: the values a node held in period P are in the earliest archive taken after P, so a reader walks forward from P +
+1 and stops at the first hit, five steps at worst. Keying them by the period they belonged to would mean walking
+backwards an unbounded distance, because a node left untouched for a year has history a year old and nothing between.
 
-One detail worth keeping: `_prevStamp` stores `period + 1`. Storing the raw period collides with period 0 being real —
-its history was written and instantly unreachable, the bands stopped covering the total, and a draw point could land in
-the gap so that **nobody won at all**. It returned a plausible number on encrypted values, with no revert. The test that
-caught it asserts `alice + bob == prize` against a figure captured while the period was still current.
+### The window is thirty days, not a number of rolls
+
+`CLAIM_GRACE` has always said thirty days. The check did not: it was `currentPeriod > draw.period + 1`, one roll of
+grace, so a claim expired after a **fortnight** — and the owner, who may roll early, could bring even that forward. The
+contract contradicted its own constant by more than half the window.
+
+It is now wall-clock time, from a `settledAt` the draw records for itself:
+
+```solidity
+if (block.timestamp > d.settledAt + CLAIM_GRACE) revert ClaimWindowClosed();
+if (currentPeriod > d.period + MAX_HISTORY) revert ClaimWindowClosed();
+```
+
+The second line is the tree's reach rather than a second policy, and `startNextPeriod` will not roll past a draw still
+inside its grace — five periods is thirty-five days, so at the seven-day cadence the time test always binds first. That
+roll guard is **not** the sweep gate described above: it costs nobody an O(n) pass, it asks the owner to wait rather
+than asking somebody to pay, and it clears itself as the grace expires. At the natural cadence it never fires at all.
+
+One detail worth keeping from the single-generation version: the stamp stored `period + 1`, because storing the raw
+period collides with period 0 being real — its history was written and instantly unreachable, the bands stopped covering
+the total, and a draw point could land in the gap so that **nobody won at all**. It returned a plausible number on
+encrypted values, with no revert. The test that caught it asserts `alice + bob == prize` against a figure captured while
+the period was still current. The struct now carries `was` explicitly, which removes the sentinel and the class of bug
+with it.
 
 Finding out **whether** you won is a separate matter and has no deadline at all: the result is stored as a ciphertext
 only you can open, so it survives the sweep, the roll and the years after. See
@@ -174,6 +207,33 @@ balance × (drawTime − lastChange)  =  balance × drawTime  −  balance × la
 The right-hand term carries no draw time, so it can be computed the moment someone deposits and folded into a running
 total. The left multiplies a figure identical for everyone, so it factors out against the sum of balances. The whole
 pool therefore resolves to running totals plus one multiplication, and **no end-of-period sweep ever runs**.
+
+### Staying is worth more than arriving
+
+Time-weighting rewards depositing **early in the week**. It said nothing about staying past the week you arrived in, so
+week fifty looked exactly like week one: the pool rewarded showing up and never rewarded loyalty.
+
+`boostStreak` adds ten percent of a full stake's ticket-minutes for each period held, four periods deep — so money left
+alone for a month carries **1.4×** the weight of the same amount deposited this morning.
+
+Two things make it affordable. It is **opt-in and self-funded**: the obvious design applies the boost to everyone at the
+roll, which is an O(n) encrypted pass somebody has to pay for every period — [the incidence wall](#the-incidence-wall)
+again. Here each depositor pays for their own, once, and a pool nobody boosts costs nobody anything. And it **expires
+with the period**, which is what makes "held four periods" mean four periods of continuous holding rather than a number
+that keeps climbing after the money has gone.
+
+Taking the boost commits the stake until the period ends:
+
+```solidity
+if (boostedThisPeriod(slot)) revert BoostLocked();
+```
+
+Without that, boost-then-withdraw buys a full period of odds and hands the capital straight back — strictly better than
+staying, and therefore the only thing anyone would do. The check is plaintext and costs no FHE operations.
+
+It discloses nothing new. The streak comes from `slotAssignedAt`, which was already public because taking a slot is a
+transaction anyone can watch; the boost multiplies a balance that stays a ciphertext throughout. An observer learns that
+a slot has been here four weeks and still nothing about how much is in it.
 
 ### Odds are measured against the last published total
 
@@ -274,19 +334,19 @@ forward instead of rederiving it per person, which makes it about 1.6× cheaper 
 encrypted award, and a slot already checked is skipped, never credited twice.
 
 A sweep is a convenience rather than a deadline. Rolling used to end every open claim, which made sweeping before the
-roll the only thing standing between an absent winner and a forfeited prize — the tree now keeps a generation of
+roll the only thing standing between an absent winner and a forfeited prize — the tree now keeps five generations of
 history, so a claim outlives its own period and nobody has to be swept in time.
 
-Claims stay open for **30 days** after settlement (`CLAIM_GRACE`), and — the part that matters — **a roll does not end
-them**. Each tree node keeps one generation of history, so a draw settled in period 4 is still evaluated against period
-4's weights once period 5 has begun. A depositor nobody swept in time has lost nothing.
+Claims stay open for **30 days** after settlement (`CLAIM_GRACE`), and — the part that matters — **no number of rolls
+ends them**. Each tree node keeps five generations of history and the window is measured in wall-clock time from the
+draw's own `settledAt`, so a draw settled in period 4 is still evaluated against period 4's weights through periods 5,
+6, 7 and 8. A depositor nobody swept in time has lost nothing.
 
-> ⚠️ **What that changed, and what it did not.** The grace used to be the entire protection, because a claim was
-> answerable only while its own period was current — so an owner rolling early could strand an unclaimed prize, and the
-> only thing in the way was the Judge panel declining to offer the button. That hole is closed in the contract now, not
-> in the interface. What remains is bounded and stated: a draw **two** periods old reverts with `ClaimWindowClosed`
-> rather than answering from weights that no longer exist. Keeping more than one generation is a parameter, not a
-> redesign. See [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
+> ⚠️ **What that changed.** The grace used to be a claim on paper only. A claim was answerable while its own period was
+> current, then for one roll after; `CLAIM_GRACE` said thirty days while the code allowed about fourteen, and an owner
+> rolling early could cut it shorter still. The only thing in the way was the Judge panel declining to offer the button
+> — a frontend courtesy, not a contract rule. The window is now thirty real days, `startNextPeriod` will not roll past a
+> draw still inside it, and both are tested. See [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
 
 ### Weights freeze on their own
 

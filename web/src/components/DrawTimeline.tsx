@@ -109,10 +109,9 @@ export function DrawTimeline({ drawId, claimable }: { drawId: bigint; claimable:
   // closes, and a rolled period ends every claim behind it.
   const closesAt = settledAt && grace ? settledAt + grace : undefined;
   const remaining = closesAt && now ? closesAt - now : undefined;
-  // Being the newest draw is not the same as being claimable. A roll closes every claim
-  // behind it whether or not the thirty days have run, and the owner may roll early — so
-  // the newest draw read "CLAIMABLE NOW · 29 days left" on a window that was already shut.
-  // The contract's own test is whether the draw's period is still the current one.
+  // Being the newest draw is not the same as being claimable, and neither is surviving a
+  // roll: a claim outlives its period by exactly one, then the second roll shuts it whether
+  // or not the thirty days have run. `claimable` carries the contract's own test.
   const open = claimable && remaining !== undefined && remaining > 0;
 
   const left = (() => {
@@ -137,7 +136,7 @@ export function DrawTimeline({ drawId, claimable }: { drawId: bigint; claimable:
         <li className={open ? styles.stepLive : styles.stepDone}>
           <span className={styles.dot} />
           <span className={styles.stepLabel}>{open ? "CLAIMABLE NOW" : "CLAIM WINDOW"}</span>
-          <span className={styles.stepValue}>{open ? left : claimable ? "closed" : "closed by the roll"}</span>
+          <span className={styles.stepValue}>{open ? left : claimable ? "closed" : "closed by the second roll"}</span>
         </li>
 
         {/* `closesAt` is settlement plus the grace, so on a draw whose period has already
@@ -145,7 +144,7 @@ export function DrawTimeline({ drawId, claimable }: { drawId: bigint; claimable:
         <li className={open ? styles.step : styles.stepDone}>
           <span className={styles.dot} />
           <span className={styles.stepLabel}>{claimable ? "PERIOD ROLLS" : "PERIOD ROLLED"}</span>
-          <span className={styles.stepValue}>{claimable ? stamp(closesAt) : "before the grace ran out"}</span>
+          <span className={styles.stepValue}>{claimable ? stamp(closesAt) : "twice, before the grace ran out"}</span>
         </li>
       </ol>
 

@@ -199,7 +199,7 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
           clear: false,
         })),
         // A settled draw is a checkpoint in your story whether or not you touched it.
-        ...(drawList as readonly (readonly [bigint, bigint, string, number, boolean])[]).map((d, i) => ({
+        ...(drawList as readonly (readonly [bigint, bigint, string, number, bigint, boolean])[]).map((d, i) => ({
           block: 0n,
           kind: checkedDraws.has(String(i)) ? ("CHECKED" as const) : ("DRAW" as const),
           what: checkedDraws.has(String(i))

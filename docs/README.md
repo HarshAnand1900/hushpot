@@ -26,6 +26,14 @@ them.
 before the draw cannot beat a small one held all week. Those weights are summed in an encrypted segment tree, which is
 what makes "find the one slot whose band contains the die" cost a walk rather than a scan of every depositor.
 
+That rewards depositing early in the week and, on its own, said nothing about staying past the week you arrived in —
+week fifty looked exactly like week one. `boostStreak` adds ten percent of a full stake's ticket-minutes per period
+held, four deep, so money left alone for a month carries 1.4× the weight of the same amount deposited this morning. It
+is opt-in and self-funded, so it stays O(1) per depositor instead of becoming another pass over everybody at the roll,
+and it expires with the period, so a streak means continuous holding rather than a number that keeps climbing after the
+money has gone. Taking it commits the stake until the period ends; without that, boost-then-withdraw would buy a full
+period of odds and hand the capital straight back.
+
 **Nothing branches on a ciphertext, ever.** FHE does not allow it, and a branch would leak which way it went through gas
 and state. Settlement is a branchless `FHE.select` over every slot: a loser is credited an encrypted zero that is
 indistinguishable on-chain from a winner's prize, down to the gas.
@@ -40,8 +48,9 @@ none.
 Stated plainly rather than buried, and covered in full in [`THREAT-MODEL.md`](THREAT-MODEL.md):
 
 - The **owner can roll a period early**, because the grace check exempts them. It used to be the sharpest assumption
-  here, since a claim died with its period — the tree now keeps a generation of history, so rolling early strands
-  nothing. What is left is bounded: a draw two periods old can no longer be answered.
+  here, since a claim died with its period — the tree now keeps five generations of history and the window is thirty
+  days of wall-clock time, so rolling early strands nothing. `startNextPeriod` will not roll past a draw still inside
+  its grace, so what is left is only the clock.
 - **A griefer's slots cannot be reclaimed.** A depositor can give their own slot back with `exitPool`, but nobody can
   take one from an attacker — that case is priced rather than prevented. See [§9](THREAT-MODEL.md#9-slot-exhaustion).
 - **Acquiring cUSDT publishes that amount**, because wrapping plain tUSDT is an ordinary ERC-20 transfer. It happens at

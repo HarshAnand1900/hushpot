@@ -1,4 +1,6 @@
 "use client";
+import { isClaimable } from "@/lib/claim";
+import { useSettledAt } from "@/hooks/useSettledAt";
 
 import { useCallback, useEffect, useState } from "react";
 import { useAccount, useConfig, usePublicClient, useWriteContract } from "wagmi";
@@ -44,6 +46,7 @@ type Outcome = { note: string; hash?: string };
 
 export default function JudgeTab() {
   const state = usePoolState();
+  const { at: settledAt } = useSettledAt(state.drawCount);
   const lastDraw = useLastDraw(state.drawCount);
   // The same derivation every other tab uses, so the header cannot disagree with itself
   // from one tab to the next. See useWeeklyPot.
@@ -109,7 +112,9 @@ export default function JudgeTab() {
    * pool that had just rolled showed both steps live and both failed on click, which
    * reads as a broken console rather than a finished cycle.
    */
-  const claimOpen = lastDraw !== undefined && lastDraw.period === state.currentPeriod;
+  const claimOpen =
+    lastDraw !== undefined &&
+    isClaimable(lastDraw.period, state.currentPeriod, settledAt[String(state.drawCount - 1n)]);
 
   /** How many slots carry the checked flag for the current draw. */
   /**
@@ -314,7 +319,7 @@ export default function JudgeTab() {
       abi: poolAbi,
       functionName: "draws",
       args: [settledCount > 0n ? settledCount - 1n : 0n],
-    })) as readonly [bigint, bigint, string, number, boolean];
+    })) as readonly [bigint, bigint, string, number, bigint, boolean];
     return {
       ...out,
       note: `total ${formatUnits(draw[0] / 10080n)} pooled · prize ${formatUnits(draw[1])} cUSDT · winner unresolved`,

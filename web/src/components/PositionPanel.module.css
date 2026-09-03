@@ -363,3 +363,86 @@
 .expectedNote {
   color: var(--text-3);
 }
+
+/* Loyalty.
+   Drawn as a ladder rather than stated as a number, because the number alone is useless
+   to the person who most needs it: a first-time depositor sitting at 1.0x learns nothing
+   from "1.0x" and everything from seeing four unlit rungs above it. */
+.loyalty {
+  margin-top: 12px;
+  padding: 10px 11px;
+  border: 1px solid rgba(255, 214, 10, 0.22);
+  border-radius: 7px;
+  background: rgba(255, 214, 10, 0.05);
+}
+
+.loyaltyHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.loyaltyK {
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  color: var(--text-3);
+}
+
+.loyaltyV {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--yellow);
+  font-variant-numeric: tabular-nums;
+}
+
+.rungs {
+  display: flex;
+  gap: 3px;
+  margin: 8px 0 7px;
+}
+
+/* One rung per earnable step, 1.0x through 1.4x. Unlit rungs are the point of the
+   control — they are the only thing on screen that says the number can go up. */
+.rung {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.rungOn {
+  background: var(--yellow);
+}
+
+/* The rung you are standing on, so "held three weeks" is legible at a glance rather than
+   counted. */
+.rungNow {
+  box-shadow: 0 0 0 2px rgba(255, 214, 10, 0.25);
+}
+
+.loyaltyNote {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+/* A transaction, so it says what it costs — the stake is committed until the week ends —
+   and the commitment is read before it is agreed to rather than met as a revert. */
+.boost {
+  margin-top: 8px;
+  width: 100%;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--yellow);
+  border: 0;
+  border-radius: 5px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.boost:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

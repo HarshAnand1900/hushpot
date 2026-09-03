@@ -1,4 +1,6 @@
 "use client";
+import { isClaimable } from "@/lib/claim";
+import { useSettledAt } from "@/hooks/useSettledAt";
 
 import { useState } from "react";
 
@@ -15,6 +17,7 @@ import styles from "./draws.module.css";
 
 export default function DrawsTab() {
   const state = usePoolState();
+  const { at: settledAt } = useSettledAt(state.drawCount);
   const lastDraw = useLastDraw(state.drawCount);
   const { draws, totalPaid } = useDraws(state.drawCount);
   const { verify, results, step, error, verifying, done } = useVerifyDraw();
@@ -123,7 +126,10 @@ export default function DrawsTab() {
                 draw made public, and it is an aggregate, not anybody&apos;s balance.
               </p>
 
-              <DrawTimeline drawId={draw.id} claimable={draw.period === state.currentPeriod} />
+              <DrawTimeline
+                drawId={draw.id}
+                claimable={isClaimable(draw.period, state.currentPeriod, settledAt[String(draw.id)])}
+              />
 
               {/* local verification — real read-only calls, no wallet involved */}
               <div className={styles.verify}>

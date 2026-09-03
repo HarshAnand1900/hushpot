@@ -77,9 +77,9 @@ export function useVerifyDraw() {
           abi: poolAbi,
           functionName: "draws",
           args: [drawId],
-        })) as readonly [bigint, bigint, string, number, boolean];
+        })) as readonly [bigint, bigint, string, number, bigint, boolean];
 
-        const [total, prize, drawPoint, , settled] = raw;
+        const [total, prize, drawPoint, , , settled] = raw;
         push({
           label: "THE STORED RECORD",
           question: "Does this receipt match what the contract actually holds?",

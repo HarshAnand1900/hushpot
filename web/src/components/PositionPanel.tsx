@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePublicClient } from "wagmi";
+import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 
 import { usePositionHistory } from "@/hooks/usePositionHistory";
 import { POOL_ADDRESS, TOKEN_DECIMALS, poolAbi } from "@/lib/contract";
+import { describeError, toast } from "@/lib/toast";
 import { formatUnits } from "@/lib/format";
 import styles from "./PositionPanel.module.css";
 
@@ -43,6 +44,8 @@ export function PositionPanel({
   children?: React.ReactNode;
 }) {
   const publicClient = usePublicClient();
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
 
   const hasDenominator = poolTotal !== undefined && poolTotal > 0n;
 
@@ -105,6 +108,64 @@ export function PositionPanel({
       live = false;
     };
   }, [publicClient, slot, isUnlocked]);
+
+  /**
+   * The loyalty boost: what staying is worth, and whether it has been taken this period.
+   *
+   * Both figures are public on-chain and always were — a slot is taken in a transaction
+   * anyone can watch, and `slotAssignedAt` records when. What stays encrypted is the thing
+   * the boost multiplies, so an observer learns that this slot has been here four weeks
+   * and still nothing about how much is in it.
+   */
+  const [streak, setStreak] = useState<number>();
+  const [boosted, setBoosted] = useState<boolean>();
+  const [boosting, setBoosting] = useState(false);
+  const [boostNonce, setBoostNonce] = useState(0);
+
+  useEffect(() => {
+    if (!publicClient) return;
+    // No wallet, or a wallet with no slot: either way the answer is 1.0x, not a pending
+    // read. Leaving it undefined parked a first-time visitor on "reading the chain…"
+    // forever — and they are the one person this control exists to talk to, since the
+    // whole point of drawing a ladder is to show someone at the bottom of it where it goes.
+    if (!address || slot === undefined) {
+      setStreak(0);
+      setBoosted(false);
+      return;
+    }
+    let live = true;
+    void Promise.all([
+      publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "streakOf", args: [address] }),
+      publicClient.readContract({
+        address: POOL_ADDRESS,
+        abi: poolAbi,
+        functionName: "boostedThisPeriod",
+        args: [slot],
+      }),
+    ])
+      .then(([n, taken]) => {
+        if (!live) return;
+        setStreak(Number(n as number));
+        setBoosted(taken as boolean);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [publicClient, address, slot, drawNumber, boostNonce]);
+
+  const boost = async () => {
+    setBoosting(true);
+    try {
+      await writeContractAsync({ address: POOL_ADDRESS, abi: poolAbi, functionName: "boostStreak" });
+      toast({ kind: "success", title: "Boost applied", detail: "Your weight is up for this week." });
+      setBoostNonce((n) => n + 1);
+    } catch (e) {
+      toast({ kind: "error", title: "Boost failed", detail: describeError(e) });
+    } finally {
+      setBoosting(false);
+    }
+  };
 
   const masked = "▪▪▪▪▪▪";
 
@@ -196,6 +257,60 @@ export function PositionPanel({
             {isUnlocked && balance !== undefined ? formatUnits(balance) : masked}
           </div>
 
+          {/* Loyalty.
+              Time-weighting rewards depositing early in the week; it said nothing about
+              staying past the week you arrived in, so week fifty looked exactly like week
+              one. This is the ladder out of that, and it is drawn as a ladder on purpose:
+              a bare "1.0x" tells a first-time depositor nothing, whereas four rungs with
+              the first one lit says where they are and what staying is worth. */}
+          <div className={styles.loyalty}>
+            <div className={styles.loyaltyHead}>
+              <span className={styles.loyaltyK}>LOYALTY</span>
+              <span className={styles.loyaltyV}>{(1 + (streak ?? 0) * 0.1).toFixed(1)}×</span>
+            </div>
+
+            <div className={styles.rungs} aria-hidden>
+              {[0, 1, 2, 3, 4].map((n) => (
+                <span
+                  key={n}
+                  className={[
+                    styles.rung,
+                    n <= (streak ?? 0) ? styles.rungOn : "",
+                    n === (streak ?? 0) ? styles.rungNow : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                />
+              ))}
+            </div>
+
+            <div className={styles.loyaltyNote}>
+              {streak === undefined ? (
+                "reading the chain…"
+              ) : streak === 0 ? (
+                <>
+                  Everyone starts at 1.0×. Stay through the roll and it climbs 0.1× a week, to 1.4×.
+                </>
+              ) : boosted ? (
+                <>
+                  Applied for this week — {streak} week{streak > 1 ? "s" : ""} held.{" "}
+                  {streak < 4 ? `${(1 + (streak + 1) * 0.1).toFixed(1)}× next week.` : "This is the top rung."}
+                </>
+              ) : (
+                <>
+                  {streak} week{streak > 1 ? "s" : ""} held, unclaimed. It expires with the week, and taking it commits
+                  your stake until the roll.
+                </>
+              )}
+            </div>
+
+            {streak !== undefined && streak > 0 && !boosted && (
+              <button className={styles.boost} onClick={boost} disabled={boosting}>
+                {boosting ? "applying…" : `Apply ${(1 + streak * 0.1).toFixed(1)}×`}
+              </button>
+            )}
+          </div>
+
           <div className={styles.recordHead}>YOUR RECORD · THIS BROWSER ONLY</div>
 
           <dl className={styles.record}>
@@ -210,9 +325,9 @@ export function PositionPanel({
               </div>
             ))}
 
-            {/* The multiplier the contract actually applies, rather than the loyalty one
-                it does not. Yellow because it is the number that moves your odds and the
-                only one here you can act on: deposit earlier next week and it goes up. */}
+            {/* Time credit: what the contract charges you for arriving late in the week.
+                Yellow because it is the other number that moves your odds, and the one you
+                act on by depositing earlier next week. */}
             <div className={styles.row}>
               <dt>
                 TIME CREDIT <span className={styles.rowNote}>this period only, resets weekly</span>
