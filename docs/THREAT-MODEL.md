@@ -277,12 +277,15 @@ Odds are shown as your weight over the total published at the **last** draw, nev
 weight accrues through the period while that denominator does not, so the displayed figure climbs, and every depositor's
 figure climbs at once. Summed across the pool they can exceed 100%.
 
-Nothing is inconsistent underneath: at draw time the real shares are computed against the real total and sum to exactly
-100%. The drift is an artifact of refusing to publish a live denominator, and the alternative leaks far more — anyone
-could divide their own odds into a live total, recover it, and take §3.2 from once a week to once a block.
+Nothing is inconsistent underneath: at draw time the real shares are computed fresh — `openDraw()` reads
+`_weightOf(_treeRoot())` live, not the figure it published last time — and sum to exactly 100%. The drift in the
+*displayed* number is an artifact of refusing to publish a live denominator, and the alternative leaks far more —
+anyone could divide their own odds into a live total, recover it, and take §3.2 from once a week to once a block.
 
-- **Severity:** none to confidentiality; a presentation cost paid deliberately. Past 100.5% the panel withholds the
-  number and says why rather than capping it, since a capped 100% reads as certainty.
+- **Severity:** none to confidentiality; a presentation cost paid deliberately. Past 100.5% the panel switches to a `×`
+  multiple of the last total rather than capping it at 100%, since a capped 100% reads as certainty and this figure
+  never was one — every odds readout carries an `· ESTIMATE` qualifier for the same reason. See [`docs/HOW-IT-WORKS.md`
+  § Odds are measured against the last published total](HOW-IT-WORKS.md#odds-are-measured-against-the-last-published-total-and-that-is-not-what-decides-the-draw).
 
 ### 3.8 What does _not_ leak
 

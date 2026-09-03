@@ -221,18 +221,34 @@ anything in exactly the window the owner's exemption opens. Six tests cover both
 withdrawals all land at zero net weight while a draw is pending, early-open or not, and ordinary accrual with no draw
 pending is untouched.
 
-### Odds are measured against the last published total
+### Odds are measured against the last published total — and that is not what decides the draw
 
 Your odds are `yourWeight ÷ poolTotal`, where `poolTotal` is the figure published at the **last settled draw**, never a
-live reading.
+live reading. The UI labels every odds figure `· ESTIMATE` for exactly this reason: it is a snapshot, not a promise.
 
-That is not a convenience. Given a live denominator, you could divide your own odds into it, recover the running pool
-total, then watch it move by a single deposit and recover that deposit by subtraction. Freezing it at a draw boundary
-means the only total anybody learns is the one the draw already made public.
+That is not a convenience, it is the whole point. Given a live denominator, you could divide your own odds into it,
+recover the running pool total, then watch it move by a single deposit and recover that deposit's size by subtraction.
+Freezing the denominator at a draw boundary means the only total anybody learns is the one the draw already made
+public — the running total stays exactly as sealed as everyone's individual balance.
 
-The cost is that odds go stale between draws. Deposit after a draw and your weight grows while the denominator does not,
-so the ratio drifts upward and can exceed 100%. The app does not paper over that with a capped number: past 100% it
-shows `—` and says the pool has outgrown the last published total. A fresh figure arrives with the next draw.
+The cost is that the shown figure drifts out of date the moment anyone deposits. Your weight can only grow between
+draws (ticket-minutes accrue with time), while the published `poolTotal` sits still until the next draw — so the ratio
+the app shows you only ever drifts **upward**, and can climb past 100%. The app does not paper over that with a capped
+percentage: past 100% it switches to a `×` multiple of the last total, still marked `· ESTIMATE`. It is not a
+guarantee of winning at any multiple — it is a readout of how stale the denominator has become, nothing more.
+
+**What actually decides the draw is never this figure.** `openDraw()` computes `total = _weightOf(_treeRoot())` fresh,
+on-chain, from the live confidential tree, at the moment the draw opens — not the total from last time. If the pool
+grew between when you checked your odds and when the draw ran, everyone's real share shrank together, yours included,
+by exactly the same dilution a straightforward reading of "money in, chance of winning" would predict. A 96% estimate
+checked days before settlement can lose, honestly, if enough capital arrived in between — the estimate was accurate
+for the pool as it stood when you read it, not a forecast of the pool as it will stand when the dice actually roll.
+
+There is no way to see the real number before it is used: the live total is ciphertext until the instant `openDraw()`
+seals and publishes it for that draw, and the draw point that gets compared against it is [never decrypted by
+anyone](#selection). Whether you won is knowable only after settlement, from your own claim — never by inference from
+what the app showed you beforehand, and never by watching the chain (see [confidentiality under
+observation](#nothing-leaks-to-a-live-observer) below).
 
 ### Selection
 
@@ -364,6 +380,46 @@ Two things worth stating plainly:
   though it does narrow as the pool shrinks.
 
 Full detail, including what we cannot prove, is in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md).
+
+### Nothing leaks to a live observer
+
+Everything above holds for someone reading the chain after the fact. It is worth checking separately for someone
+watching **live** — every transaction, every gas number, every storage slot, as it happens — because that is a strictly
+stronger position and a weighting scheme built on plaintext branches could still leak through it even while the state
+itself stays encrypted.
+
+`checkClaim` has exactly one plaintext-visible branch, and it has nothing to do with winning:
+
+```solidity
+euint64 award =
+    slotAssignedAt[slot] <= d.period
+        ? FHE.select(_checkWinAt(d.period, slot, d.drawPoint), FHE.asEuint64(d.prize), FHE.asEuint64(0))
+        : FHE.asEuint64(0);
+```
+
+The `if` here (`contracts/HushpotPool.sol`, `checkClaim`) tests **eligibility** — was this slot even assigned before the
+draw it's being checked against — which is already public from that slot's own `SlotAssigned` event. The win/loss bit
+itself, `_checkWinAt(...)`, never reaches a branch: it is the condition argument to `FHE.select`, evaluated entirely
+inside the coprocessor, and both arms of the select cost the same regardless of which one is chosen. Solidity has no
+way to spend more gas on one ciphertext value than another it never inspects.
+
+Two more paths that could plausibly leak, checked directly rather than assumed:
+
+- **Storage.** `_awardOf[drawId][slot] = award` and `_parkAward(slot, award)` both run unconditionally, once per check,
+  writing an `euint64` handle either way. A loss writes an encrypted zero; a win writes an encrypted prize. Both are one
+  ciphertext handle in one storage slot — indistinguishable on-chain, and nothing about the write itself (its slot, its
+  size, whether it happens at all) depends on the outcome.
+- **Gas.** The one real signal is that individually checking different slots costs slightly different gas — but it
+  tracks the slot's own index, not its outcome. `_checkWinAt` walks the segment tree from the slot's leaf to the root,
+  and that walk touches one tree level per **set bit** in the slot index (already public, from `SlotAssigned`), so more
+  set bits means more encrypted comparisons. Measured directly by calling `checkClaim` on slots one at a time
+  (`scripts/gas-parity-check.ts`) rather than batched: a 0-bit slot costs ~526,849 gas, a 1-bit slot ~603,714–718
+  regardless of *which* bit is set, a 2-bit slot ~680,586 — a constant ~76,866 gas per set bit, matching the tree walk
+  exactly and explained in full by a value that was never secret. Win or loss never enters the estimate.
+
+So the four things a live observer actually gets — that a check happened, when, which slot, and (with individual calls)
+that slot's Hamming weight — are the same four things a *later* reader of the chain gets from the same transaction.
+Watching in real time buys nothing extra.
 
 ### Showing it, not claiming it
 

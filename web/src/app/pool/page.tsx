@@ -293,8 +293,8 @@ export default function PoolTab() {
 
         {/* stat rail ------------------------------------------------------ */}
         <section className={styles.rail}>
-          <Rail label="POOLED PRINCIPAL" value={lastDraw ? formatUnits(lastDraw.total / 10080n) : "—"} />
-          <Rail label="PRIZES PAID" value={formatUnits(draws.reduce((sum, d) => sum + d.prize, 0n))} accent />
+          <Rail label="LAST WEEK'S POOLED PRINCIPAL" value={lastDraw ? formatUnits(lastDraw.total / 10080n) : "—"} />
+          <Rail label="TOTAL PRIZES PAID" value={formatUnits(draws.reduce((sum, d) => sum + d.prize, 0n))} accent />
           <Rail label="DRAWS SETTLED" value={String(draws.length)} />
         </section>
 

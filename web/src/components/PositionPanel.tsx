@@ -387,7 +387,13 @@ export function PositionPanel({
         {/* ------------------------------------------------------- odds -- */}
         <div className={styles.cell}>
           <div className={styles.label}>
-            <span className="liveDot" /> ODDS · DRAW #{drawNumber}
+            {/* "Estimate" belongs on the label every time this number is shown, not only
+                in the paragraph underneath — that paragraph is easy to skip, and a number
+                this exact-looking otherwise reads as a promise about the actual draw
+                rather than a preview of it. The label is where the eye lands first. Same
+                treatment the pot kicker already gives its own estimated figure — quiet
+                continuation text, no separate styling to call attention to itself. */}
+            <span className="liveDot" /> ODDS · DRAW #{drawNumber} · ESTIMATE
           </div>
           {/* Odds divide your weight by a denominator that is only published at a draw.
               On a pool where none has settled there is no such figure, so the number is
@@ -477,7 +483,7 @@ export function PositionPanel({
 
           <div className={styles.projCell}>
             <div className={styles.projTop}>
-              <span className={styles.label}>ODDS AFTER</span>
+              <span className={styles.label}>ODDS AFTER · ESTIMATE</span>
               <span className={`num ${styles.projValue}`}>
                 {projected === undefined
                   ? "—"
