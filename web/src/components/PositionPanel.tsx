@@ -19,6 +19,7 @@ export function PositionPanel({
   drawNumber,
   poolTotal,
   minuteOfPeriod,
+  lastPrize,
   onDeposit,
   onWithdraw,
   onLock,
@@ -32,6 +33,8 @@ export function PositionPanel({
   /** Pool ticket-minutes published at the last draw. Frozen — never a live figure. */
   poolTotal?: bigint;
   minuteOfPeriod: bigint;
+  /** What the last draw paid, for the expected-value line. */
+  lastPrize?: bigint;
   onDeposit: () => void;
   onWithdraw: () => void;
   /** Clears the stored decrypt key. Absent when there is nothing to clear. */
@@ -69,7 +72,9 @@ export function PositionPanel({
    */
   const fullCredit = balance !== undefined ? balance * PERIOD_MINUTES : undefined;
   const timeCredit =
-    weight !== undefined && fullCredit !== undefined && fullCredit > 0n ? Number(weight) / Number(fullCredit) : undefined;
+    weight !== undefined && fullCredit !== undefined && fullCredit > 0n
+      ? Number(weight) / Number(fullCredit)
+      : undefined;
 
   // Past 100% the denominator is provably out of date — your weight has outgrown the total
   // that was published at the last draw, because you deposited or won since. Capping it at
@@ -105,7 +110,9 @@ export function PositionPanel({
 
   // --- add-to-position projection -----------------------------------------
   const [add, setAdd] = useState(0);
-  const maxAdd = 20_000;
+  // Comfortably above a single faucet press, since the faucet can be pressed again — but
+  // not so far above it that most of the track is unreachable.
+  const maxAdd = 50_000;
 
   const projected = useMemo(() => {
     if (odds === undefined || weight === undefined || !poolTotal || poolTotal === 0n) return undefined;
@@ -124,6 +131,12 @@ export function PositionPanel({
   }, [add, odds, weight, poolTotal, minuteOfPeriod]);
 
   const delta = projected !== undefined && odds !== undefined ? projected - odds : 0;
+
+  /** Odds after the projected deposit, times the prize: what the week is worth on average. */
+  const expectedWeekly =
+    projected !== undefined && lastPrize !== undefined
+      ? (lastPrize * BigInt(Math.round(projected * 100))) / 10_000n
+      : undefined;
 
   /**
    * Your odds across this period, minute by minute.
@@ -349,6 +362,24 @@ export function PositionPanel({
               <span>NOW {odds !== undefined ? `${odds.toFixed(2)}%` : "—"}</span>
               <span>SCALE 0–10%</span>
             </div>
+
+            {/* Odds alone read as a verdict on the deposit, and a small percentage in a
+                large pool looks like a bad deal. It is not: expected return is odds times
+                prize, and both scale with the pool, so the product is the yield rate at any
+                size. A depositor in a million-token pool wins rarely and wins large; one in
+                a small pool wins often and wins little. Same return, different variance —
+                and since principal is never at stake, variance is the only thing being
+                chosen. Saying so turns 0.75% from a disappointment into the mechanism. */}
+            {expectedWeekly !== undefined && (
+              <div className={styles.expected}>
+                <span className={styles.label}>EXPECTED</span>{" "}
+                <span className={styles.expectedV}>{formatUnits(expectedWeekly, 2)} cUSDT a week</span>{" "}
+                <span className={styles.expectedNote}>
+                  — odds × prize. It comes to the pool&apos;s yield rate whatever the pool&apos;s size, so a smaller
+                  share of a bigger pot is the same return with rarer, larger wins. Your principal is never at stake.
+                </span>
+              </div>
+            )}
 
             <div className={styles.buttons}>
               <button className="btnPrimary" style={{ flex: 1.2 }} onClick={onDeposit}>

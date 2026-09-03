@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 
 import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
+import { useSettledAt } from "@/hooks/useSettledAt";
 import styles from "./DrawTimeline.module.css";
 
 /**
@@ -18,8 +19,11 @@ export function DrawTimeline({ drawId, claimable }: { drawId: bigint; claimable:
   const { address } = useAccount();
   const publicClient = usePublicClient();
 
-  const [settledAt, setSettledAt] = useState<number>();
-  const [grace, setGrace] = useState<number>();
+  // This draw's own settle time, not `lastDrawSettledAt` — that value describes the newest
+  // draw only, so reading it here stamped every draw in the list with the same moment and
+  // gave each of them the newest draw's claim deadline.
+  const { at: settled, grace } = useSettledAt(drawId + 1n);
+  const settledAt = settled[String(drawId)];
   const [checked, setChecked] = useState<boolean>();
   const [swept, setSwept] = useState<{ done: number; total: number }>();
   const [now, setNow] = useState(0);
@@ -36,15 +40,12 @@ export function DrawTimeline({ drawId, claimable }: { drawId: bigint; claimable:
 
     const load = async () => {
       try {
-        const [at, window, slots] = await Promise.all([
-          publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "lastDrawSettledAt" }),
-          publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "CLAIM_GRACE" }),
-          publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "slotsUsed" }),
-        ]);
+        const slots = await publicClient.readContract({
+          address: POOL_ADDRESS,
+          abi: poolAbi,
+          functionName: "slotsUsed",
+        });
         if (!live) return;
-
-        setSettledAt(Number(at as bigint));
-        setGrace(Number(window as bigint));
 
         const count = Number(slots as number);
         const results = await publicClient.multicall({

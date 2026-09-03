@@ -305,6 +305,7 @@ export default function PoolTab() {
           drawNumber={drawNumber}
           poolTotal={lastDraw?.total}
           minuteOfPeriod={state.minuteOfPeriod}
+          lastPrize={lastPaid > 0n ? lastPaid : undefined}
           onDeposit={() => setSheet("deposit")}
           onWithdraw={() => setSheet("withdraw")}
           onLock={lock}

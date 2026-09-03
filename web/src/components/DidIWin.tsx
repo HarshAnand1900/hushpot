@@ -6,6 +6,7 @@ import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { DEPLOY_BLOCK, POOL_ADDRESS, poolAbi } from "@/lib/contract";
 import { useReceipts } from "@/hooks/useReceipts";
+import { useSettledAt } from "@/hooks/useSettledAt";
 import { currentSession, decryptHandle, openSession } from "@/lib/fhe";
 import { describeError, toast } from "@/lib/toast";
 import { formatCountdown, formatUnits } from "@/lib/format";
@@ -93,35 +94,28 @@ export function DidIWin({
   const resolved = useRef<string>(undefined);
 
   /** Whether a claim would still be accepted on-chain for this draw. */
-  const windowOpen = draw !== undefined && draw.period === currentPeriod;
+  // Matches the contract, which allows a claim one period back — `checkClaim` reverts only
+  // on `currentPeriod > d.period + 1`. This tested `period === currentPeriod`, the rule from
+  // before the tree kept a generation of history, so the panel called a draw closed while
+  // the chain would still have answered it. The whole point of that feature is that a claim
+  // outlives its period; saying otherwise threw the feature away in the interface.
+  const windowOpen = draw !== undefined && currentPeriod <= draw.period + 1;
 
-  // How long the 30-day window still has to run. The grace is the contract's, read from it
-  // rather than hard-coded — a countdown that disagrees with the chain is worse than none.
-  const [claimLeft, setClaimLeft] = useState<number>();
+  // How long *this* draw's 30-day window still has to run. The grace is the contract's,
+  // read from it rather than hard-coded — a countdown that disagrees with the chain is
+  // worse than none. The settle time is this draw's own, from its `DrawSettled` log; it
+  // used to be `lastDrawSettledAt`, which describes only the newest draw and so gave every
+  // older draw a countdown belonging to a settlement that happened after it.
+  const { at: settledAt, grace } = useSettledAt(BigInt(draws.length));
+  const drawSettledAt = drawId !== undefined ? settledAt[String(drawId)] : undefined;
+
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   useEffect(() => {
-    if (!publicClient) return;
-    let live = true;
+    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
-    const tick = async () => {
-      try {
-        const [settledAt, grace] = (await Promise.all([
-          publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "lastDrawSettledAt" }),
-          publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "CLAIM_GRACE" }),
-        ])) as [bigint, bigint];
-        if (settledAt === 0n) return;
-        if (live) setClaimLeft(Number(settledAt + grace) - Math.floor(Date.now() / 1000));
-      } catch {
-        /* no countdown is better than a wrong one */
-      }
-    };
-
-    void tick();
-    const id = setInterval(tick, 30_000);
-    return () => {
-      live = false;
-      clearInterval(id);
-    };
-  }, [publicClient]);
+  const claimLeft = drawSettledAt !== undefined && grace !== undefined ? drawSettledAt + grace - now : undefined;
 
   /**
    * Resolve which state this draw is in, from public reads only.
@@ -405,9 +399,9 @@ export function DidIWin({
         </div>
       )}
 
-      {/* `lastDrawSettledAt` describes the newest draw, so this bar belongs only to a draw
-          that is still claimable. Beside an older one it read "CLAIM CLOSES 29d" directly
-          underneath the word "CLOSED". */}
+      {/* This draw's own countdown, from its own settle time. It is still gated on the
+          window being open, so it can never read "CLAIM CLOSES 29d" under the word
+          "CLOSED" — and it no longer borrows the newest draw's clock to say so. */}
       {windowOpen && claimLeft !== undefined && claimLeft > 0 && (
         <div className={styles.claimBar}>
           <span className={styles.claimK}>CLAIM CLOSES</span>

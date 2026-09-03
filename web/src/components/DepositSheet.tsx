@@ -28,7 +28,7 @@ const SCALE = 10n ** BigInt(TOKEN_DECIMALS);
  * for odds around half a percent. Odds are your share of the pool, so a preset that is
  * negligible beside it is a preset that makes the product look pointless.
  */
-const QUICK = [10_000, 25_000, 50_000, 100_000];
+const QUICK = [1_000, 2_500, 5_000, 10_000];
 
 export function DepositSheet({
   mode: initialMode,
@@ -135,10 +135,8 @@ export function DepositSheet({
     if (!address) return;
     setMinting(shield ? "confidential" : "plain");
     try {
-      // Enough to take a real share of a pool this size. The mock's `mint` is open and
-      // the token is worthless, so the only thing a small faucet buys is a visitor whose
-      // odds round to zero.
-      const amount = 100_000n * SCALE;
+      // The mock's `mint` is open, so anyone wanting more can simply press it again.
+      const amount = 10_000n * SCALE;
 
       const mint = await writeContractAsync({
         address: UNDERLYING_ADDRESS,
@@ -214,7 +212,17 @@ export function DepositSheet({
   // A confidential balance is a ciphertext, so there is no figure to show and no Max to
   // offer. Comparing the requested amount against the *plain* balance would be worse than
   // useless here — it is a different token.
-  const balanceKnown = mode === "withdraw" || shielded !== undefined;
+  //
+  // Withdrawing used to hardcode this to `true`, which said "we know the balance" while
+  // `inPool` was still undefined. `available` then fell back to `0n`, so every amount read
+  // as more than you have: Max greyed out, every quick chip greyed out, and submit silently
+  // inert with no error to explain it. The sheet was simply dead if it opened before the
+  // decrypted position arrived — which is exactly what the Withdraw button does, whereas
+  // going in via the deposit tab takes long enough that the balance lands on the way.
+  //
+  // Unknown now means unknown. Nothing is blocked on a figure we do not have; the contract
+  // is the real guard, and an over-large confidential transfer moves nothing anyway.
+  const balanceKnown = mode === "withdraw" ? inPool !== undefined : shielded !== undefined;
   const available =
     mode === "deposit"
       ? route === "confidential"
@@ -345,7 +353,8 @@ export function DepositSheet({
                   )
                 ) : (
                   <>
-                    {mode === "deposit" ? "Wallet:" : "In pool:"} <strong>{formatUnits(available)}</strong>
+                    {mode === "deposit" ? "Wallet:" : "In pool:"}{" "}
+                    <strong>{balanceKnown ? formatUnits(available) : "•••••"}</strong>
                   </>
                 )}
               </span>
@@ -368,7 +377,9 @@ export function DepositSheet({
                 disabled={busy || !balanceKnown || available === 0n}
                 title={
                   !balanceKnown
-                    ? "Your confidential balance is a ciphertext, so there is no figure to fill in"
+                    ? mode === "withdraw"
+                      ? "Decrypt your position first and Max can fill itself in"
+                      : "Your confidential balance is a ciphertext, so there is no figure to fill in"
                     : undefined
                 }
                 onClick={() => setRaw((Number(available) / Number(SCALE)).toString())}
@@ -529,9 +540,9 @@ export function DepositSheet({
               which is exactly why it would go unnoticed if it happened. */}
           {mode === "withdraw" && (
             <p className={styles.exitNote}>
-              If a draw has settled and nobody has checked you for it yet, open{" "}
-              <strong>Did I win?</strong> before leaving — a slot with no owner is skipped by the sweep, so an unclaimed
-              prize is given up rather than paid out.
+              If a draw has settled and nobody has checked you for it yet, open <strong>Did I win?</strong> before
+              leaving — a slot with no owner is skipped by the sweep, so an unclaimed prize is given up rather than paid
+              out.
             </p>
           )}
 
