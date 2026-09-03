@@ -21,6 +21,8 @@ async function main() {
       "function slotOf(address) view returns (uint16)",
       "function refreshMyWeight() external",
       "function weightHandle(uint16) view returns (bytes32)",
+      "function BOOST_BPS_PER_PERIOD() view returns (uint64)",
+      "event StreakBoosted(address indexed account, uint16 indexed slot, uint32 periods, uint64 factor)",
     ],
     pool,
     who,
@@ -35,8 +37,13 @@ async function main() {
     return;
   }
 
+  // The multiplier is read from BOOST_BPS_PER_PERIOD rather than hardcoded here, so this
+  // script cannot go stale the way it did the last time that constant changed.
+  const bps = await p.BOOST_BPS_PER_PERIOD();
+  const multiplier = 1 + (Number(streak) * Number(bps)) / 10_000;
+
   const r = await (await p.boostStreak()).wait();
-  console.log(`boosted · gas ${r?.gasUsed} · multiplier ${(1 + Number(streak) * 0.1).toFixed(1)}x`);
+  console.log(`boosted · gas ${r?.gasUsed} · multiplier ${multiplier.toFixed(2)}x (${bps} bps/period)`);
   console.log(`boostedThisPeriod -> ${await p.boostedThisPeriod(slot)}`);
 }
 

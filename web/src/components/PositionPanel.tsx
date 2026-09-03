@@ -266,7 +266,7 @@ export function PositionPanel({
           <div className={styles.loyalty}>
             <div className={styles.loyaltyHead}>
               <span className={styles.loyaltyK}>LOYALTY</span>
-              <span className={styles.loyaltyV}>{(1 + (streak ?? 0) * 0.1).toFixed(1)}×</span>
+              <span className={styles.loyaltyV}>{(1 + (streak ?? 0) * 0.05).toFixed(2)}×</span>
             </div>
 
             <div className={styles.rungs} aria-hidden>
@@ -288,13 +288,11 @@ export function PositionPanel({
               {streak === undefined ? (
                 "reading the chain…"
               ) : streak === 0 ? (
-                <>
-                  Everyone starts at 1.0×. Stay through the roll and it climbs 0.1× a week, to 1.4×.
-                </>
+                <>Everyone starts at 1.00×. Stay past the week you join and it climbs 0.05× a week, to 1.20×.</>
               ) : boosted ? (
                 <>
                   Applied for this week — {streak} week{streak > 1 ? "s" : ""} held.{" "}
-                  {streak < 4 ? `${(1 + (streak + 1) * 0.1).toFixed(1)}× next week.` : "This is the top rung."}
+                  {streak < 4 ? `${(1 + (streak + 1) * 0.05).toFixed(2)}× next week.` : "This is the top rung."}
                 </>
               ) : (
                 <>
@@ -306,7 +304,7 @@ export function PositionPanel({
 
             {streak !== undefined && streak > 0 && !boosted && (
               <button className={styles.boost} onClick={boost} disabled={boosting}>
-                {boosting ? "applying…" : `Apply ${(1 + streak * 0.1).toFixed(1)}×`}
+                {boosting ? "applying…" : `Apply ${(1 + streak * 0.05).toFixed(2)}×`}
               </button>
             )}
           </div>

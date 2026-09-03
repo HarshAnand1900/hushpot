@@ -5,7 +5,7 @@ What is encrypted, what is public, what leaks, and what you have to trust.
 This document is deliberately unflattering. A confidential system that only advertises its strengths is harder to
 evaluate than one that names its edges, and every claim below can be checked against the deployed contract.
 
-**Contract:** `HushpotPool` · Sepolia · `0xdF7d4C4e08A6C76f75D6A7d74bEc5a6C3Fdd24a6`
+**Contract:** `HushpotPool` · Sepolia · `0x8E4b9c71d4597345B0eD2594dA148F4E1ABb490a`
 
 > The live address always matches [`web/src/lib/contract.ts`](../web/src/lib/contract.ts). Earlier deployments
 > referenced in git history are superseded.

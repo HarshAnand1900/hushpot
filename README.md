@@ -10,8 +10,8 @@ Built for the Zama Developer Program, Mainnet Season 4.
 
 - **Live app:** <https://hushpot-fhevm.vercel.app>
 - **Contract:**
-  [`0xdF7d4C4e08A6C76f75D6A7d74bEc5a6C3Fdd24a6`](https://sepolia.etherscan.io/address/0xdF7d4C4e08A6C76f75D6A7d74bEc5a6C3Fdd24a6)
-  (Sepolia). [Verified source](https://sepolia.etherscan.io/address/0xdF7d4C4e08A6C76f75D6A7d74bEc5a6C3Fdd24a6#code).
+  [`0x8E4b9c71d4597345B0eD2594dA148F4E1ABb490a`](https://sepolia.etherscan.io/address/0x8E4b9c71d4597345B0eD2594dA148F4E1ABb490a)
+  (Sepolia). [Verified source](https://sepolia.etherscan.io/address/0x8E4b9c71d4597345B0eD2594dA148F4E1ABb490a#code).
   The address in [`web/src/lib/contract.ts`](web/src/lib/contract.ts) is always the live one
 - **Judge panel:** [`/judge`](https://hushpot-fhevm.vercel.app/judge). Run a whole draw cycle from the browser, no
   terminal needed
@@ -22,8 +22,8 @@ Built for the Zama Developer Program, Mainnet Season 4.
   anyone can self-serve
 - **Judge sandbox:** [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox). The same panel
   pointed at a second, expendable pool
-  ([`0x4350…96DB`](https://sepolia.etherscan.io/address/0x4350b2a3957aE8a24f0cF264e818088b809096DB#code)) whose owner is
-  a contract, so all six cycle steps are open to any wallet. No key to import, no week to wait. See
+  ([`0xE29b…5e97d`](https://sepolia.etherscan.io/address/0xE29bb37Ed3Df927A54EE88A66080ab1452d5e97d#code)) whose owner
+  is a contract, so all six cycle steps are open to any wallet. No key to import, no week to wait. See
   [Running the cycle as a judge](#running-the-cycle-as-a-judge-today)
 - **Threat model:** [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md), covering what leaks and when
 
@@ -35,10 +35,10 @@ anybody can call from Etherscan:
 |                  |                                                             |
 | ---------------- | ----------------------------------------------------------- |
 | Depositors       | **20**, holding encrypted balances                          |
-| Pooled principal | **~308,420 cUSDT**                                          |
-| Draws settled    | **3** — #0 **505.00**, #1 **502.75**, #2 **505.00** cUSDT   |
-| Claims answered  | 10/10, **0/20**, 20/20 — all three still claimable to 3 Oct |
-| Prize reserve    | 9,062.41 cUSDT                                              |
+| Pooled principal | **~276,800 cUSDT**                                          |
+| Draws settled    | **3** — #0 **505.00**, #1 **264.66**, #2 **265.42** cUSDT   |
+| Claims answered  | 20/20, **0/20**, 20/20 — all three still claimable to 3 Oct |
+| Prize reserve    | 9,205.78 cUSDT                                              |
 | Currently        | period #2, accruing toward draw #3                          |
 
 Three full cycles have run end to end: deposits accrued, draws opened and settled against an encrypted die, depositors
@@ -47,18 +47,28 @@ were checked, and the period rolled twice. Each prize is in one of those balance
 
 **Draw #1 is deliberately left unswept.** It settled in period 1, the pool is now in period 2, and it is still claimable
 — which is the whole of the thirty-day window feature, live rather than described. Press _Did I win?_ on it and the
-contract answers from period 1's weights, two rolls later. Under the old rule it would have been refused.
+contract answers from period 1's weights, a roll later. Under the old rule it would have been refused.
 
-The prize is derived, not chosen: `pooled × 5% ÷ 52`. Draw #1 shows that undisguised — 524,300 pooled derived **502.75**
-with no sponsorship at all. Draws #0 and #2 were topped up to 505.00 by `sponsorPrize`, which is reserve-neutral over
-one draw and is the sanctioned way to lift a prize without touching the derivation. That derivation is the point: a
-large late depositor grows the pot exactly as much as they grow their own odds, so arriving late dilutes nobody, and a
-small pool must show a small prize or the yield figure would be a lie.
+The prize is derived, not chosen: `pooled × 5% ÷ 52`. Draw #1 shows that undisguised — 276,000 pooled derived **264.66**
+with no sponsorship at all. Draws #0 and #2 were topped up to ~505 by `sponsorPrize`, which is reserve-neutral over one
+draw and is the sanctioned way to lift a prize without touching the derivation. That derivation is the point: a large
+late depositor grows the pot exactly as much as they grow their own odds, so arriving late dilutes nobody, and a small
+pool must show a small prize or the yield figure would be a lie.
 
-The pool is deliberately kept near 300,000. It reached 524,300 while seeding and was trimmed back by partial
-withdrawals, because at that size one press of the faucet was worth 1.9% of the next draw and at this size it is worth
-**3.1%** — and that is the number a visitor actually cares about. Staying pushes it further: four weeks of loyalty is
-1.4×, so the same deposit held a month is worth about **4.3%**.
+The pool is deliberately kept near 300,000, where one press of the faucet is worth about **3.6%** of the next draw — the
+number a visitor actually cares about. Staying pushes it further, modestly: four weeks of loyalty is 1.20×, so the same
+deposit held a month is worth about **4.3%**.
+
+**The loyalty boost and the guard that closes its exploit have both run on this deployment, not just in tests.** After
+two rolls, slot 0's owner held a genuine one-period streak and called `boostStreak` — **1,772,864 gas**, `1.05×`
+applied, confirmed live rather than assumed from a mock that does not enforce HCU limits. With draw #2 then open,
+another eligible depositor's boost attempt reverted with `PeriodEnded` — the raw revert data is `0xac02d07d`, the exact
+selector, checked with a bare `eth_call` outside any tooling that could paper over the result. The same call still
+reverted after the draw settled and before the period rolled, which is the precise window the vulnerability lived in.
+
+The judge sandbox — see [Running the cycle as a judge](#running-the-cycle-as-a-judge-today) — was redeployed alongside
+the main pool for the same reason: it was running code from before the thirty-day claim window and the loyalty boost
+existed at all, which meant the two pools a reviewer could compare no longer agreed with each other.
 
 **Three of the four cycle steps are permissionless.** Once the week is up, any wallet can open the draw, settle it, and
 pay every depositor out — the operator is not in that path and cannot stall it. Only the roll is the operator's, and
@@ -213,8 +223,25 @@ pool therefore resolves to running totals plus one multiplication, and **no end-
 Time-weighting rewards depositing **early in the week**. It said nothing about staying past the week you arrived in, so
 week fifty looked exactly like week one: the pool rewarded showing up and never rewarded loyalty.
 
-`boostStreak` adds ten percent of a full stake's ticket-minutes for each period held, four periods deep — so money left
-alone for a month carries **1.4×** the weight of the same amount deposited this morning.
+`boostStreak` adds five percent of a full stake's ticket-minutes for each period held, four periods deep — so money left
+alone for a month carries **1.20×** the weight of the same amount deposited this morning. Deliberately modest: base
+weight already scales linearly with balance and holding time within a period, and the boost is a nudge on top of that,
+not a second axis competing with it for what actually decides odds.
+
+The period a slot is _assigned in_ is never one of the periods it credits, whatever minute the deposit landed in.
+`streakOf` counts full periods held _after_ joining — `currentPeriod - since - 1`, not `currentPeriod - since` — so
+depositing a minute before a roll gives the same zero streak as depositing a minute after one. Counting from `since`
+alone credited a full period the instant the clock ticked over: a last-minute joiner would read identically to someone
+who held the whole week, one minute after they arrived.
+
+The balance the boost multiplies is anchored to what was actually held for as long as the streak claims, not to whatever
+the slot holds the moment the button is pressed. `streakOf` and the slot's live balance are otherwise unrelated — a slot
+exists as long as it isn't fully exited, so a tiny stake could sit open for a month building the full streak, then take
+on a large fresh deposit moments before boosting and have the _whole_ deposit inherit a month's multiplier it was never
+staked for. `_creditBonus` applies the boost to `min(current balance, balance as of the anchor period)` instead, using
+the same generational history the claim window relies on — so fresh capital added after the streak's anchor point is
+excluded, and a balance that shrank since the anchor (a partial withdrawal that keeps the slot open) is not inflated
+back up either.
 
 Two things make it affordable. It is **opt-in and self-funded**: the obvious design applies the boost to everyone at the
 roll, which is an O(n) encrypted pass somebody has to pay for every period — [the incidence wall](#the-incidence-wall)
@@ -234,6 +261,23 @@ staying, and therefore the only thing anyone would do. The check is plaintext an
 It discloses nothing new. The streak comes from `slotAssignedAt`, which was already public because taking a slot is a
 transaction anyone can watch; the boost multiplies a balance that stays a ciphertext throughout. An observer learns that
 a slot has been here four weeks and still nothing about how much is in it.
+
+**A second guard closes a window `BoostLocked` does not.** Every other write to the tree is neutral once
+`minuteOfPeriod` saturates — a deposit or withdrawal made after that point adds the same amount to
+`lateCredit`/`earlyExit` that it adds to `balance`, so the two cancel and a settled draw's weights are untouched. The
+boost has no such cancellation; it adds straight to `earlyExit`, which is the entire point of it. That meant a depositor
+could watch a draw settle, boost before anyone had run `checkClaim`, and widen their own band for a total and drawPoint
+that were already fixed — capturing probability mass from whoever's pre-boost band would otherwise have contained the
+draw point, undetectably, since results stay encrypted. `boostStreak` now reverts once a draw already exists for the
+current period, open or settled:
+
+```solidity
+if (drawPending || (drawCount > 0 && draws[drawCount - 1].period == currentPeriod)) revert PeriodEnded();
+```
+
+Not `periodEnded()` — the owner may open a draw before the period has elapsed, and the total is fixed the moment it
+opens regardless of the clock. `HushpotBoostSettlementSafety.ts` pins both cases: the exploit window closed, and
+boosting mid-period with no draw yet still works exactly as before.
 
 ### Odds are measured against the last published total
 
@@ -542,8 +586,8 @@ Before then, use the **sandbox**: a second pool that exists for exactly this and
 |           |                                                                                                                                      |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Open it   | [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox)                                                         |
-| Pool      | [`0x4350b2a3957aE8a24f0cF264e818088b809096DB`](https://sepolia.etherscan.io/address/0x4350b2a3957aE8a24f0cF264e818088b809096DB#code) |
-| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0xF7B8eAb79b83bEfe6DAacc4F5fc69817aD563ef2#code), a contract, not a person  |
+| Pool      | [`0xE29bb37Ed3Df927A54EE88A66080ab1452d5e97d`](https://sepolia.etherscan.io/address/0xE29bb37Ed3Df927A54EE88A66080ab1452d5e97d#code) |
+| Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0x42EF44eFb3B1E20A48c23b483251EF3397FF2742#code), a contract, not a person  |
 
 **There is no key to import.** All six steps run from whatever wallet you already have, on a pool whose first cycle has
 never been run.
@@ -614,7 +658,7 @@ Sepolia gas fee, which is why a pool anyone can freely open draws on is not a pr
    where things stand. Every task takes a `HUSHPOT_POOL` address override, so the sandbox is drivable from the CLI too:
 
    ```bash
-   HUSHPOT_POOL=0x4350b2a3957aE8a24f0cF264e818088b809096DB npx hardhat hushpot:status --network sepolia
+   HUSHPOT_POOL=0xE29bb37Ed3Df927A54EE88A66080ab1452d5e97d npx hardhat hushpot:status --network sepolia
    ```
 
    Unset, the tasks use the deployed pool. `hushpot:sandbox` deploys a fresh one in a single command: pool, operator,

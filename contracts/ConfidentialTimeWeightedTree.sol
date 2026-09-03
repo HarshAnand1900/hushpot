@@ -523,14 +523,30 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// Nothing here is a new disclosure. `factor` is public, the transaction is public, and
     /// the balance it multiplies stays a ciphertext, so what an observer learns is that
     /// this slot claimed a boost — which they watched happen.
-    function _creditBonus(uint16 slot, uint64 factor) internal {
+    /// @dev `anchorPeriod` is the period the credited streak started counting from —
+    /// `currentPeriod - periods` — and the boost is applied to `min(current balance,
+    /// balance held as of anchorPeriod)`, not the raw current balance.
+    ///
+    /// Without the anchor, the streak (how long the *slot* has existed) and the balance it
+    /// multiplies (whatever is in it *right now*) are entirely decoupled: hold a slot open
+    /// with a trivial amount for a month to build the full streak, then deposit a fortune
+    /// moments before boosting, and the whole fortune gets the month's multiplier despite
+    /// having been staked for none of it. Anchoring on the balance from when the credited
+    /// window actually began means fresh capital added after that point is excluded — the
+    /// boost can only ever apply to money that was genuinely present for as long as the
+    /// streak claims. A balance that shrank since the anchor is not inflated either: the
+    /// smaller, current figure is what min() picks, so a near-total withdrawal that keeps
+    /// the slot open cannot keep multiplying money that already left.
+    function _creditBonus(uint16 slot, uint64 factor, uint32 anchorPeriod) internal {
         if (slot >= LEAF_COUNT) revert SlotOutOfRange();
 
         uint256 node = uint256(LEAF_OFFSET) + slot;
         _foldPending(slot, node);
 
+        euint64 eligible = FHE.min(_balance[node], _balanceAt(anchorPeriod, node));
+
         _archive(node);
-        _earlyExit[node] = FHE.add(_earlyExitOf(node), FHE.mul(_balance[node], factor));
+        _earlyExit[node] = FHE.add(_earlyExitOf(node), FHE.mul(eligible, factor));
         _lateCredit[node] = _lateCreditOf(node);
         _persist(node);
 

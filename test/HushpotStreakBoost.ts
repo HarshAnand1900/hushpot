@@ -21,8 +21,11 @@ import {
  * showing up and never rewarded staying.
  *
  * The boost is opt-in and expires with the period, which is what keeps it O(1) per
- * depositor. These tests pin the two properties that make it safe rather than merely
- * generous: it cannot be taken twice, and it cannot be taken and then walked away from.
+ * depositor. These tests pin the properties that make it safe rather than merely generous:
+ * it cannot be taken twice, it cannot be taken and then walked away from, the period you
+ * arrive in is never one of the periods it credits, and the balance it multiplies is
+ * anchored to what was actually held for that long — not whatever sits in the slot the
+ * moment the button is pressed.
  */
 describe("HushpotPool — loyalty boost", function () {
   let owner: HardhatEthersSigner;
@@ -95,16 +98,31 @@ describe("HushpotPool — loyalty boost", function () {
     await expect(pool.connect(alice).boostStreak()).to.be.revertedWithCustomError(pool, "NoStreakYet");
   });
 
-  it("adds ten percent of a full stake for each period held", async function () {
+  it("still offers nothing after the first roll — that period was the join, not a held one", async function () {
     await join(alice);
     await roll();
+
+    // currentPeriod has moved past the join, but alice has not yet lived through a full
+    // period as a holder: she arrived partway through the period that just ended, however
+    // late or early in it that happened to be. A minute-before-the-roll depositor and a
+    // minute-after-the-open depositor must read identically here.
+    expect(await pool.streakOf(alice.address)).to.eq(0);
+    await expect(pool.connect(alice).boostStreak()).to.be.revertedWithCustomError(pool, "NoStreakYet");
+  });
+
+  it("credits one period only once a full period has elapsed since joining", async function () {
+    await join(alice);
+    await roll();
+    await roll();
+
+    expect(await pool.streakOf(alice.address)).to.eq(1);
 
     const before = await weight(alice);
     await (await pool.connect(alice).boostStreak()).wait();
     const after = await weight(alice);
 
-    // One period held, so ten percent of a full period's ticket-minutes on this balance.
-    expect(after - before).to.eq((AMOUNT * PERIOD_MINUTES * 10n) / 100n);
+    // Five percent of a full period's ticket-minutes on this balance.
+    expect(after - before).to.eq((AMOUNT * PERIOD_MINUTES * 5n) / 100n);
   });
 
   it("stops growing at the cap", async function () {
@@ -116,12 +134,13 @@ describe("HushpotPool — loyalty boost", function () {
     const before = await weight(alice);
     await (await pool.connect(alice).boostStreak()).wait();
     expect((await weight(alice)) - before, "four periods' worth, not six").to.eq(
-      (AMOUNT * PERIOD_MINUTES * 40n) / 100n,
+      (AMOUNT * PERIOD_MINUTES * 20n) / 100n,
     );
   });
 
   it("cannot be taken twice in one period", async function () {
     await join(alice);
+    await roll();
     await roll();
     await (await pool.connect(alice).boostStreak()).wait();
     await expect(pool.connect(alice).boostStreak()).to.be.revertedWithCustomError(pool, "AlreadyBoosted");
@@ -129,6 +148,7 @@ describe("HushpotPool — loyalty boost", function () {
 
   it("commits the stake for the rest of the period", async function () {
     await join(alice);
+    await roll();
     await roll();
     await (await pool.connect(alice).boostStreak()).wait();
 
@@ -148,6 +168,7 @@ describe("HushpotPool — loyalty boost", function () {
   it("expires with the period, and frees the stake again", async function () {
     await join(alice);
     await roll();
+    await roll();
     await (await pool.connect(alice).boostStreak()).wait();
     await roll();
 
@@ -160,9 +181,52 @@ describe("HushpotPool — loyalty boost", function () {
     await join(alice);
     await join(bob);
     await roll();
+    await roll();
 
     const bobBefore = await weight(bob);
     await (await pool.connect(alice).boostStreak()).wait();
     expect(await weight(bob), "a boost is one slot's business").to.eq(bobBefore);
+  });
+
+  it("does not multiply a fresh top-up deposited right before boosting", async function () {
+    // A tiny stake, held long enough to build the maximum streak.
+    await join(alice, 1_000n);
+    for (let i = 0; i < 5; i++) await slowRoll();
+    expect(await pool.streakOf(alice.address)).to.eq(await pool.MAX_BOOST_PERIODS());
+
+    // Immediately before boosting, dump in a large fresh deposit — the thing the streak
+    // count alone cannot see, because slotAssignedAt only records when the slot opened.
+    await join(alice, 500_000n);
+
+    const before = await weight(alice);
+    await (await pool.connect(alice).boostStreak()).wait();
+    const after = await weight(alice);
+
+    // The boost applies to the balance as of the anchor period — 1,000, the amount that
+    // was actually present for the whole credited window — not the 501,000 now sitting in
+    // the slot. Twenty percent of the tiny original stake is a small, bounded number;
+    // twenty percent of the fresh half-million would not be.
+    expect(after - before).to.eq((1_000n * PERIOD_MINUTES * 20n) / 100n);
+    expect(after - before).to.be.lt((500_000n * PERIOD_MINUTES * 20n) / 100n);
+  });
+
+  it("does not over-credit a balance that was partly withdrawn since the anchor", async function () {
+    await join(alice, 100_000n);
+    await roll();
+    await roll();
+    expect(await pool.streakOf(alice.address)).to.eq(1);
+
+    // Withdraw most of it, but not all — the slot stays open, so the streak count is
+    // untouched. Only exitPool resets slotAssignedAt.
+    const enc = await fhevm.createEncryptedInput(poolAddress, alice.address).add64(90_000n).encrypt();
+    await (await pool.connect(alice).withdraw(enc.handles[0], enc.inputProof)).wait();
+
+    const before = await weight(alice);
+    await (await pool.connect(alice).boostStreak()).wait();
+    const after = await weight(alice);
+
+    // min(current 10,000, anchor 100,000) = 10,000 — the boost cannot multiply money that
+    // already left, even though the streak counter still says one period.
+    expect(after - before).to.eq((10_000n * PERIOD_MINUTES * 5n) / 100n);
   });
 });

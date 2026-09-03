@@ -27,12 +27,20 @@ before the draw cannot beat a small one held all week. Those weights are summed 
 what makes "find the one slot whose band contains the die" cost a walk rather than a scan of every depositor.
 
 That rewards depositing early in the week and, on its own, said nothing about staying past the week you arrived in —
-week fifty looked exactly like week one. `boostStreak` adds ten percent of a full stake's ticket-minutes per period
-held, four deep, so money left alone for a month carries 1.4× the weight of the same amount deposited this morning. It
-is opt-in and self-funded, so it stays O(1) per depositor instead of becoming another pass over everybody at the roll,
-and it expires with the period, so a streak means continuous holding rather than a number that keeps climbing after the
-money has gone. Taking it commits the stake until the period ends; without that, boost-then-withdraw would buy a full
-period of odds and hand the capital straight back.
+week fifty looked exactly like week one. `boostStreak` adds five percent of a full stake's ticket-minutes per period
+held, four deep, so money left alone for a month carries 1.20× the weight of the same amount deposited this morning —
+deliberately modest, a nudge on top of balance and timing rather than a second axis competing with them. It is opt-in
+and self-funded, so it stays O(1) per depositor instead of becoming another pass over everybody at the roll, and it
+expires with the period, so a streak means continuous holding rather than a number that keeps climbing after the money
+has gone. Taking it commits the stake until the period ends; without that, boost-then-withdraw would buy a full period
+of odds and hand the capital straight back.
+
+The period a slot is assigned in never counts toward the streak, and the boost multiplies only the balance that was
+actually present for as long as the streak claims — not whatever the slot holds right now. Both close real gaps:
+counting from the join period alone would credit a last-minute depositor identically to a full-week holder one minute
+later; multiplying the live balance would let a slot held open with a trivial stake for a month take on a large fresh
+deposit moments before boosting and hand the whole thing an unearned multiplier. See the README's
+[Staying is worth more than arriving](../README.md#staying-is-worth-more-than-arriving) for the mechanism.
 
 **Nothing branches on a ciphertext, ever.** FHE does not allow it, and a branch would leak which way it went through gas
 and state. Settlement is a branchless `FHE.select` over every slot: a loser is credited an encrypted zero that is

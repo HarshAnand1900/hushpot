@@ -116,9 +116,12 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     uint256 public constant CLAIM_GRACE = 30 days;
 
     /// @notice Extra ticket-minutes per full period held, in basis points of a full stake.
-    /// @dev Ten percent a period, four periods deep, so a stake left alone for a month
-    /// carries forty percent more weight than the same money deposited this morning.
-    uint64 public constant BOOST_BPS_PER_PERIOD = 1000;
+    /// @dev Five percent a period, four periods deep, so a stake held continuously for a
+    /// month carries twenty percent more weight than the same money deposited this
+    /// morning — enough to matter to someone deciding whether to stay, not so much that
+    /// base weight (which already scales linearly with balance) stops being the thing
+    /// that actually decides odds.
+    uint64 public constant BOOST_BPS_PER_PERIOD = 500;
 
     /// @notice How many periods of loyalty count. Beyond this the boost stops growing.
     uint32 public constant MAX_BOOST_PERIODS = 4;
@@ -199,6 +202,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     error BoostLocked();
     error AlreadyBoosted();
     error NoStreakYet();
+    error PeriodEnded();
     error EmptyPool();
     error PeriodStillOpen();
 
@@ -330,11 +334,18 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @dev Public, and already was: a slot is taken in a transaction anyone can see, and
     /// {slotAssignedAt} has always recorded when. What it deliberately does not say is how
     /// much is in there.
+    ///
+    /// The period a slot is *assigned in* never counts, no matter what minute the deposit
+    /// landed in. `currentPeriod - since` alone credited a full period the instant the
+    /// clock ticked over — someone joining a minute before the roll had "held one period"
+    /// a minute later, identical to someone who was there the whole week. Since is when the
+    /// join happened, not when a full period of holding began; that begins at `since + 1`,
+    /// and only once `currentPeriod` has moved past it has a period actually elapsed intact.
     function streakOf(address account) public view returns (uint32) {
         uint16 slot = slotOf(account);
         uint32 since = slotAssignedAt[slot];
-        if (currentPeriod <= since) return 0;
-        uint32 held = currentPeriod - since;
+        if (currentPeriod <= since + 1) return 0;
+        uint32 held = currentPeriod - since - 1;
         return held > MAX_BOOST_PERIODS ? MAX_BOOST_PERIODS : held;
     }
 
@@ -353,7 +364,24 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// Taking it commits the stake until the period ends. Boost-then-withdraw would
     /// otherwise buy a full period of odds and hand the capital straight back, which beats
     /// staying and would therefore be the only thing anyone did.
+    ///
+    /// Blocked once this period already has a draw — open or settled. Every other write to
+    /// the tree after that point is provably neutral: a deposit or withdrawal made once
+    /// `minuteOfPeriod` saturates adds the same amount to `lateCredit`/`earlyExit` that it
+    /// adds to `balance`, so the two cancel and a settled draw's numbers stay untouched.
+    /// The boost does not cancel — it adds straight to `earlyExit` with nothing offsetting
+    /// it — so taking one after a draw exists for this period would inflate a slot's band
+    /// for a total and drawPoint that were already fixed, before `checkClaim` has read
+    /// either for anyone.
+    ///
+    /// `periodEnded()` is not the right test for this: the owner may open a draw before the
+    /// period has elapsed, and that draw's total is fixed the moment it opens regardless of
+    /// the clock. The boundary that matters is whether *a draw already exists* for the
+    /// current period — open counts, not just settled, because `_pendingTotal` is snapshot
+    /// at `openDraw`, before settlement.
     function boostStreak() external {
+        if (drawPending || (drawCount > 0 && draws[drawCount - 1].period == currentPeriod)) revert PeriodEnded();
+
         uint16 slot = slotOf(msg.sender);
         if (boostedThisPeriod(slot)) revert AlreadyBoosted();
 
@@ -364,7 +392,11 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         // that multiplied by the bonus rate — the arithmetic is plaintext, and only the
         // balance it scales is encrypted.
         uint64 factor = (PERIOD_MINUTES * BOOST_BPS_PER_PERIOD * uint64(periods)) / 10_000;
-        _creditBonus(slot, factor);
+        // The first period `streakOf` actually credits — see the note on {_creditBonus}
+        // for why the boost is applied to the balance from here, not to whatever sits in
+        // the slot right now.
+        uint32 anchorPeriod = currentPeriod - periods;
+        _creditBonus(slot, factor, anchorPeriod);
 
         emit StreakBoosted(msg.sender, slot, periods, factor);
     }
