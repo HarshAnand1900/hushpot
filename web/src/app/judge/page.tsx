@@ -105,14 +105,30 @@ export default function JudgeTab() {
         })
       : undefined;
   /**
-   * Whether the last settled draw still belongs to the current period.
+   * Whether the last settled draw belongs to the *current* period.
    *
-   * Both `sweepRange` and `startNextPeriod` test this on-chain, and once a period rolls
-   * they revert — `AlreadyChecked` and `DrawNotSettled` respectively. Without it here, a
-   * pool that had just rolled showed both steps live and both failed on click, which
-   * reads as a broken console rather than a finished cycle.
+   * This is `startNextPeriod`'s own requirement — it reverts with `DrawNotSettled` unless
+   * `draws[drawCount - 1].period == currentPeriod` — and it is also `openDraw`'s: it
+   * reverts with `DrawAlreadySettledThisPeriod` when that same equality holds. One flag
+   * gates both, in opposite directions: a draw settled this period means open (step 02)
+   * is done and roll (step 06) is the thing to do next; no draw settled this period means
+   * the reverse.
+   *
+   * This used to be conflated with the claim window's 30-day/five-period reach — true for
+   * far longer than a period lasts, since a draw stays claimable well after the period it
+   * settled in has moved on. That flag correctly gates sweeping (below), which shares
+   * nothing with the period-equality check: `sweepRange` never tests `d.period ==
+   * currentPeriod` at all. Conflating them showed "Roll the period" as READY the entire
+   * time a stale draw was still claimable, which reverts the moment anyone presses it,
+   * because rolling has nothing to roll from until this period gets its own draw.
    */
-  const claimOpen =
+  const settledThisPeriod = lastDraw !== undefined && lastDraw.period === state.currentPeriod;
+
+  /**
+   * Whether the pool's most recent draw can still be swept — the 30-day, five-period
+   * window `sweepRange` itself enforces, independent of which period is current now.
+   */
+  const claimStillOpen =
     lastDraw !== undefined &&
     isClaimable(lastDraw.period, state.currentPeriod, settledAt[String(state.drawCount - 1n)]);
 
@@ -396,19 +412,18 @@ export default function JudgeTab() {
       role: onSandbox ? "ANYONE" : "OWNER EARLY · ANYONE AFTER CLOSE",
       title: "Open the draw",
       sig: onSandbox ? "SandboxOperator.openDraw()" : "openDraw()",
-      note: claimOpen
+      note: settledThisPeriod
         ? `Draw #${Number(state.drawCount) - 1} has already settled in this period, and the contract allows one per period. The next draw only opens after a roll, step 06 — which works right now, with nothing else required first: claims survive it, so there is no need to pay anyone out before rolling. Step 04 stays independent and optional, whenever anyone wants it; it pays four slots a press, so ${sweepsLeft > 0 ? `${sweepsLeft} press${sweepsLeft === 1 ? "" : "es"} would finish it` : "everyone is already covered"}.`
         : onSandbox
           ? "Seals the pool total and publishes it for decryption. Sent through the sandbox's owner contract, which forwards this call to any address, so it works from your wallet, now, without waiting for the period to elapse."
           : "Seals the pool total and publishes it for decryption. Anyone may call it once the period has elapsed; the owner may call it early so a week-long cycle fits in a demo.",
-      // `claimOpen` blocks this one and enables steps 04 and 06, which is the right way
+      // `settledThisPeriod` blocks this one and enables step 06, which is the right way
       // round: the contract allows one draw per period, so a draw already settled in this
-      // period means the next thing to do is roll, not open another — sweeping stays a
-      // separate, optional action available at the same time, not a prerequisite for it.
-      // Without this the step read READY, reverted with DrawAlreadySettledThisPeriod, and
-      // surfaced as "the node rejected the gas limit" — an estimation failure wearing a
-      // disguise.
-      disabled: !isConnected || state.drawPending || claimOpen || (!state.periodEnded && !isOwner && !onSandbox),
+      // period means the next thing to do is roll, not open another. Without this the step
+      // read READY, reverted with DrawAlreadySettledThisPeriod, and surfaced as "the node
+      // rejected the gas limit" — an estimation failure wearing a disguise.
+      disabled:
+        !isConnected || state.drawPending || settledThisPeriod || (!state.periodEnded && !isOwner && !onSandbox),
       go: () => run("open", onSandbox ? "SandboxOperator.openDraw()" : "openDraw()", open),
     },
     {
@@ -428,7 +443,7 @@ export default function JudgeTab() {
       title: "Pay everyone out",
       sig: "sweepRange(uint256, uint16)",
       note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped instead of paid twice, so this is safe to repeat. ${answered} of ${target} covered${sweepsLeft > 1 ? ` — press Run ${sweepsLeft} more times to finish` : sweepsLeft === 1 ? " — one more Run finishes it" : ""}.`,
-      disabled: !isConnected || state.drawCount === 0n || !claimOpen || sweptAll,
+      disabled: !isConnected || state.drawCount === 0n || !claimStillOpen || sweptAll,
       go: () =>
         run("sweep", `sweepRange(${drawId}, 4)`, async () => {
           const out = await send("sweepRange", [drawId, 4], 3_600_000n);
@@ -460,12 +475,12 @@ export default function JudgeTab() {
       // a rule that was removed, for a reason that stopped being true when the tree started
       // keeping a generation of history. Rolling ends nothing now: a claim outlives its
       // period, so a slot nobody has answered yet is not a slot about to lose anything.
-      note: !claimOpen
-        ? "Already done for this period. The last draw settled in an earlier one, and the pool is waiting for the next draw before there is anything to roll."
+      note: !settledThisPeriod
+        ? "Nothing to roll yet. This period has not had its own draw settled, so there is no draw for the roll to close out — step 02, then step 03, come first."
         : onSandbox
           ? `Opens the next period, through the owner contract so it needs no key and no thirty-day wait. ${answered} of ${target} claims answered — the roll does not wait for the rest, because a claim stays answerable for a period after its own. The pool is then back at step 01.`
           : `Opens the next period. ${answered} of ${target} claims answered, and the roll does not wait for the rest: the tree keeps a generation of history, so a claim outlives the period it belongs to. Held back thirty days from everybody but the owner all the same, so nobody else can shorten the window.`,
-      disabled: !isConnected || state.drawCount === 0n || state.drawPending || !claimOpen,
+      disabled: !isConnected || state.drawCount === 0n || state.drawPending || !settledThisPeriod,
       go: () =>
         run("roll", onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()", async () => {
           const out = await sendGated("startNextPeriod");
