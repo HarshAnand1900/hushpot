@@ -323,7 +323,9 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     }
 
     /// @notice Minutes elapsed in the current period, saturating at the period length.
-    function minuteOfPeriod() public view returns (uint64) {
+    /// @dev Virtual so {HushpotPool} can saturate it early, the moment a draw is pending —
+    /// see the override there for why the wall-clock condition alone is not enough.
+    function minuteOfPeriod() public view virtual returns (uint64) {
         uint256 elapsed = block.timestamp - periodStart;
         uint64 m = uint64(elapsed / 60);
         return m > PERIOD_MINUTES ? PERIOD_MINUTES : m;

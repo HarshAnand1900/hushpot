@@ -630,6 +630,36 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         return block.timestamp >= periodStart + PERIOD_SECONDS;
     }
 
+    /// @dev Saturates the moment a draw is pending, not only once the clock genuinely runs
+    /// out.
+    ///
+    /// A deposit or withdrawal made after `minuteOfPeriod` saturates is provably neutral —
+    /// it adds the same amount to `lateCredit`/`earlyExit` that it adds to `balance`, so
+    /// the two cancel and a sealed total is untouched. Under ordinary operation that is
+    /// exactly when it matters: `openDraw` will not let a non-owner in before
+    /// `periodEnded()`, so by the time a draw can open at all without the owner's help,
+    /// every deposit from then on is already neutral by the wall-clock rule alone.
+    ///
+    /// The owner's early-open exemption breaks that. Opening before `periodEnded()`
+    /// snapshots `_pendingTotal` while the clock has not yet saturated, and any deposit or
+    /// withdrawal in the window between that snapshot and the roll is then a live,
+    /// uncancelled change to weight the snapshot never accounted for — the exact shape of
+    /// the timing gap `boostStreak` closed, reachable here through the ordinary deposit
+    /// path instead of the loyalty boost. `HushpotEarlyOpenAudit.ts` measured it directly:
+    /// a deposit made entirely after an early `openDraw` landed with its full, uncancelled
+    /// weight rather than the zero net effect the rest of the design relies on.
+    ///
+    /// A pending draw is the actual boundary — not `periodEnded()` on its own, which the
+    /// owner can already be on the near side of, and not `currentPeriod` matching a draw's
+    /// `period`, which stays true long after settlement and would saturate the *next*
+    /// period's accrual before it had even started. Saturating exactly while
+    /// `drawPending` is true is a no-op under ordinary operation, where the clock has
+    /// already saturated by the time a draw exists, and closes the gap precisely where the
+    /// owner's exemption opens it.
+    function minuteOfPeriod() public view override returns (uint64) {
+        return drawPending ? PERIOD_MINUTES : super.minuteOfPeriod();
+    }
+
     /// @notice Begin a draw by publishing the pool total for decryption.
     /// @dev Two steps are unavoidable: the draw point must be reduced modulo the pool
     /// total, and encrypted modulo requires a plain divisor. So the total — the one

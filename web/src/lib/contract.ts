@@ -1,18 +1,20 @@
 /**
  * The live Hushpot deployment and the slice of its ABI the frontend uses.
  *
- * Deployed 12 August 2026 to Sepolia against Zama's official confidential USDT mock, so
+ * Deployed 3 September 2026 to Sepolia against Zama's official confidential USDT mock, so
  * anyone who took part in an earlier Developer Program season already holds the token.
  *
  * Carries the parked-award payout — which took a claim from 2.4M gas to 454k by no longer
  * repairing ten ancestor sums to credit an encrypted zero — open prize sponsorship, and a
- * thirty-day claim window that costs nothing because the roll is what ends a claim.
+ * thirty-day claim window measured in wall-clock time. A roll does not end a claim: the
+ * tree keeps five generations of history, so a draw stays answerable long after its own
+ * period has passed.
  */
 
 export const CHAIN_ID = 11155111;
 
 /** The pool this app talks to. */
-const MAIN_POOL = "0x8E4b9c71d4597345B0eD2594dA148F4E1ABb490a";
+const MAIN_POOL = "0x4ac487b46d687EB92078c8565FF0FEEa7690b830";
 
 /**
  * A second, expendable pool that anyone can run the whole cycle on.
@@ -26,7 +28,7 @@ const MAIN_POOL = "0x8E4b9c71d4597345B0eD2594dA148F4E1ABb490a";
  * Reached with `?pool=sandbox` on any tab. Resolved once, at module load, so every hook
  * and component sees the same address without threading it through twenty-three files.
  */
-export const SANDBOX_POOL = "0xE29bb37Ed3Df927A54EE88A66080ab1452d5e97d";
+export const SANDBOX_POOL = "0x08E5c466a8c5a5FCccEd833e1E9dC8D5B145D279";
 
 /**
  * The sandbox's owner, which is a contract rather than a person.
@@ -36,7 +38,7 @@ export const SANDBOX_POOL = "0xE29bb37Ed3Df927A54EE88A66080ab1452d5e97d";
  * calls to anybody who asks and nothing else — so a judge runs all six steps from their
  * own wallet, with no key to import and no week to wait.
  */
-export const SANDBOX_OPERATOR = "0x42EF44eFb3B1E20A48c23b483251EF3397FF2742" as const;
+export const SANDBOX_OPERATOR = "0x4Cdc99F52Be94aD1A851119FEFc07557637E7Cdc" as const;
 
 export const sandboxOperatorAbi = [
   { type: "function", name: "openDraw", inputs: [], outputs: [], stateMutability: "nonpayable" },
@@ -61,7 +63,7 @@ export const IS_SANDBOX = POOL_ADDRESS.toLowerCase() === SANDBOX_POOL.toLowerCas
  * Block the pool was deployed in. Log scans start here rather than at genesis — public
  * Sepolia endpoints reject unbounded ranges, and nothing about this pool exists before it.
  */
-export const DEPLOY_BLOCK = 11627363n;
+export const DEPLOY_BLOCK = 11628077n;
 
 /** cUSDTMock — "Confidential USDT (Mock)", 6 decimals, rate 1. */
 export const TOKEN_ADDRESS = "0x4E7B06D78965594eB5EF5414c357ca21E1554491" as const;
@@ -155,6 +157,13 @@ export const poolAbi = [
     name: "slotOf",
     inputs: [{ name: "account", type: "address" }],
     outputs: [{ type: "uint16" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "slotAssignedAt",
+    inputs: [{ name: "slot", type: "uint16" }],
+    outputs: [{ type: "uint32" }],
     stateMutability: "view",
   },
   {

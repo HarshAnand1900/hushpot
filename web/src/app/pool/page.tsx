@@ -386,7 +386,7 @@ export default function PoolTab() {
             )}
           </div>
           <ContractLog
-            limit={12}
+            limit={100}
             // Undefined until the reads land, so the row shows a dash rather than three
             // zeros that look like a pool nobody has joined.
             depositors={state.loaded ? Number(state.depositors) : undefined}

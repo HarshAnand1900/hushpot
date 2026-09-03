@@ -5,7 +5,7 @@ What is encrypted, what is public, what leaks, and what you have to trust.
 This document is deliberately unflattering. A confidential system that only advertises its strengths is harder to
 evaluate than one that names its edges, and every claim below can be checked against the deployed contract.
 
-**Contract:** `HushpotPool` · Sepolia · `0x8E4b9c71d4597345B0eD2594dA148F4E1ABb490a`
+**Contract:** `HushpotPool` · Sepolia · `0x4ac487b46d687EB92078c8565FF0FEEa7690b830`
 
 > The live address always matches [`web/src/lib/contract.ts`](../web/src/lib/contract.ts). Earlier deployments
 > referenced in git history are superseded.
@@ -20,19 +20,33 @@ It is now `internal` as `_refreshTotal`, and **nothing in the production contrac
 publishes the total itself, inline, once per period. Only the test harness reaches it, with a comment saying why
 exposing it would be a break. Verified by grep as part of the pre-submission audit rather than assumed.
 
-**A forced draw does not stay settled.** `_checkWin` derives each band from the live tree rather than a snapshot taken
-at settlement, which is safe only while the tree cannot move. That is what elapsing guarantees: once `minuteOfPeriod`
-saturates, a deposit adds `amount × PERIOD_MINUTES` to the balance term and the same to `lateCredit`, so the weight
-change is exactly zero.
+**A forced draw did not stay settled — fixed.** `_checkWin` derives each band from the live tree rather than a snapshot
+taken at settlement, which is safe only while the tree cannot move. That is what elapsing was supposed to guarantee:
+once `minuteOfPeriod` saturates, a deposit adds `amount × PERIOD_MINUTES` to the balance term and the same to
+`lateCredit`, so the weight change is exactly zero. It held only as a wall-clock coincidence, though — nothing tied it
+to the draw itself.
 
-Open the draw early with the owner's `--force` exemption and that protection is gone. Deposits between settlement and
-the roll still move weights — 1,000 deposited at minute 6,809 of 10,080 adds 3,271,000 ticket-minutes — which shifts the
-bands of every higher-indexed slot against a die that is already committed. It cannot be aimed, since the die is
-encrypted and nobody can read it, but the outcome is no longer fixed at settlement.
+Open the draw early with the owner's `--force` exemption and the coincidence broke: `minuteOfPeriod` had not yet
+saturated, so a deposit between the forced settlement and the roll moved real, uncancelled weight — 1,000 deposited at
+minute 6,809 of 10,080 added 3,271,000 ticket-minutes, shifting the bands of every higher-indexed slot against a die
+that was already committed. It could not be aimed, since the die is encrypted and nobody can read it, but the outcome
+was no longer fixed at settlement. Measured directly in `HushpotEarlyOpenNeutrality.ts`: a deposit made entirely after a
+forced `openDraw` landed with its full weight, and the published total's own decryption included it.
 
-**Mitigation:** the keeper refuses to force unless told to, so in normal operation the draw waits for the period to
-elapse and the freeze holds. Forcing remains available for demonstrations, where compressing a week into minutes is the
-point, and it now prints a warning saying what it gives up. This is the same owner exemption documented in §4.3.
+Fixed at the source rather than by policy. `minuteOfPeriod` now saturates the moment a draw is pending, in
+`HushpotPool`'s override of the base contract's version, so the cancellation is tied to whether a draw exists for the
+period rather than to whether the clock happens to have run out:
+
+```solidity
+function minuteOfPeriod() public view override returns (uint64) {
+  return drawPending ? PERIOD_MINUTES : super.minuteOfPeriod();
+}
+```
+
+Under ordinary operation this changes nothing — a permissionless `openDraw` already requires `periodEnded()`, so the
+clock has saturated by the time any draw exists regardless. It only does something in exactly the window the owner's
+exemption opens, which is also the only place the old version needed it. This is the same owner exemption documented in
+§4.3; what changed is that exercising it no longer costs anything.
 
 **Odds were written to disk in plaintext — fixed.** The odds sparkline persisted its series to `localStorage`, keyed by
 address. Odds are `yourWeight / publishedTotal` and the total is public at every draw, so the stored figure was a
@@ -379,7 +393,6 @@ Honest omissions, with what each would take:
 | Yield is an admin-funded reserve, not a live strategy | Route deposits into a yield source and feed the same reserve         |
 | Coinbase / Base Account cannot connect                | Drop cross-origin isolation, at the cost of a frozen tab per deposit |
 | No timelock on owner functions                        | Governance or a delay on rate changes and draw triggers              |
-| Owner can close the claim window early                | Enforce a full sweep on-chain, or drop the exemption                 |
 | Slots are never released by a griefer                 | Priced, not prevented — see below                                    |
 | Unclaimed prizes are not swept back automatically     | A rollover pass once the claim window closes                         |
 | Pool capacity is finite — 16,384 slots                | Priced rather than removed; see §9                                   |

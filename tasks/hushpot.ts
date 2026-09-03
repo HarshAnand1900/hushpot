@@ -617,25 +617,19 @@ task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.
       // Only once the period has genuinely elapsed, unless explicitly forced.
       //
       // A draw settles against bands that {_checkWin} recomputes from the *live* tree, so
-      // a draw is only final while the tree cannot move. That is exactly what elapsing
-      // guarantees: `minuteOfPeriod` saturates, and a deposit then adds `amount × PERIOD`
-      // to the balance term and the same to `lateCredit`, cancelling to zero.
+      // it is only final while the tree cannot move. That used to hold only because
+      // elapsing saturates `minuteOfPeriod`, making a deposit add `amount × PERIOD` to the
+      // balance term and the same to `lateCredit` — cancelling to zero, but only once the
+      // clock had genuinely run out. Forcing the draw early skipped that, and a deposit
+      // between the forced settlement and the roll shifted the bands of every later slot
+      // against a die that was already committed.
       //
-      // Force the draw early and that protection is gone. Deposits between the forced
-      // settlement and the roll still change weights — 1,000 deposited at minute 6,809
-      // adds 3,271,000 ticket-minutes — which shifts the bands of every later slot
-      // against a die that was already committed. Nobody can aim it, since the die is
-      // encrypted, but the outcome is no longer settled at settlement.
-      //
-      // The cost of not forcing is that the roll waits for the sweep, so the weekly slot
-      // drifts by however long that takes. Drift is cosmetic; a draw that can still move
-      // is not.
+      // `minuteOfPeriod` now saturates the moment a draw is pending, not only once real
+      // time has elapsed — see the note on the override in `HushpotPool.sol` — so forcing
+      // early no longer opens that window at all. This is a contract-level fix, not an
+      // operational one; the elapsed check below is simply the default cadence.
       const elapsed = await pool.periodEnded();
       const due = elapsed || (args.force && isMonday && hour >= openHour && hour < rollHour);
-
-      if (!elapsed && args.force) {
-        console.log(`${stamp}  ⚠ forcing early — deposits before the roll can still shift bands for this draw`);
-      }
 
       if (!due) {
         const left =

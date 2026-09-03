@@ -193,10 +193,16 @@ export function ContractLog({
 
       const shown = all.slice(0, limit);
 
-      // Ages, for the visible rows only. A log that says "36s ago" reads as live; one
-      // that says "block 11,509,488" reads as an archive.
+      // Ages, for the newest rows only — not every row shown. Each one is a separate
+      // `getBlock` call, and this panel polls every 20 seconds for as long as the tab is
+      // open: at `limit=100` that is 100 extra RPC calls a poll, against the same public
+      // endpoint that has already rate-limited this project once. Age matters most where
+      // "36s ago" reads as live; a hundred rows deep, the block number already on the row
+      // says everything an exact age would, and {formatAge} already falls back to an
+      // em dash when `.at` is missing, so scrolling that far costs nothing broken.
+      const AGE_LOOKUP_LIMIT = 20;
       await Promise.all(
-        shown.map(async (r) => {
+        shown.slice(0, AGE_LOOKUP_LIMIT).map(async (r) => {
           try {
             const b = await publicClient.getBlock({ blockNumber: r.block });
             r.at = Number(b.timestamp);
