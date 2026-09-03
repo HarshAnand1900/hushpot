@@ -397,15 +397,17 @@ export default function JudgeTab() {
       title: "Open the draw",
       sig: onSandbox ? "SandboxOperator.openDraw()" : "openDraw()",
       note: claimOpen
-        ? `Draw #${Number(state.drawCount) - 1} has already settled in this period, and the contract allows one per period. The next draw lives on the other side of a roll, so the order from here is: step 04 ${sweepsLeft > 0 ? `${sweepsLeft} more time${sweepsLeft === 1 ? "" : "s"}` : "until everyone is covered"}, then step 06, then this one.`
+        ? `Draw #${Number(state.drawCount) - 1} has already settled in this period, and the contract allows one per period. The next draw only opens after a roll, step 06 — which works right now, with nothing else required first: claims survive it, so there is no need to pay anyone out before rolling. Step 04 stays independent and optional, whenever anyone wants it; it pays four slots a press, so ${sweepsLeft > 0 ? `${sweepsLeft} press${sweepsLeft === 1 ? "" : "es"} would finish it` : "everyone is already covered"}.`
         : onSandbox
           ? "Seals the pool total and publishes it for decryption. Sent through the sandbox's owner contract, which forwards this call to any address, so it works from your wallet, now, without waiting for the period to elapse."
           : "Seals the pool total and publishes it for decryption. Anyone may call it once the period has elapsed; the owner may call it early so a week-long cycle fits in a demo.",
       // `claimOpen` blocks this one and enables steps 04 and 06, which is the right way
       // round: the contract allows one draw per period, so a draw already settled in this
-      // period means the next thing to do is sweep and roll, not open another. Without it
-      // the step read READY, reverted with DrawAlreadySettledThisPeriod, and surfaced as
-      // "the node rejected the gas limit" — an estimation failure wearing a disguise.
+      // period means the next thing to do is roll, not open another — sweeping stays a
+      // separate, optional action available at the same time, not a prerequisite for it.
+      // Without this the step read READY, reverted with DrawAlreadySettledThisPeriod, and
+      // surfaced as "the node rejected the gas limit" — an estimation failure wearing a
+      // disguise.
       disabled: !isConnected || state.drawPending || claimOpen || (!state.periodEnded && !isOwner && !onSandbox),
       go: () => run("open", onSandbox ? "SandboxOperator.openDraw()" : "openDraw()", open),
     },

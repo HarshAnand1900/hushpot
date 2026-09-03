@@ -1,14 +1,15 @@
 # Hushpot — documentation
 
-Four documents, each with one job. Start wherever your question sits.
+Six documents, each with one job. Start wherever your question sits.
 
-| If you want to know…                                      | Read                                                                         |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| What this is, how the draw works, how to run it           | [`../README.md`](../README.md)                                               |
-| What is encrypted, what leaks, and what you have to trust | [`THREAT-MODEL.md`](THREAT-MODEL.md)                                         |
-| Why the product is shaped this way, and who it is for     | [`BRIEF.md`](BRIEF.md)                                                       |
-| What is deliberately not built yet, and why               | [`ROADMAP.md`](ROADMAP.md)                                                   |
-| How the protocol is run, and by whom                      | [`../README.md#operating-the-protocol`](../README.md#operating-the-protocol) |
+| If you want to know…                                             | Read                                 |
+| ---------------------------------------------------------------- | ------------------------------------ |
+| The pitch, the live numbers, how to run it                       | [`../README.md`](../README.md)       |
+| The draw mechanics — selection, claiming, confidentiality, yield | [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md) |
+| What is encrypted, what leaks, and what you have to trust        | [`THREAT-MODEL.md`](THREAT-MODEL.md) |
+| Why the product is shaped this way, and who it is for            | [`BRIEF.md`](BRIEF.md)               |
+| What is deliberately not built yet, and why                      | [`ROADMAP.md`](ROADMAP.md)           |
+| How the protocol is run, and by whom                             | [`OPERATING.md`](OPERATING.md)       |
 
 ## The short version
 
@@ -39,8 +40,8 @@ The period a slot is assigned in never counts toward the streak, and the boost m
 actually present for as long as the streak claims — not whatever the slot holds right now. Both close real gaps:
 counting from the join period alone would credit a last-minute depositor identically to a full-week holder one minute
 later; multiplying the live balance would let a slot held open with a trivial stake for a month take on a large fresh
-deposit moments before boosting and hand the whole thing an unearned multiplier. See the README's
-[Staying is worth more than arriving](../README.md#staying-is-worth-more-than-arriving) for the mechanism.
+deposit moments before boosting and hand the whole thing an unearned multiplier. See
+[Staying is worth more than arriving](HOW-IT-WORKS.md#staying-is-worth-more-than-arriving) for the mechanism.
 
 **Nothing branches on a ciphertext, ever.** FHE does not allow it, and a branch would leak which way it went through gas
 and state. Settlement is a branchless `FHE.select` over every slot: a loser is credited an encrypted zero that is
@@ -66,4 +67,4 @@ Stated plainly rather than buried, and covered in full in [`THREAT-MODEL.md`](TH
   the app — see [§3.1](THREAT-MODEL.md#31-acquiring-cusdt-publishes-that-amount).
 - **Yield is funded from a reserve**, not a live strategy. On mainnet the same reserve would be fed by real yield.
 - **Ownership is a single key**, not a multisig, and the contract is not upgradeable — see
-  [Operating the protocol](../README.md#operating-the-protocol).
+  [Operating the protocol](OPERATING.md).

@@ -442,10 +442,7 @@ export function DidIWin({
     if (openedByDraw[String(d.id)] !== undefined) return { mark: "✓", cls: styles.pickDone };
     // A draw this slot did not exist for is not "yours to claim," whatever the window
     // says — same reasoning as the resolve effect above.
-    if (
-      enteredBy(d.period) &&
-      isClaimable(d.period, currentPeriod, settledAt[String(d.id)], now)
-    )
+    if (enteredBy(d.period) && isClaimable(d.period, currentPeriod, settledAt[String(d.id)], now))
       return { mark: "!", cls: styles.pickLive };
     return { mark: "·", cls: styles.pickShut };
   };
