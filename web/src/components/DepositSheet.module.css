@@ -129,6 +129,16 @@
   cursor: not-allowed;
 }
 
+/* Withdraw's honest label for a balance it did not decrypt itself — same voice as
+   .reveal, not a button, since there is nothing to press: the decrypt already happened
+   on the position panel this sheet was opened from. */
+.revealedTag {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+}
+
 .amountRow {
   display: flex;
   align-items: center;

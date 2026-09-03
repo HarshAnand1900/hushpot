@@ -338,7 +338,26 @@ export function DepositSheet({
                 Amount
               </label>
               <span className={styles.avail}>
-                {!balanceKnown ? (
+                {mode === "withdraw" ? (
+                  // Withdraw has no decrypt flow of its own — `inPool` only ever exists
+                  // here because the position panel it was opened from already unlocked
+                  // it. Showing the figure with no framing at all made that invisible: it
+                  // looked like the amount had been revealed by default rather than
+                  // carried over from a reveal the visitor already did. Labelling it
+                  // "revealed" says which, honestly, rather than leaving the two
+                  // explanations to look identical on screen.
+                  balanceKnown ? (
+                    <>
+                      In pool: <strong>{formatUnits(available)}</strong>{" "}
+                      <span className={styles.revealedTag}>revealed</span>
+                    </>
+                  ) : (
+                    <>
+                      In pool: <strong>encrypted</strong>{" "}
+                      <span className={styles.revealedTag}>reveal your position on the panel first</span>
+                    </>
+                  )
+                ) : !balanceKnown ? (
                   shielded !== undefined ? (
                     <>
                       Wallet: <strong>{formatUnits(shielded)}</strong>
@@ -353,8 +372,7 @@ export function DepositSheet({
                   )
                 ) : (
                   <>
-                    {mode === "deposit" ? "Wallet:" : "In pool:"}{" "}
-                    <strong>{balanceKnown ? formatUnits(available) : "•••••"}</strong>
+                    Wallet: <strong>{formatUnits(available)}</strong>
                   </>
                 )}
               </span>
