@@ -29,26 +29,28 @@ Built for the Zama Developer Program, Mainnet Season 4.
 
 ### What is running right now
 
-Every figure below comes from a public getter on the live contract. You can read them yourself on Etherscan.
+Every figure below comes from a public getter on the live contract. You can read them yourself on Etherscan. They are a
+reading taken on **4 September 2026**, not constants: the pool is open, so anyone can deposit or answer a claim and move
+them. `npx hardhat run scripts/audit-state.ts --network sepolia` prints the current set.
 
-|                  |                                                              |
-| ---------------- | ------------------------------------------------------------ |
-| Depositors       | **21**, holding encrypted balances                           |
-| Pooled principal | **~285,000 cUSDT**                                           |
-| Draws settled    | **3** - #0 **505.00**, #1 **264.66**, #2 **1,273.75** cUSDT  |
-| Claims answered  | 20/20, 5/20, 1/21 - all three still claimable to 3 Oct       |
-| Prize reserve    | 9,197.45 cUSDT                                               |
-| Currently        | period #2, draw #2 settled, waiting on the roll to period #3 |
+|                  |                                                             |
+| ---------------- | ----------------------------------------------------------- |
+| Depositors       | **22**, holding encrypted balances                          |
+| Pooled principal | **~285,000 cUSDT** at the last draw                         |
+| Draws settled    | **3** - #0 **505.00**, #1 **264.66**, #2 **1,273.75** cUSDT |
+| Claims answered  | 20/20, 5/20, 2/21 - all three still claimable to 3 Oct      |
+| Prize reserve    | 9,197.45 cUSDT                                              |
+| Currently        | period #3, accruing toward draw #3                          |
 
 All three cycles ran end to end. Deposits accrued, each draw opened and settled against an encrypted die, depositors
 were checked, and the period rolled in between. Each prize now sits in one of those balances, and nobody knows which
 one, the contract included. A depositor can open their own receipt with a signature and no gas. Nobody can open anyone
 else's.
 
-**Draws #1 and #2 are deliberately left part-swept.** Draw #1 settled in period 1 and the pool has since rolled to
-period 2, but it is still claimable. That is the thirty-day window working on the live deployment rather than being
-described in a paragraph. Press _Did I win?_ on it and the contract answers from period 1's weights, a full roll later.
-An earlier version of the code would have refused.
+**Draws #1 and #2 are deliberately left part-swept.** Draw #1 settled in period 1 and the pool has since rolled twice,
+to period 3, but it is still claimable. That is the thirty-day window working on the live deployment rather than being
+described in a paragraph. Press _Did I win?_ on it and the contract answers from period 1's weights, two rolls later. An
+earlier version of the code would have refused.
 
 Nobody picks the prize. It falls out of `prize = total × 5% ÷ 52`, computed on ticket-minutes. Draw #1 shows this with
 nothing added: 276,000 pooled produced **264.657534**, matching the formula to the last decimal. Draws #0 and #2 were

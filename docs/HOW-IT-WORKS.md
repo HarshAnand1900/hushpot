@@ -221,7 +221,7 @@ anything in exactly the window the owner's exemption opens. Six tests cover both
 withdrawals all land at zero net weight while a draw is pending, early-open or not, and ordinary accrual with no draw
 pending is untouched.
 
-### Odds are measured against the last published total - and that is not what decides the draw
+### Odds use the last published total, not the one that decides the draw
 
 Your odds are `yourWeight ÷ poolTotal`, where `poolTotal` is the figure published at the **last settled draw**, never a
 live reading. The UI labels every odds figure `· ESTIMATE` for exactly this reason: it is a snapshot, not a promise.

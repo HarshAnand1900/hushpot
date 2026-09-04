@@ -40,9 +40,49 @@ export const SANDBOX_POOL = "0x08E5c466a8c5a5FCccEd833e1E9dC8D5B145D279";
  */
 export const SANDBOX_OPERATOR = "0x4Cdc99F52Be94aD1A851119FEFc07557637E7Cdc" as const;
 
+/**
+ * Every custom error the pool can revert with.
+ *
+ * Not decoration: viem decodes a revert by looking the 4-byte selector up in the ABI it
+ * was given, and with no error entries it cannot, so `describeError` fell all the way
+ * through to "reverted with the following signature: 0x…". Every refusal the contract
+ * makes on purpose - the boost lock, the claim window, a second draw in one period -
+ * reached the user as a hex string.
+ *
+ * Shared with {@link sandboxOperatorAbi} rather than inlined here: the operator forwards
+ * to the pool, so a judge on the sandbox sees these same reverts bubble up through it,
+ * and that is the path a reviewer actually uses. All are zero-argument.
+ */
+const poolErrorsAbi = [
+  { type: "error", name: "AlreadyBoosted", inputs: [] },
+  { type: "error", name: "AlreadyChecked", inputs: [] },
+  { type: "error", name: "BoostLocked", inputs: [] },
+  { type: "error", name: "ClaimWindowClosed", inputs: [] },
+  { type: "error", name: "ClaimWindowOpen", inputs: [] },
+  { type: "error", name: "DrawAlreadyPending", inputs: [] },
+  { type: "error", name: "DrawAlreadySettledThisPeriod", inputs: [] },
+  { type: "error", name: "DrawNotSettled", inputs: [] },
+  { type: "error", name: "EmptyPool", inputs: [] },
+  { type: "error", name: "NoDrawPending", inputs: [] },
+  { type: "error", name: "NoSlotAssigned", inputs: [] },
+  { type: "error", name: "NoStreakYet", inputs: [] },
+  { type: "error", name: "NoUnderlyingToken", inputs: [] },
+  { type: "error", name: "NotAnOperator", inputs: [] },
+  { type: "error", name: "NotSlotOwner", inputs: [] },
+  { type: "error", name: "PeriodEnded", inputs: [] },
+  { type: "error", name: "PeriodNotElapsed", inputs: [] },
+  { type: "error", name: "PeriodStillOpen", inputs: [] },
+  { type: "error", name: "PoolFull", inputs: [] },
+  { type: "error", name: "SlotOutOfRange", inputs: [] },
+  { type: "error", name: "SweepOutOfOrder", inputs: [] },
+  { type: "error", name: "ZeroAmount", inputs: [] },
+] as const;
+
 export const sandboxOperatorAbi = [
   { type: "function", name: "openDraw", inputs: [], outputs: [], stateMutability: "nonpayable" },
   { type: "function", name: "startNextPeriod", inputs: [], outputs: [], stateMutability: "nonpayable" },
+  // The operator forwards to the pool, so the pool's reverts surface through this ABI.
+  ...poolErrorsAbi,
 ] as const;
 
 function resolvePool(): string {
@@ -386,38 +426,7 @@ export const poolAbi = [
     ],
   },
 
-  /**
-   * Every custom error the pool can revert with.
-   *
-   * Not decoration: viem decodes a revert by looking the 4-byte selector up in the ABI it
-   * was given, and with no error entries here it cannot, so `describeError` fell all the
-   * way through to "reverted with the following signature: 0x…". Every refusal the
-   * contract makes on purpose - the boost lock, the claim window, a second draw in one
-   * period - reached the user as a hex string. All are zero-argument, so this is the
-   * whole list.
-   */
-  { type: "error", name: "AlreadyBoosted", inputs: [] },
-  { type: "error", name: "AlreadyChecked", inputs: [] },
-  { type: "error", name: "BoostLocked", inputs: [] },
-  { type: "error", name: "ClaimWindowClosed", inputs: [] },
-  { type: "error", name: "ClaimWindowOpen", inputs: [] },
-  { type: "error", name: "DrawAlreadyPending", inputs: [] },
-  { type: "error", name: "DrawAlreadySettledThisPeriod", inputs: [] },
-  { type: "error", name: "DrawNotSettled", inputs: [] },
-  { type: "error", name: "EmptyPool", inputs: [] },
-  { type: "error", name: "NoDrawPending", inputs: [] },
-  { type: "error", name: "NoSlotAssigned", inputs: [] },
-  { type: "error", name: "NoStreakYet", inputs: [] },
-  { type: "error", name: "NoUnderlyingToken", inputs: [] },
-  { type: "error", name: "NotAnOperator", inputs: [] },
-  { type: "error", name: "NotSlotOwner", inputs: [] },
-  { type: "error", name: "PeriodEnded", inputs: [] },
-  { type: "error", name: "PeriodNotElapsed", inputs: [] },
-  { type: "error", name: "PeriodStillOpen", inputs: [] },
-  { type: "error", name: "PoolFull", inputs: [] },
-  { type: "error", name: "SlotOutOfRange", inputs: [] },
-  { type: "error", name: "SweepOutOfOrder", inputs: [] },
-  { type: "error", name: "ZeroAmount", inputs: [] },
+  ...poolErrorsAbi,
 ] as const;
 
 /**
