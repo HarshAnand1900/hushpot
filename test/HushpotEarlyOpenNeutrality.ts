@@ -13,25 +13,25 @@ import {
 } from "../types";
 
 /**
- * A deposit or withdrawal must be neutral for the whole time a draw is pending — not just
+ * A deposit or withdrawal must be neutral for the whole time a draw is pending - not just
  * once the clock has genuinely run out.
  *
  * The rest of this design leans on one property: once `minuteOfPeriod` saturates, a deposit
  * adds the same amount to `lateCredit` that it adds to `balance`, so the two cancel and a
  * sealed total is untouched (a withdrawal cancels the same way, through `earlyExit`). Under
  * ordinary operation that property holds automatically, because `openDraw` will not let a
- * non-owner in before `periodEnded()` — by the time a draw can open at all without the
+ * non-owner in before `periodEnded()` - by the time a draw can open at all without the
  * owner's help, the clock has already saturated.
  *
  * The owner's early-open exemption breaks that. Opening before `periodEnded()` snapshots
  * `_pendingTotal` while the clock has not yet saturated, and any deposit or withdrawal made
  * before the roll was then a live, uncancelled change to weight the snapshot never
- * accounted for — the same shape of gap `boostStreak` had, reached here through the
+ * accounted for - the same shape of gap `boostStreak` had, reached here through the
  * ordinary deposit path instead of the loyalty boost. `minuteOfPeriod` now saturates the
  * moment a draw is pending, not only once real time has elapsed, closing it without
  * touching deposits or withdrawals directly at all.
  */
-describe("HushpotPool — deposits and withdrawals stay neutral while a draw is open early", function () {
+describe("HushpotPool - deposits and withdrawals stay neutral while a draw is open early", function () {
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;
   let usdt: TestERC20;
@@ -97,7 +97,7 @@ describe("HushpotPool — deposits and withdrawals stay neutral while a draw is 
   });
 
   it("still accrues normally before any draw has opened", async function () {
-    // Same setup, minus the early open — confirms the fix is scoped to drawPending and
+    // Same setup, minus the early open - confirms the fix is scoped to drawPending and
     // does not flatten ordinary mid-period accrual.
     await join(alice);
     const before = await weight(alice);

@@ -16,14 +16,14 @@ import {
  * `_treeRoot` keeps the tree only as deep as the slots in use, so the root *moves* as the
  * pool grows: at sixteen depositors it sits at node 1024, and the seventeenth pushes it up
  * to 512. Every pool this project had run until now peaked at fifteen, so that boundary had
- * never been crossed on-chain — and the first pool that crossed it published a total the
+ * never been crossed on-chain - and the first pool that crossed it published a total the
  * relayer then refused to decrypt, three times, with `execution reverted`.
  *
  * This is the reproduction. If the published total decrypts here, the tree is fine and the
  * failure belongs to the coprocessor; if it does not, the bug is ours and it has been
  * waiting behind a slot count nobody had reached.
  */
-describe("HushpotPool — a pool wide enough to grow the tree", function () {
+describe("HushpotPool - a pool wide enough to grow the tree", function () {
   let usdt: TestERC20;
   let pool: HushpotPool;
   let poolAddress: string;
@@ -73,7 +73,7 @@ describe("HushpotPool — a pool wide enough to grow the tree", function () {
     const draw = await pool.draws(0);
     expect(draw.settled).to.eq(true);
     // Every depositor put in the same amount, so the total should be close to
-    // `amount * slots * PERIOD_MINUTES` — a little under, because deposits land in
+    // `amount * slots * PERIOD_MINUTES` - a little under, because deposits land in
     // different blocks and a slot credited from minute 1 earns 10,079 rather than 10,080.
     //
     // The number that matters is the floor. When the root moves up a level it gains a

@@ -160,7 +160,7 @@
 }
 
 /* A slow diagonal glint across the niche. The pot is the object on display and this is
-   the light moving over it — enough to catch the eye, slow enough not to nag. */
+   the light moving over it - enough to catch the eye, slow enough not to nag. */
 .shimmer {
   position: absolute;
   top: -60%;
@@ -245,7 +245,7 @@
 }
 
 /* Pot3D writes its `size` prop as an inline width/height, which fights the clamp above and
-   wins — so at narrower viewports a 158px pot sat inside a 133px box and spilled sideways.
+   wins - so at narrower viewports a 158px pot sat inside a 133px box and spilled sideways.
    The clamp is the one that knows how much room there is, so let it drive; three.js reads
    the mount's client size on resize and follows. */
 .potWindow > div {
@@ -480,7 +480,7 @@
 
 /* Deposit and withdraw, offered while the position is still sealed. Both sheets reveal
    on their own, so these are ordinary actions rather than an exception to the button
-   above — sized as a pair so neither reads as the recommended one. */
+   above - sized as a pair so neither reads as the recommended one. */
 .revealActions {
   display: grid;
   grid-template-columns: 1fr 1fr;

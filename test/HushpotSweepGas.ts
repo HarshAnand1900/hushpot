@@ -29,7 +29,7 @@ import {
  */
 const DEPOSITORS = 8;
 
-describe("HushpotPool — what a payout costs", function () {
+describe("HushpotPool - what a payout costs", function () {
   let owner: HardhatEthersSigner;
   let players: HardhatEthersSigner[];
 
@@ -102,8 +102,8 @@ describe("HushpotPool — what a payout costs", function () {
     const claimEach = perClaim / BigInt(claimedSlots);
     const sweepEach = perSweep / BigInt(sweptSlots);
 
-    console.log(`\n    one-by-one   ${perClaim} gas over ${claimedSlots} slots — ${claimEach} each`);
-    console.log(`    sweepRange   ${perSweep} gas over ${sweptSlots} slots in ${pages} pages — ${sweepEach} each`);
+    console.log(`\n    one-by-one   ${perClaim} gas over ${claimedSlots} slots - ${claimEach} each`);
+    console.log(`    sweepRange   ${perSweep} gas over ${sweptSlots} slots in ${pages} pages - ${sweepEach} each`);
     console.log(`    ratio        ${(Number(claimEach) / Number(sweepEach)).toFixed(2)}x cheaper per participant\n`);
 
     expect(sweepEach).to.be.lessThan(claimEach);
@@ -148,7 +148,7 @@ describe("HushpotPool — what a payout costs", function () {
     for (const who of fresh.players) before.push(await balanceOf(fresh.pool, who));
 
     // Two people check for themselves, then a keeper sweeps the whole pool. Without a
-    // guard the sweep credits their award a second time — a winner paid double out of a
+    // guard the sweep credits their award a second time - a winner paid double out of a
     // reserve that only ever set one prize aside.
     await (await fresh.pool.checkClaim(fresh.drawId, fresh.players[0].address)).wait();
     await (await fresh.pool.checkClaim(fresh.drawId, fresh.players[3].address)).wait();

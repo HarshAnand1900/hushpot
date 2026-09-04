@@ -11,7 +11,7 @@ import styles from "./TreeWalk.module.css";
  * before it. Summing them one by one would be O(n) encrypted additions; the tree answers
  * it by climbing from the leaf and picking up whole pre-summed subtrees on the way.
  *
- * This draws that climb for a chosen slot. It is a *sum* tree, not a Merkle tree — the
+ * This draws that climb for a chosen slot. It is a *sum* tree, not a Merkle tree - the
  * shaded siblings are added together, not hashed, and there is no proof or authentication
  * path here. Calling it one would borrow credibility from a mechanism the contract does
  * not use.
@@ -39,7 +39,7 @@ export function TreeWalk({ slotsUsed }: { slotsUsed: number }) {
    * Which nodes the walk touches.
    *
    * Climbing from the leaf, a *right* child means everything under its left sibling is
-   * ordered before you — so that whole subtree is added in one go. A left child adds
+   * ordered before you - so that whole subtree is added in one go. A left child adds
    * nothing: its sibling sits after you.
    */
   const { onPath, summed } = useMemo(() => {
@@ -104,8 +104,8 @@ export function TreeWalk({ slotsUsed }: { slotsUsed: number }) {
                     isLeaf
                       ? used
                         ? `Slot ${slot}`
-                        : `Slot ${slot} — empty`
-                      : `Node ${node} — the combined weight of ${1 << (depth - level)} slots`
+                        : `Slot ${slot} - empty`
+                      : `Node ${node} - the combined weight of ${1 << (depth - level)} slots`
                   }
                 >
                   {isLeaf && used ? slot : ""}
@@ -138,7 +138,7 @@ export function TreeWalk({ slotsUsed }: { slotsUsed: number }) {
       <p className={styles.note}>
         To place slot {picked}&apos;s band, the contract needs the combined weight of the {picked} slot
         {picked === 1 ? "" : "s"} before it. Rather than adding {picked} figures it adds {summed.size} already-summed
-        subtree{summed.size === 1 ? "" : "s"} — that is the whole reason for the tree, and the saving grows as the pool
+        subtree{summed.size === 1 ? "" : "s"} - that is the whole reason for the tree, and the saving grows as the pool
         does. Every value shaded here is a ciphertext; the shape is public, the numbers are not.
       </p>
     </div>

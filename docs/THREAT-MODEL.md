@@ -1,4 +1,4 @@
-# Hushpot — Threat Model
+# Hushpot - Threat Model
 
 What is encrypted, what is public, what leaks, and what you have to trust.
 
@@ -11,22 +11,22 @@ Every claim below can be checked against the deployed contract.
 
 ## Findings from review, and what changed
 
-**The live pool total was publishable on demand — fixed.** `refreshTotal()` was `external` and marked the running total
+**The live pool total was publishable on demand - fixed.** `refreshTotal()` was `external` and marked the running total
 publicly decryptable. Read it, wait for a deposit, read it again, and the difference is that depositor's amount in the
 clear. Two calls and the encryption was worth nothing.
 
-It is now `internal` as `_refreshTotal`, and **nothing in the production contract calls it at all** — `openDraw`
+It is now `internal` as `_refreshTotal`, and **nothing in the production contract calls it at all** - `openDraw`
 publishes the total itself, inline, once per period. Only the test harness reaches it, with a comment saying why
 exposing it would be a break. Verified by grep as part of the pre-submission audit rather than assumed.
 
-**A forced draw did not stay settled — fixed.** `_checkWin` derives each band from the live tree rather than a snapshot
+**A forced draw did not stay settled - fixed.** `_checkWin` derives each band from the live tree rather than a snapshot
 taken at settlement, which is safe only while the tree cannot move. That is what elapsing was supposed to guarantee:
 once `minuteOfPeriod` saturates, a deposit adds `amount × PERIOD_MINUTES` to the balance term and the same to
-`lateCredit`, so the weight change is exactly zero. It held only as a wall-clock coincidence, though — nothing tied it
+`lateCredit`, so the weight change is exactly zero. It held only as a wall-clock coincidence, though - nothing tied it
 to the draw itself.
 
 Open the draw early with the owner's `--force` exemption and the coincidence broke: `minuteOfPeriod` had not yet
-saturated, so a deposit between the forced settlement and the roll moved real, uncancelled weight — 1,000 deposited at
+saturated, so a deposit between the forced settlement and the roll moved real, uncancelled weight - 1,000 deposited at
 minute 6,809 of 10,080 added 3,271,000 ticket-minutes, shifting the bands of every higher-indexed slot against a die
 that was already committed. It could not be aimed, since the die is encrypted and nobody can read it, but the outcome
 was no longer fixed at settlement. Measured directly in `HushpotEarlyOpenNeutrality.ts`: a deposit made entirely after a
@@ -42,17 +42,17 @@ function minuteOfPeriod() public view override returns (uint64) {
 }
 ```
 
-Under ordinary operation this changes nothing — a permissionless `openDraw` already requires `periodEnded()`, so the
+Under ordinary operation this changes nothing - a permissionless `openDraw` already requires `periodEnded()`, so the
 clock has saturated by the time any draw exists regardless. It only does something in exactly the window the owner's
 exemption opens, which is also the only place the old version needed it. This is the same owner exemption documented in
 §4.3; what changed is that exercising it no longer costs anything.
 
-**Odds were written to disk in plaintext — fixed.** The odds sparkline persisted its series to `localStorage`, keyed by
+**Odds were written to disk in plaintext - fixed.** The odds sparkline persisted its series to `localStorage`, keyed by
 address. Odds are `yourWeight / publishedTotal` and the total is public at every draw, so the stored figure was a
 plaintext derivative of an encrypted balance: read the file, divide, and the position falls out without any key. The
 series now lives in memory for the life of the page, and any entry an earlier build wrote is deleted on load.
 
-**A swept depositor could not find out what they had won — fixed.** Both claim paths computed
+**A swept depositor could not find out what they had won - fixed.** Both claim paths computed
 `FHE.select(won, prize, 0)`, credited it, and discarded the handle. Since a keeper sweeps everybody before the roll,
 almost every depositor was checked while they were not looking, and the only evidence left was a balance that had moved.
 Asking afterwards was impossible: `checkClaim` recomputes against the live tree and reverts once the period rolls. Both
@@ -60,28 +60,28 @@ paths now store the ciphertext as `awardOf(drawId, slot)` and grant it to the de
 decryption that survives the roll. The grant goes to the slot's holder, never to the caller, so a keeper cannot read
 what it just handed out.
 
-**A self-check followed by a sweep credited twice — fixed.** `sweepRange` did not skip slots already settled by
+**A self-check followed by a sweep credited twice - fixed.** `sweepRange` did not skip slots already settled by
 `checkClaim`, so a winner could be paid the prize twice out of a reserve that had only set one aside. `sweepRange` now
-skips already-checked slots — after advancing the running band edge, which matters: returning early without advancing
+skips already-checked slots - after advancing the running band edge, which matters: returning early without advancing
 would shift every subsequent band and pick the wrong winner.
 
-**The confidential deposit route was unreachable — fixed.** The contract has always had
+**The confidential deposit route was unreachable - fixed.** The contract has always had
 `deposit(externalEuint64, proof)`, but the app only ever called `depositUnderlying`, whose amount is public. The faucet
 handed out plain tokens only, so a newcomer could not use the private path at all. The faucet now shields on request,
-and the confidential route is the only one the app has — the public route was removed from the frontend rather than left
+and the confidential route is the only one the app has - the public route was removed from the frontend rather than left
 as an option, because an option to publish your own deposit is one somebody takes by accident.
 
-**The loyalty boost was offered when the contract would refuse it — fixed.** Not a leak, but the same shape as the
+**The loyalty boost was offered when the contract would refuse it - fixed.** Not a leak, but the same shape as the
 claim-window bug below: the interface asserting something the contract does not agree with. `boostStreak` reverts with
-`PeriodEnded` once the period has a draw — pending or already settled — because weight must not move against a draw
+`PeriodEnded` once the period has a draw - pending or already settled - because weight must not move against a draw
 already committed. The panel's Apply button asked only whether you had a streak and had not yet used it, so in the
 window between a draw settling and the period rolling it offered an action guaranteed to fail. Confirmed by bare
 `eth_call` from a real depositor on the live pool: `streakOf` 1, not yet boosted, button shown, call reverts
 `PeriodEnded`. The button now mirrors the contract's own condition and says when it reopens. The multiplier arithmetic
-itself was never wrong — `streakOf` is `currentPeriod − slotAssignedAt − 1`, capped at four, and it was correct
+itself was never wrong - `streakOf` is `currentPeriod − slotAssignedAt − 1`, capped at four, and it was correct
 throughout.
 
-**The seeding tasks were still publishing amounts — fixed.** Removing the public route from the frontend did not remove
+**The seeding tasks were still publishing amounts - fixed.** Removing the public route from the frontend did not remove
 it from `tasks/hushpot.ts`, which seeded demo depositors with `depositUnderlying` and put 58 amounts in the clear on a
 pool advertised as confidential. Every task now uses the encrypted path. The lesson generalises: the leak was not in the
 contract or the interface but in the tooling that filled them, which no amount of reading the app would have caught.
@@ -90,8 +90,8 @@ contract or the interface but in the tooling that filled them, which no amount o
 
 ## 1. What is encrypted
 
-Every one of these is a `euint64` or `ebool` on-chain. No party — not other depositors, not the contract owner, not the
-contract itself — can read them.
+Every one of these is a `euint64` or `ebool` on-chain. No party - not other depositors, not the contract owner, not the
+contract itself - can read them.
 
 | Value                              | Notes                                              |
 | ---------------------------------- | -------------------------------------------------- |
@@ -104,7 +104,7 @@ contract itself — can read them.
 | Prizes swept but not yet folded in | Counted as owed, so solvency is not understated    |
 
 The winner is not _hidden_. There is nothing to hide, because no code path anywhere derives it. A claim adds either the
-prize or an encrypted zero, and on-chain those two transactions are indistinguishable — including in gas.
+prize or an encrypted zero, and on-chain those two transactions are indistinguishable - including in gas.
 
 ---
 
@@ -115,8 +115,8 @@ prize or an encrypted zero, and on-chain those two transactions are indistinguis
 | That an address deposited or withdrew, and when | Inherent to a public chain. Transactions are visible.     |
 | Which slot an address holds                     | A plain mapping. Reveals participation, never amount.     |
 | The pool total, once per draw                   | Needed to reduce the draw point into the pool's range.    |
-| The prize each draw paid                        | Not anybody's balance — but it inverts to the total. §3.5 |
-| Number of depositors                            | Aggregate — and the size of the anonymity set. §3.6       |
+| The prize each draw paid                        | Not anybody's balance - but it inverts to the total. §3.5 |
+| Number of depositors                            | Aggregate - and the size of the anonymity set. §3.6       |
 | That a slot was checked for a draw              | Reveals a check happened, never its outcome.              |
 | Period schedule, yield rate, prize reserve      | Protocol parameters.                                      |
 | All contract code                               | The selection rule should be readable.                    |
@@ -140,22 +140,22 @@ cUSDT is minted by wrapping plain tUSDT, and a plain ERC-20 transfer cannot hide
 visible to anyone**, in the token's own `Transfer` event, before any deposit happens.
 
 What it does _not_ reveal is a position. Shielding is a separate transaction against the token, not the pool: it says an
-address now holds some cUSDT, not that it deposited, nor how much, nor when. Everything from the deposit onward — your
-balance, your odds, your winnings — is encrypted.
+address now holds some cUSDT, not that it deposited, nor how much, nor when. Everything from the deposit onward - your
+balance, your odds, your winnings - is encrypted.
 
 - **Severity:** medium. It bounds your position from above, and only if you shield and deposit in one sitting.
 - **Decouple it:** shield at one time and deposit at another, in a different amount. The two are then unlinkable by size
   or by timing, and the bound goes away.
 - **Or skip it:** any cUSDT works. Tokens acquired elsewhere carry no wrapping event of yours at all.
 
-`depositUnderlying()` — which takes plain tUSDT and wraps it inside the pool — collapses those two steps into one and so
+`depositUnderlying()` - which takes plain tUSDT and wraps it inside the pool - collapses those two steps into one and so
 publishes the deposit's size directly. **Nothing in the app calls it.** It remains on the contract because removing a
 deployed function is not possible and because it is the honest baseline the confidential route is measured against; the
 frontend offers no route to it, and the CLI tasks use the encrypted path.
 
 ### 3.2 The pool total is published at each draw
 
-The draw point must be reduced modulo the pool's total, and encrypted modulo requires a plain divisor — so the total is
+The draw point must be reduced modulo the pool's total, and encrypted modulo requires a plain divisor - so the total is
 decrypted once per draw and relayed back with a proof.
 
 The difference between two consecutive totals equals the **sum of that period's net activity**. With many depositors
@@ -179,7 +179,7 @@ _multiplier_ is known. The amount is not, so the product is not.
 ### 3.4 Concentration in a small pool
 
 A depositor holding most of a small pool has most of the odds. Over many draws, an observer who could correlate payouts
-with balances might infer something — though since winners are never resolved on-chain, they would have no payouts to
+with balances might infer something - though since winners are never resolved on-chain, they would have no payouts to
 correlate.
 
 - **Severity:** low today, and largely theoretical while winners stay unresolved.
@@ -201,7 +201,7 @@ the recorded measurement.
 
 > **Which deployment.** These readings were taken on an earlier deployment of the same contract, before the pool was
 > redeployed to carry the `minuteOfPeriod` fix in §4.3. Calling `draws(1).total` on the **current** pool returns a
-> different number, because it is a different pool with a different deposit history — not because the leak was closed.
+> different number, because it is a different pool with a different deposit history - not because the leak was closed.
 > It was not closed, and §3.5 is still open on the deployment running today. The arithmetic is reproducible in shape on
 > any deployment; what is not reproducible is this exact table, which is why it is dated to the pool it came from rather
 > than presented as something to re-read off the current one.
@@ -221,7 +221,7 @@ The divisor is unique, so there is no ambiguity to hide in: 10077 leaves remaind
 leaves 320. Only the true multiplier divides evenly.
 
 - **Severity:** high whenever a period contains few deposits, and exact when it contains one. The ciphertext was never
-  broken — a published aggregate and two public timestamps reconstructed the plaintext beside it.
+  broken - a published aggregate and two public timestamps reconstructed the plaintext beside it.
 - **Scope:** it recovers deposits made in a period, not balances held across many. A depositor who joined before the
   first draw, or who moves in a busy period, is not separable this way.
 
@@ -249,7 +249,7 @@ would cost a redeploy and buy nothing. Anything sponsored is public through `Pri
 does not obscure it either. The only case where the prize stops leaking the total is when the reserve is the binding
 constraint rather than the formula, which is not normal operation.
 
-**What would actually close it** is decoupling the prize from the total — quantising the prize to a coarse step, say the
+**What would actually close it** is decoupling the prize from the total - quantising the prize to a coarse step, say the
 nearest hundred tokens, _and_ blurring the total, so neither figure inverts to the other. That is a change to the
 product's economics rather than a privacy tweak: it makes the prize no longer exactly the yield the pool earned, which
 is the thing the pool exists to award. It is a real option and it is not a small one.
@@ -258,7 +258,7 @@ is the thing the pool exists to award. It is a real option and it is not a small
 gesturing at, because it was considered and rejected on the merits.
 
 Publish nothing. Give every depositor a public fixed-width slot `[i·S, (i+1)·S)` and hold their weight as an encrypted
-_fill_ inside it. The draw range is then `n · S`, where `n` is the depositor count — already public — and `S` is a
+_fill_ inside it. The draw range is then `n · S`, where `n` is the depositor count - already public - and `S` is a
 constant. `FHE.rem` gets its plaintext divisor without any total being decrypted, so there is no aggregate to subtract
 across draws and §3.2, §3.3 and this section all cease to exist. Sotto, another Season 4 submission, ships exactly this.
 
@@ -268,19 +268,19 @@ almost everyone sits far below, which flattens the odds from the other direction
 deposit-proportional odds are in direct tension, and one has to go.**
 
 Hushpot keeps proportionality, for a reason narrower than taste: the brief this was built against requires winner
-selection "weighted by deposit size", and PoolTogether — the thing being made confidential — publishes both its prize
+selection "weighted by deposit size", and PoolTogether - the thing being made confidential - publishes both its prize
 and its pool size. A cap does not implement a weighted lottery; it implements a raffle with an entry fee. So the
 aggregate is published and the cost is carried here, in the open, rather than in the odds where a depositor would never
 see it.
 
-The leak is therefore **open and unmitigated**, not merely unshipped. Recording that plainly — alongside the design that
-would close it and the property that design would break — is better than recording a fix that a reader could check in
+The leak is therefore **open and unmitigated**, not merely unshipped. Recording that plainly - alongside the design that
+would close it and the property that design would break - is better than recording a fix that a reader could check in
 five minutes and find hollow.
 
 ### 3.6 The anonymity set is the pool
 
 A winner is one of the depositors, and the number of depositors is public. Whatever `slotsUsed` reads at the time is the
-size of the set — twenty-one on the live pool as this is written, so one in twenty-one — and the app shows that figure
+size of the set - twenty-one on the live pool as this is written, so one in twenty-one - and the app shows that figure
 on its face rather than implying better.
 
 This is inherent rather than incidental: slots are public because public slots are what let anyone settle a draw for
@@ -291,18 +291,18 @@ encryption, only by participation.
 
 ### 3.7 Displayed odds can exceed 100%, and that is the frozen denominator
 
-Odds are shown as your weight over the total published at the **last** draw, never a live total — §3.2 is why. Your
+Odds are shown as your weight over the total published at the **last** draw, never a live total - §3.2 is why. Your
 weight accrues through the period while that denominator does not, so the displayed figure climbs, and every depositor's
 figure climbs at once. Summed across the pool they can exceed 100%.
 
-Nothing is inconsistent underneath: at draw time the real shares are computed fresh — `openDraw()` reads
-`_weightOf(_treeRoot())` live, not the figure it published last time — and sum to exactly 100%. The drift in the
-_displayed_ number is an artifact of refusing to publish a live denominator, and the alternative leaks far more — anyone
+Nothing is inconsistent underneath: at draw time the real shares are computed fresh - `openDraw()` reads
+`_weightOf(_treeRoot())` live, not the figure it published last time - and sum to exactly 100%. The drift in the
+_displayed_ number is an artifact of refusing to publish a live denominator, and the alternative leaks far more - anyone
 could divide their own odds into a live total, recover it, and take §3.2 from once a week to once a block.
 
 - **Severity:** none to confidentiality; a presentation cost paid deliberately. Past 100.5% the panel switches to a `×`
   multiple of the last total rather than capping it at 100%, since a capped 100% reads as certainty and this figure
-  never was one — every odds readout carries an `· ESTIMATE` qualifier for the same reason. See
+  never was one - every odds readout carries an `· ESTIMATE` qualifier for the same reason. See
   [`docs/HOW-IT-WORKS.md` § Odds are measured against the last published total](HOW-IT-WORKS.md#odds-are-measured-against-the-last-published-total-and-that-is-not-what-decides-the-draw).
 
 ### 3.8 What does _not_ leak
@@ -333,14 +333,14 @@ stalls a draw but corrupts nothing.
 ### 4.3 The owner
 
 **Can:** fund the prize reserve, set the yield rate, trigger a draw or a period roll early. Note that funding the
-reserve is not an owner power — `sponsorPrize` is open to anyone, and adds to the next prize in full.
+reserve is not an owner power - `sponsorPrize` is open to anyone, and adds to the next prize in full.
 
 **Cannot:** read any balance, influence the die, prevent a withdrawal, or move depositor funds. There is no
 owner-withdraw path in the contract.
 
 **Worth naming, and it used to be the sharpest one:** rolling the period is what closes a claim, because a draw is
 answerable only while its own period is current. The owner is exempt from `CLAIM_GRACE`, so an owner who rolled early
-could strand an unclaimed prize — and for most of this project's life the only thing standing in the way was the Judge
+could strand an unclaimed prize - and for most of this project's life the only thing standing in the way was the Judge
 panel declining to offer the button, which is a frontend courtesy rather than a contract rule.
 
 **That hole is now closed.** The tree keeps five generations of history per node, so a claim is evaluated against its
@@ -355,7 +355,7 @@ ebool won = _checkWinAt(d.period, slot, d.drawPoint);
 ```
 
 Rolling therefore ends nothing. An owner who rolls early strands no prize, because the answer no longer expires with the
-period — it expires thirty days after the draw was settled, whatever the owner does in between.
+period - it expires thirty days after the draw was settled, whatever the owner does in between.
 
 An earlier attempt blocked the roll until every slot had been checked. It was removed: only the owner can reach the roll
 early, so the guard bound only them, and binding them made the cycle depend on an O(n) sweep somebody has to fund. A
@@ -373,13 +373,13 @@ earlier version of this document said it was. `startNextPeriod` refuses only whi
 grace, so an unswept depositor delays nobody and forfeits nothing.
 
 **Also worth naming:** the owner can set the yield rate to zero, which would make prizes zero. It would be visible
-immediately — the rate is public — but it is an admin power that a production deployment should put behind a timelock or
+immediately - the rate is public - but it is an admin power that a production deployment should put behind a timelock or
 governance.
 
 ### 4.4 Funds locked by design
 
 Tokens added to the prize reserve can leave only by being won. There is no recovery function, deliberately, so nobody
-can pull the pot — and that applies to sponsors too: a sponsorship is a gift, not a stake, and cannot be withdrawn. The
+can pull the pot - and that applies to sponsors too: a sponsorship is a gift, not a stake, and cannot be withdrawn. The
 trade is that over-funding is irreversible.
 
 ---
@@ -390,7 +390,7 @@ The Draws tab recomputes five things from public state, with no wallet and no tr
 
 1. The receipt matches what the contract actually stores.
 2. The die is a real, non-zero ciphertext handle, committed on-chain.
-3. The prize equals `total × annualRateBps ÷ (10,000 × 525,600)` plus anything sponsored since the last draw — the
+3. The prize equals `total × annualRateBps ÷ (10,000 × 525,600)` plus anything sponsored since the last draw - the
    published formula applied to the published total, not a number anyone chose.
 4. The deployed bytecode hashes to what it claims.
 5. That bytecode contains none of five plausible winner-getter selectors. Solidity emits every external selector into
@@ -416,38 +416,38 @@ Honest omissions, with what each would take:
 | Yield is an admin-funded reserve, not a live strategy | Route deposits into a yield source and feed the same reserve         |
 | Coinbase / Base Account cannot connect                | Drop cross-origin isolation, at the cost of a frozen tab per deposit |
 | No timelock on owner functions                        | Governance or a delay on rate changes and draw triggers              |
-| Slots are never released by a griefer                 | Priced, not prevented — see below                                    |
+| Slots are never released by a griefer                 | Priced, not prevented - see below                                    |
 | Unclaimed prizes are not swept back automatically     | A rollover pass once the claim window closes                         |
-| Pool capacity is finite — 16,384 slots                | Priced rather than removed; see §7                                   |
+| Pool capacity is finite - 16,384 slots                | Priced rather than removed; see §7                                   |
 | No formal audit                                       | The reason this document exists                                      |
 
 ## 7. Slot exhaustion
 
-A slot is claimed on the first deposit from an address. Since `exitPool`, a depositor can give theirs back — it is
-released at the next period roll and handed to the next newcomer before the tree grows — so ordinary churn no longer
+A slot is claimed on the first deposit from an address. Since `exitPool`, a depositor can give theirs back - it is
+released at the next period roll and handed to the next newcomer before the tree grows - so ordinary churn no longer
 costs the pool anything permanently. That closes the case that actually degrades a live pool: a thousand lifetime
 depositors with fifty active ones used to mean a thousand transactions per sweep, forever.
 
 What it does not close is griefing, because an attacker will not volunteer to leave. The deposit that claims it cannot
 be checked for size: ERC-7984 clamps a transfer to the sender's balance rather than reverting, so asking to move more
 than you hold moves zero and still succeeds. `moved` comes back as a ciphertext, and branching on a ciphertext is
-precisely what FHE does not allow — so the contract cannot refuse a deposit that moved nothing.
+precisely what FHE does not allow - so the contract cannot refuse a deposit that moved nothing.
 
 **Rejecting zero would not fix that either.** A one-wei deposit costs the attacker the same gas, occupies a slot just as
 permanently, and is a perfectly legitimate deposit. Any rule that turns away the zero case turns away a real user in the
 next breath. Detection is not the lever.
 
 So for the adversarial case what is left is capacity. `LEAF_COUNT` is 16,384. Filling it requires 16,384 separate
-addresses, each funded with gas and each sending its own ~500k-gas confidential deposit — on the order of eight billion
+addresses, each funded with gas and each sending its own ~500k-gas confidential deposit - on the order of eight billion
 gas, roughly half a million dollars at mainnet prices, and that buys nothing except a full pool. Legitimate depositors
 pay nothing for the headroom: `_treeRoot()` keeps the tree only as deep as the slots actually in use, so a
 thirteen-person pool walks four levels at 16,384 exactly as it did at 1,024.
 
 **This prices the attack rather than eliminating it, and the distinction matters.** A reclamation path would eliminate
 it, but every version we could design requires proving a slot is empty, and proving that means publicly decrypting a
-balance that might not be — which trades a capacity bug for a privacy one. We would rather have the capacity bug and say
+balance that might not be - which trades a capacity bug for a privacy one. We would rather have the capacity bug and say
 so.
 
 ---
 
-_Last updated 4 September 2026. If something here is wrong, that is a bug — please report it._
+_Last updated 4 September 2026. If something here is wrong, that is a bug - please report it._

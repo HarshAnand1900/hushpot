@@ -27,11 +27,11 @@ async function main() {
     const owner = await p.slotOwner(slot);
     const already = await p.claimChecked(drawId, slot);
     if (already) {
-      console.log(`slot ${slot} (${owner}) — already checked, skipping`);
+      console.log(`slot ${slot} (${owner}) - already checked, skipping`);
       continue;
     }
     const r = await (await p.checkClaim(drawId, owner)).wait();
-    console.log(`slot ${slot} (${owner}) — gas ${r?.gasUsed}`);
+    console.log(`slot ${slot} (${owner}) - gas ${r?.gasUsed}`);
   }
 }
 

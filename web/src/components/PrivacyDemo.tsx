@@ -15,7 +15,7 @@ type Outcome = { handle: string; owner: string; opened: boolean; value?: bigint;
  *
  * Two ciphertext handles, both read off the public chain, both fed to the same relayer
  * with the same session key. Yours opens. Somebody else's does not. Same code path, same
- * few seconds, two different answers — which is the whole product in one interaction.
+ * few seconds, two different answers - which is the whole product in one interaction.
  */
 export function PrivacyDemo() {
   const { address, isConnected } = useAccount();
@@ -68,14 +68,14 @@ export function PrivacyDemo() {
       })) as string;
 
       // `balanceHandle` is a cache, filled by refreshMyPosition. Deposit without ever
-      // revealing and it is still zero — and decrypting nothing would report "opened"
+      // revealing and it is still zero - and decrypting nothing would report "opened"
       // with no value, making the demo look broken while the contract is perfectly fine.
       if (!myHandle || /^0x0+$/.test(myHandle)) {
         setNote("Reveal your position on the Pool tab first, since no ciphertext of yours is cached yet.");
         return;
       }
 
-      // Yours — opens.
+      // Yours - opens.
       try {
         const value = await decryptHandle(myHandle);
         setMine({ handle: myHandle, owner: address, opened: true, value });
@@ -88,7 +88,7 @@ export function PrivacyDemo() {
         });
       }
 
-      // Somebody else's — find another occupied slot.
+      // Somebody else's - find another occupied slot.
       const slotsUsed = (await publicClient.readContract({
         address: POOL_ADDRESS,
         abi: poolAbi,

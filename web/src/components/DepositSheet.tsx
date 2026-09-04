@@ -7,7 +7,7 @@ import { waitForTransactionReceipt } from "wagmi/actions";
 
 import { describeError, toast } from "@/lib/toast";
 
-/** Approve once. See the note in `useDeposit` — the allowance is public either way. */
+/** Approve once. See the note in `useDeposit` - the allowance is public either way. */
 const MAX_ALLOWANCE = (1n << 256n) - 1n;
 
 import { useDeposit } from "@/hooks/useDeposit";
@@ -24,7 +24,7 @@ const SCALE = 10n ** BigInt(TOKEN_DECIMALS);
  * Deposit presets, sized against the pool rather than against a round number.
  *
  * These were 100–2,500 while the faucet handed out 10,000, so a newcomer was nudged toward
- * depositing a quarter of what they held — into a pool two orders of magnitude larger,
+ * depositing a quarter of what they held - into a pool two orders of magnitude larger,
  * for odds around half a percent. Odds are your share of the pool, so a preset that is
  * negligible beside it is a preset that makes the product look pointless.
  */
@@ -90,7 +90,7 @@ export function DepositSheet({
   });
 
   const [minting, setMinting] = useState<false | "plain" | "confidential">(false);
-  // Set once a faucet run succeeds. Without it the sheet looked identical afterwards —
+  // Set once a faucet run succeeds. Without it the sheet looked identical afterwards -
   // `shielded` goes back to undefined, so the same "no cUSDT yet" button re-rendered and
   // the whole thing read as a no-op even though 10,000 tokens had just landed.
   const [minted, setMinted] = useState<false | "plain" | "confidential">(false);
@@ -126,7 +126,7 @@ export function DepositSheet({
       else setShielded((await decryptHandle(handle, TOKEN_ADDRESS)) ?? 0n);
     } catch (e) {
       // Swallowing this made a failed reveal look like a dead button, which is the worst
-      // possible reading — say what happened instead.
+      // possible reading - say what happened instead.
       const message = e instanceof Error ? e.message : "Could not open your balance.";
       setRevealError(/user rejected|denied/i.test(message) ? "Signature declined." : message.slice(0, 140));
     } finally {
@@ -135,7 +135,7 @@ export function DepositSheet({
   };
 
   /**
-   * The underlying is a mock whose `mint` is open to anyone — that is the faucet.
+   * The underlying is a mock whose `mint` is open to anyone - that is the faucet.
    *
    * Surfaced here because an empty wallet is the default state of every new visitor, and
    * without it the deposit sheet is a dead end for exactly the people we want to reach.
@@ -156,13 +156,13 @@ export function DepositSheet({
       await waitForTransactionReceipt(config, { hash: mint });
 
       // Wrap it, so the confidential route is usable from an empty wallet. Without this
-      // the private path is unreachable for a newcomer — the faucet only hands out plain
-      // tokens — and the route that actually keeps the promise looks broken.
+      // the private path is unreachable for a newcomer - the faucet only hands out plain
+      // tokens - and the route that actually keeps the promise looks broken.
       if (shield) {
         // USDTMock copies real Tether: raising a non-zero allowance reverts, so a stale
         // one has to be cleared first. The deposit path already does this dance; the
         // faucet approved directly and would have reverted for anyone who had wrapped
-        // before — which is exactly the returning user, not the newcomer I tested with.
+        // before - which is exactly the returning user, not the newcomer I tested with.
         const existing = (await publicClient!.readContract({
           address: UNDERLYING_ADDRESS,
           abi: erc20Abi,
@@ -182,7 +182,7 @@ export function DepositSheet({
 
         // Approved to the maximum once, so a second visit to the faucet is one
         // transaction rather than three. This flow used to wait two confirmations at each
-        // of four steps — about a minute and a half of staring at a spinner.
+        // of four steps - about a minute and a half of staring at a spinner.
         if (existing < amount) {
           const approve = await writeContractAsync({
             address: UNDERLYING_ADDRESS,
@@ -220,13 +220,13 @@ export function DepositSheet({
 
   // A confidential balance is a ciphertext, so there is no figure to show and no Max to
   // offer. Comparing the requested amount against the *plain* balance would be worse than
-  // useless here — it is a different token.
+  // useless here - it is a different token.
   //
   // Withdrawing used to hardcode this to `true`, which said "we know the balance" while
   // `inPool` was still undefined. `available` then fell back to `0n`, so every amount read
   // as more than you have: Max greyed out, every quick chip greyed out, and submit silently
   // inert with no error to explain it. The sheet was simply dead if it opened before the
-  // decrypted position arrived — which is exactly what the Withdraw button does, whereas
+  // decrypted position arrived - which is exactly what the Withdraw button does, whereas
   // going in via the deposit tab takes long enough that the balance lands on the way.
   //
   // Unknown now means unknown. Nothing is blocked on a figure we do not have; the contract
@@ -256,7 +256,7 @@ export function DepositSheet({
    * ciphertext, so this sheet is the only place it can be caught. Warning was not enough
    * on its own: the warning sat above a live button and the deposit went through anyway.
    *
-   * Withdrawing has the same shape — `_debitSlot` clamps with `FHE.min`, so asking for
+   * Withdrawing has the same shape - `_debitSlot` clamps with `FHE.min`, so asking for
    * more than you hold quietly moves less. Its amount input was already disabled while the
    * balance was sealed, but the quick-amount chips were not, so a chip click could still
    * arm a submit.
@@ -374,7 +374,7 @@ export function DepositSheet({
                   // Withdraw used to have no decrypt flow of its own: `inPool` only ever
                   // arrived already-known, because the only way in was a button gated
                   // behind the position panel's own reveal. That made the amount look
-                  // revealed by default the moment someone reached this sheet at all — it
+                  // revealed by default the moment someone reached this sheet at all - it
                   // had already happened, just somewhere else. Now that withdraw can be
                   // opened directly, the same reveal button deposit has for the wallet
                   // balance belongs here too, wired to the same signature-then-transaction
@@ -400,7 +400,7 @@ export function DepositSheet({
                   )
                 ) : !balanceKnown ? (
                   // In deposit mode `balanceKnown` *is* `shielded !== undefined`, so there
-                  // was a nested branch here testing the same thing again — its revealed
+                  // was a nested branch here testing the same thing again - its revealed
                   // arm could never run. The revealed figure is rendered once, below.
                   <>
                     Wallet: <strong>encrypted</strong>{" "}
@@ -424,8 +424,8 @@ export function DepositSheet({
                 placeholder="0.00"
                 value={raw}
                 onChange={(e) => setRaw(e.target.value.replace(/[^0-9.]/g, ""))}
-                // A contract-side clamp already makes an unrevealed withdrawal safe —
-                // `_debitSlot` never returns more than the balance actually held — but
+                // A contract-side clamp already makes an unrevealed withdrawal safe -
+                // `_debitSlot` never returns more than the balance actually held - but
                 // typing an amount before there is a figure to check it against would
                 // still read as acting on a guess. Disabled until there is one.
                 disabled={busy || (mode === "withdraw" && !balanceKnown)}
@@ -480,7 +480,7 @@ export function DepositSheet({
             <div className={styles.warn}>
               Reveal your wallet balance above before depositing. While it is sealed this amount cannot be checked
               against it, and if it turned out to exceed what you hold the transfer would move <strong>nothing</strong>{" "}
-              while still recording a deposit — no revert, no error. Revealing is one signature, no gas, and the figure
+              while still recording a deposit - no revert, no error. Revealing is one signature, no gas, and the figure
               is decrypted here in your browser rather than published.
             </div>
           )}
@@ -588,13 +588,13 @@ export function DepositSheet({
               className={styles.exit}
               onClick={() => void exitPool()}
               disabled={busy}
-              title="Withdraw everything and release your slot. Check any settled draw first — leaving gives up an unclaimed prize."
+              title="Withdraw everything and release your slot. Check any settled draw first - leaving gives up an unclaimed prize."
             >
               Or leave the pool entirely, which takes the whole balance and gives the slot back
             </button>
           )}
 
-          {/* Leaving surrenders the slot, and a sweep skips a slot with no owner — so a
+          {/* Leaving surrenders the slot, and a sweep skips a slot with no owner - so a
               depositor who won a settled draw and leaves before anybody checks them loses
               the prize silently. The money simply stays in the contract, unawarded. The
               thirty-day window and a keeper that normally sweeps first make it unlikely,
@@ -602,7 +602,7 @@ export function DepositSheet({
           {mode === "withdraw" && (
             <p className={styles.exitNote}>
               If a draw has settled and nobody has checked you for it yet, open <strong>Did I win?</strong> before
-              leaving — a slot with no owner is skipped by the sweep, so an unclaimed prize is given up rather than paid
+              leaving - a slot with no owner is skipped by the sweep, so an unclaimed prize is given up rather than paid
               out.
             </p>
           )}

@@ -17,17 +17,17 @@ import {
  *
  * Time-weighting already means a deposit made on the last day of a period carries almost
  * no weight for that period. What it did *not* mean was any advantage to staying past the
- * period you arrived in — week fifty looked exactly like week one, so the pool rewarded
+ * period you arrived in - week fifty looked exactly like week one, so the pool rewarded
  * showing up and never rewarded staying.
  *
  * The boost is opt-in and expires with the period, which is what keeps it O(1) per
  * depositor. These tests pin the properties that make it safe rather than merely generous:
  * it cannot be taken twice, it cannot be taken and then walked away from, the period you
  * arrive in is never one of the periods it credits, and the balance it multiplies is
- * anchored to what was actually held for that long — not whatever sits in the slot the
+ * anchored to what was actually held for that long - not whatever sits in the slot the
  * moment the button is pressed.
  */
-describe("HushpotPool — loyalty boost", function () {
+describe("HushpotPool - loyalty boost", function () {
   let owner: HardhatEthersSigner;
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;
@@ -98,7 +98,7 @@ describe("HushpotPool — loyalty boost", function () {
     await expect(pool.connect(alice).boostStreak()).to.be.revertedWithCustomError(pool, "NoStreakYet");
   });
 
-  it("still offers nothing after the first roll — that period was the join, not a held one", async function () {
+  it("still offers nothing after the first roll - that period was the join, not a held one", async function () {
     await join(alice);
     await roll();
 
@@ -194,7 +194,7 @@ describe("HushpotPool — loyalty boost", function () {
     for (let i = 0; i < 5; i++) await slowRoll();
     expect(await pool.streakOf(alice.address)).to.eq(await pool.MAX_BOOST_PERIODS());
 
-    // Immediately before boosting, dump in a large fresh deposit — the thing the streak
+    // Immediately before boosting, dump in a large fresh deposit - the thing the streak
     // count alone cannot see, because slotAssignedAt only records when the slot opened.
     await join(alice, 500_000n);
 
@@ -202,8 +202,8 @@ describe("HushpotPool — loyalty boost", function () {
     await (await pool.connect(alice).boostStreak()).wait();
     const after = await weight(alice);
 
-    // The boost applies to the balance as of the anchor period — 1,000, the amount that
-    // was actually present for the whole credited window — not the 501,000 now sitting in
+    // The boost applies to the balance as of the anchor period - 1,000, the amount that
+    // was actually present for the whole credited window - not the 501,000 now sitting in
     // the slot. Twenty percent of the tiny original stake is a small, bounded number;
     // twenty percent of the fresh half-million would not be.
     expect(after - before).to.eq((1_000n * PERIOD_MINUTES * 20n) / 100n);
@@ -216,7 +216,7 @@ describe("HushpotPool — loyalty boost", function () {
     await roll();
     expect(await pool.streakOf(alice.address)).to.eq(1);
 
-    // Withdraw most of it, but not all — the slot stays open, so the streak count is
+    // Withdraw most of it, but not all - the slot stays open, so the streak count is
     // untouched. Only exitPool resets slotAssignedAt.
     const enc = await fhevm.createEncryptedInput(poolAddress, alice.address).add64(90_000n).encrypt();
     await (await pool.connect(alice).withdraw(enc.handles[0], enc.inputProof)).wait();
@@ -225,7 +225,7 @@ describe("HushpotPool — loyalty boost", function () {
     await (await pool.connect(alice).boostStreak()).wait();
     const after = await weight(alice);
 
-    // min(current 10,000, anchor 100,000) = 10,000 — the boost cannot multiply money that
+    // min(current 10,000, anchor 100,000) = 10,000 - the boost cannot multiply money that
     // already left, even though the streak counter still says one period.
     expect(after - before).to.eq((10_000n * PERIOD_MINUTES * 5n) / 100n);
   });

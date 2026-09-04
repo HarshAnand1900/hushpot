@@ -4,8 +4,8 @@
  * Deployed 3 September 2026 to Sepolia against Zama's official confidential USDT mock, so
  * anyone who took part in an earlier Developer Program season already holds the token.
  *
- * Carries the parked-award payout — which took a claim from 2.4M gas to 454k by no longer
- * repairing ten ancestor sums to credit an encrypted zero — open prize sponsorship, and a
+ * Carries the parked-award payout - which took a claim from 2.4M gas to 454k by no longer
+ * repairing ten ancestor sums to credit an encrypted zero - open prize sponsorship, and a
  * thirty-day claim window measured in wall-clock time. A roll does not end a claim: the
  * tree keeps five generations of history, so a draw stays answerable long after its own
  * period has passed.
@@ -19,7 +19,7 @@ const MAIN_POOL = "0x4ac487b46d687EB92078c8565FF0FEEa7690b830";
 /**
  * A second, expendable pool that anyone can run the whole cycle on.
  *
- * Two of the six cycle steps are owner-gated *for early use only* — anyone may call them
+ * Two of the six cycle steps are owner-gated *for early use only* - anyone may call them
  * once a period has genuinely elapsed, but that is a week away, and a judge should not
  * have to wait a week to press a button. The real owner key cannot be handed out: it can
  * set the yield rate to zero and close claim windows early. So this pool absorbs the
@@ -35,7 +35,7 @@ export const SANDBOX_POOL = "0x08E5c466a8c5a5FCccEd833e1E9dC8D5B145D279";
  *
  * `openDraw` and `startNextPeriod` are gated to the pool's owner until a period elapses.
  * On the sandbox that owner is {@link SANDBOX_OPERATOR}, which forwards exactly those two
- * calls to anybody who asks and nothing else — so a judge runs all six steps from their
+ * calls to anybody who asks and nothing else - so a judge runs all six steps from their
  * own wallet, with no key to import and no week to wait.
  */
 export const SANDBOX_OPERATOR = "0x4Cdc99F52Be94aD1A851119FEFc07557637E7Cdc" as const;
@@ -60,15 +60,15 @@ export const POOL_ADDRESS = resolvePool() as `0x${string}`;
 export const IS_SANDBOX = POOL_ADDRESS.toLowerCase() === SANDBOX_POOL.toLowerCase();
 
 /**
- * Block the pool was deployed in. Log scans start here rather than at genesis — public
+ * Block the pool was deployed in. Log scans start here rather than at genesis - public
  * Sepolia endpoints reject unbounded ranges, and nothing about this pool exists before it.
  */
 export const DEPLOY_BLOCK = 11628077n;
 
-/** cUSDTMock — "Confidential USDT (Mock)", 6 decimals, rate 1. */
+/** cUSDTMock - "Confidential USDT (Mock)", 6 decimals, rate 1. */
 export const TOKEN_ADDRESS = "0x4E7B06D78965594eB5EF5414c357ca21E1554491" as const;
 
-/** USDTMock — plain ERC-20 with an open `mint`, which is the faucet. */
+/** USDTMock - plain ERC-20 with an open `mint`, which is the faucet. */
 export const UNDERLYING_ADDRESS = "0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0" as const;
 
 export const TOKEN_DECIMALS = 6;
@@ -115,7 +115,7 @@ export const poolAbi = [
   },
   // How many slots a draw covered, and how many of them have been answered. The roll is
   // gated on these two being equal, so the panel can say what is outstanding rather than
-  // guess from the sweep cursor — which counts only `sweepRange` and misses a depositor
+  // guess from the sweep cursor - which counts only `sweepRange` and misses a depositor
   // who settled their own claim.
   {
     type: "function",
@@ -392,8 +392,8 @@ export const poolAbi = [
    * Not decoration: viem decodes a revert by looking the 4-byte selector up in the ABI it
    * was given, and with no error entries here it cannot, so `describeError` fell all the
    * way through to "reverted with the following signature: 0x…". Every refusal the
-   * contract makes on purpose — the boost lock, the claim window, a second draw in one
-   * period — reached the user as a hex string. All are zero-argument, so this is the
+   * contract makes on purpose - the boost lock, the claim window, a second draw in one
+   * period - reached the user as a hex string. All are zero-argument, so this is the
    * whole list.
    */
   { type: "error", name: "AlreadyBoosted", inputs: [] },
@@ -424,7 +424,7 @@ export const poolAbi = [
  * The ERC-7984 confidential token, as far as depositing needs it.
  *
  * `confidentialTransferFrom` is pulled by the pool rather than called here, and it needs
- * standing permission — hence `setOperator`, which is the confidential analogue of an
+ * standing permission - hence `setOperator`, which is the confidential analogue of an
  * ERC-20 approval and grants until a deadline rather than up to an amount.
  */
 export const confidentialTokenAbi = [

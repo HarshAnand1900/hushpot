@@ -34,12 +34,12 @@ export function PositionPanel({
   /**
    * Whether {@link boostStreak} would actually succeed right now.
    *
-   * Mirrors the contract's own guard — no draw pending, and no draw already settled in
-   * this period — rather than approximating it. See the note on the Apply button.
+   * Mirrors the contract's own guard - no draw pending, and no draw already settled in
+   * this period - rather than approximating it. See the note on the Apply button.
    */
   boostOpen: boolean;
   drawNumber: number;
-  /** Pool ticket-minutes published at the last draw. Frozen — never a live figure. */
+  /** Pool ticket-minutes published at the last draw. Frozen - never a live figure. */
   poolTotal?: bigint;
   minuteOfPeriod: bigint;
   /** What the last draw paid, for the expected-value line. */
@@ -58,7 +58,7 @@ export function PositionPanel({
   const hasDenominator = poolTotal !== undefined && poolTotal > 0n;
 
   // Your weight is current; the denominator is the total published at the last draw. When
-  // the pool has grown since — you deposited, or a prize was folded into your balance —
+  // the pool has grown since - you deposited, or a prize was folded into your balance -
   // the ratio compares two different moments and can exceed 100%, which is nonsense on
   // its face. It is capped and labelled as an estimate rather than printed as fact.
   //
@@ -72,7 +72,7 @@ export function PositionPanel({
    *
    * Odds are weighted by amount AND time, so two people holding the same balance can have
    * different weights: `weight = balance × (PERIOD_MINUTES − minuteDeposited)`. Divide by
-   * what a full period would have earned and the result is a plain multiplier — 1.00× for
+   * what a full period would have earned and the result is a plain multiplier - 1.00× for
    * somebody who was there when the week opened, 0.50× for somebody who arrived halfway.
    *
    * It resets every week, and deliberately so: `_advancePeriod` lets the period-scoped
@@ -80,8 +80,8 @@ export function PositionPanel({
    * person's late arrival following them forever.
    *
    * This figure is *only* about when you arrived in the current week. Staying across weeks
-   * is a separate mechanic with its own control — `boostStreak`, drawn as the loyalty
-   * ladder below — and it is opt-in, so it is not folded in here. Two depositors with the
+   * is a separate mechanic with its own control - `boostStreak`, drawn as the loyalty
+   * ladder below - and it is opt-in, so it is not folded in here. Two depositors with the
    * same balance and the same arrival minute have the same time credit whether one has
    * been here five weeks or one.
    */
@@ -91,7 +91,7 @@ export function PositionPanel({
       ? Number(weight) / Number(fullCredit)
       : undefined;
 
-  // Past 100% the denominator is provably out of date — your weight has outgrown the total
+  // Past 100% the denominator is provably out of date - your weight has outgrown the total
   // that was published at the last draw, because you deposited or won since. Capping it at
   // 100 was worse than useless: it reads as "you will certainly win", which is false and
   // was being shown while a second depositor sat in the pool.
@@ -124,7 +124,7 @@ export function PositionPanel({
   /**
    * The loyalty boost: what staying is worth, and whether it has been taken this period.
    *
-   * Both figures are public on-chain and always were — a slot is taken in a transaction
+   * Both figures are public on-chain and always were - a slot is taken in a transaction
    * anyone can watch, and `slotAssignedAt` records when. What stays encrypted is the thing
    * the boost multiplies, so an observer learns that this slot has been here four weeks
    * and still nothing about how much is in it.
@@ -138,7 +138,7 @@ export function PositionPanel({
     if (!publicClient) return;
     // No wallet, or a wallet with no slot: either way the answer is 1.0x, not a pending
     // read. Leaving it undefined parked a first-time visitor on "reading the chain…"
-    // forever — and they are the one person this control exists to talk to, since the
+    // forever - and they are the one person this control exists to talk to, since the
     // whole point of drawing a ladder is to show someone at the bottom of it where it goes.
     if (!address || slot === undefined) {
       setStreak(0);
@@ -183,19 +183,19 @@ export function PositionPanel({
 
   // --- add-to-position projection -----------------------------------------
   const [add, setAdd] = useState(0);
-  // Comfortably above a single faucet press, since the faucet can be pressed again — but
+  // Comfortably above a single faucet press, since the faucet can be pressed again - but
   // not so far above it that most of the track is unreachable.
   const maxAdd = 50_000;
 
   const projected = useMemo(() => {
-    // Not gated on `odds` — a stale *current* position must not blank out the projection
+    // Not gated on `odds` - a stale *current* position must not blank out the projection
     // too. The two are independent questions: "is my position bigger than the last total"
     // and "would adding this amount still be." A deposit large enough to fix the first
     // can leave the second still true, or the reverse.
     if (weight === undefined || !poolTotal || poolTotal === 0n) return undefined;
 
     // Money added now earns only the minutes left in the period, on both sides of the
-    // ratio — it enlarges the pot exactly as much as it enlarges your share.
+    // ratio - it enlarges the pot exactly as much as it enlarges your share.
     const left = PERIOD_MINUTES - minuteOfPeriod;
     const extra = Number(BigInt(Math.floor(add)) * SCALE * left);
 
@@ -208,7 +208,7 @@ export function PositionPanel({
    * than a number that claims to be live odds it cannot be. */
   const projectedStale = projected !== undefined && projected > 100.5;
 
-  // `rawOdds`, not the capped `odds` — a delta against `undefined` would silently read as
+  // `rawOdds`, not the capped `odds` - a delta against `undefined` would silently read as
   // zero in exactly the state this is most worth showing correctly.
   const delta = projected !== undefined && rawOdds !== undefined ? projected - rawOdds : 0;
 
@@ -223,7 +223,7 @@ export function PositionPanel({
    *
    * The six-draw history was the wrong chart: draws are weekly, so it took over a month to
    * fill and showed five empty boxes in the meantime. This one is full immediately and
-   * shows the thing that actually moves — odds are weighted by time held, so a position
+   * shows the thing that actually moves - odds are weighted by time held, so a position
    * climbs all period and a late deposit visibly starts behind.
    *
    * Computed, not recorded. Your weight rises by your balance every minute that passes,
@@ -310,13 +310,13 @@ export function PositionPanel({
                 <>Everyone starts at 1.00×. Stay past the week you join and it climbs 0.05× a week, to 1.20×.</>
               ) : boosted ? (
                 <>
-                  Applied for this week — {streak} week{streak > 1 ? "s" : ""} held.{" "}
+                  Applied for this week - {streak} week{streak > 1 ? "s" : ""} held.{" "}
                   {streak < 4 ? `${(1 + (streak + 1) * 0.05).toFixed(2)}× next week.` : "This is the top rung."}
                 </>
               ) : !boostOpen ? (
                 <>
                   {streak} week{streak > 1 ? "s" : ""} held. This period&apos;s draw has already been opened, and the
-                  boost is closed until the period rolls — weight cannot move once a draw is committed against it.
+                  boost is closed until the period rolls - weight cannot move once a draw is committed against it.
                 </>
               ) : (
                 <>
@@ -326,13 +326,13 @@ export function PositionPanel({
               )}
             </div>
 
-            {/* `boostStreak` reverts with PeriodEnded once this period has a draw — open or
-                settled — because every write to the tree after that point has to be neutral
+            {/* `boostStreak` reverts with PeriodEnded once this period has a draw - open or
+                settled - because every write to the tree after that point has to be neutral
                 for a draw already committed. The button did not know that, so in the window
                 between a draw settling and the roll it offered an action the contract was
                 guaranteed to refuse. Confirmed with a bare eth_call from a real depositor:
                 streakOf 1, not yet boosted, button shown, call reverts PeriodEnded. Same
-                class of bug as the judge panel's, and the same fix — ask the contract's
+                class of bug as the judge panel's, and the same fix - ask the contract's
                 actual condition rather than a convenient approximation of it. */}
             {streak !== undefined && streak > 0 && !boosted && (
               <button className={styles.boost} onClick={boost} disabled={boosting || !boostOpen}>
@@ -417,10 +417,10 @@ export function PositionPanel({
         <div className={styles.cell}>
           <div className={styles.label}>
             {/* "Estimate" belongs on the label every time this number is shown, not only
-                in the paragraph underneath — that paragraph is easy to skip, and a number
+                in the paragraph underneath - that paragraph is easy to skip, and a number
                 this exact-looking otherwise reads as a promise about the actual draw
                 rather than a preview of it. The label is where the eye lands first. Same
-                treatment the pot kicker already gives its own estimated figure — quiet
+                treatment the pot kicker already gives its own estimated figure - quiet
                 continuation text, no separate styling to call attention to itself. */}
             <span className="liveDot" /> ODDS · DRAW #{drawNumber} · ESTIMATE
           </div>
@@ -432,12 +432,12 @@ export function PositionPanel({
             {odds !== undefined && isUnlocked
               ? `${odds.toFixed(2)}%`
               : oddsStale && isUnlocked && rawOdds !== undefined
-                ? // Not a percentage, deliberately — 100%+ next to the word "odds" reads as
+                ? // Not a percentage, deliberately - 100%+ next to the word "odds" reads as
                   // a certain win, which this is not: the pool has grown since the total
                   // this is measured against was published, so the true current share is
                   // smaller than this figure implies. A multiple of the *old* total says
-                  // something true and useful — how far the position has outgrown the last
-                  // snapshot — without claiming to be the number it cannot compute.
+                  // something true and useful - how far the position has outgrown the last
+                  // snapshot - without claiming to be the number it cannot compute.
                   `${(rawOdds / 100).toFixed(2)}×`
                 : masked}
           </div>
@@ -475,9 +475,9 @@ export function PositionPanel({
             {!hasDenominator
               ? "waiting on the first draw"
               : oddsStale
-                ? `your weight has outgrown the total published at draw #${Math.max(0, drawNumber - 1)} — the pool has taken in more since, and that live total stays encrypted, so this is as close as your true share can be shown. Recalculable exactly once the next draw publishes a fresh one.`
+                ? `your weight has outgrown the total published at draw #${Math.max(0, drawNumber - 1)} - the pool has taken in more since, and that live total stays encrypted, so this is as close as your true share can be shown. Recalculable exactly once the next draw publishes a fresh one.`
                 : isUnlocked
-                  ? "your share of the pool, against the total published at the last draw. It climbs through the period because that denominator is frozen while your weight accrues — not because holding beats holding. If everyone stays, everyone's weight grows together and the real shares barely move. Computed here, never transmitted."
+                  ? "your share of the pool, against the total published at the last draw. It climbs through the period because that denominator is frozen while your weight accrues - not because holding beats holding. If everyone stays, everyone's weight grows together and the real shares barely move. Computed here, never transmitted."
                   : "computed here, never transmitted"}
           </div>
         </div>
@@ -531,7 +531,7 @@ export function PositionPanel({
               <span
                 className={styles.projFill}
                 // A bar scaled 0–10% has nothing to show past 100%, so it fills rather
-                // than stretches off the edge of its own track — the number beside it
+                // than stretches off the edge of its own track - the number beside it
                 // already says the real story.
                 style={{ width: `${projectedStale ? 100 : Math.min(100, ((projected ?? 0) / 10) * 100)}%` }}
               />
@@ -555,7 +555,7 @@ export function PositionPanel({
                 large pool looks like a bad deal. It is not: expected return is odds times
                 prize, and both scale with the pool, so the product is the yield rate at any
                 size. A depositor in a million-token pool wins rarely and wins large; one in
-                a small pool wins often and wins little. Same return, different variance —
+                a small pool wins often and wins little. Same return, different variance -
                 and since principal is never at stake, variance is the only thing being
                 chosen. Saying so turns 0.75% from a disappointment into the mechanism. */}
             {expectedWeekly !== undefined && (
@@ -563,7 +563,7 @@ export function PositionPanel({
                 <span className={styles.label}>EXPECTED</span>{" "}
                 <span className={styles.expectedV}>{formatUnits(expectedWeekly, 2)} cUSDT a week</span>{" "}
                 <span className={styles.expectedNote}>
-                  — odds × prize. It comes to the pool&apos;s yield rate whatever the pool&apos;s size, so a smaller
+                  - odds × prize. It comes to the pool&apos;s yield rate whatever the pool&apos;s size, so a smaller
                   share of a bigger pot is the same return with rarer, larger wins. Your principal is never at stake.
                 </span>
               </div>

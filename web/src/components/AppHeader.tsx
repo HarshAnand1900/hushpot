@@ -20,7 +20,7 @@ const TABS = [
   { href: "/judge", label: "Judge" },
 ];
 
-export function AppHeader({ pot }: { pot: bigint }) {
+export function AppHeader({ pot, drawNumber }: { pot: bigint; drawNumber?: number }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -50,21 +50,25 @@ export function AppHeader({ pot }: { pot: bigint }) {
 
         <div className={styles.spacer} />
 
-        {/* Live pot readout — no box, no chip, hairlines either side. */}
+        {/* Live pot readout - no box, no chip, hairlines either side. */}
         <div className={styles.potRead}>
           <span className={styles.hair} />
           <span className={styles.potLabel}>POT</span>
           {/* Zero means no draw has settled and nothing is sponsored, so there is no pot
-              to estimate — not a pot that happens to be empty. See useWeeklyPot. */}
+              to estimate - not a pot that happens to be empty. See useWeeklyPot. */}
           <span className={`num ${styles.potValue}`}>{pot > 0n ? formatUnits(pot) : "—"}</span>
           <span className="liveDot" />
-          <span className={styles.potLive}>THIS WEEK</span>
+          {/* Which draw this pot is for. "THIS WEEK" said when it would be paid but not
+              which draw was live, and the draw number is the thing every other tab keys
+              off - the Draws list, the receipts, the verifier. Falls back to the old label
+              when a caller has no pool state to hand. */}
+          <span className={styles.potLive}>{drawNumber === undefined ? "THIS WEEK" : `DRAW #${drawNumber}`}</span>
 
           <span className={styles.hair} />
         </div>
 
         {/* A judge lands with an empty wallet, so the faucet has to be reachable from
-            anywhere — not only from inside a sheet they have to find first. */}
+            anywhere - not only from inside a sheet they have to find first. */}
         {/* This was a link to /pool?faucet=1, which silently did nothing when you were
             already on /pool: the App Router re-renders without remounting, so the effect
             reading that query never fired again. An event works from any page and does

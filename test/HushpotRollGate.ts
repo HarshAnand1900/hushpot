@@ -16,7 +16,7 @@ import {
  *
  * There was briefly a gate here: the roll refused to run until every slot had been checked.
  * It read as safety and was not. Non-owners already wait out the thirty-day grace, by which
- * time a sweep has long since run, so the guard bound only the owner — and binding the owner
+ * time a sweep has long since run, so the guard bound only the owner - and binding the owner
  * meant the cycle depended on an O(n) sweep somebody has to fund. A pool nobody swept
  * degraded from weekly to monthly and then forfeited the stragglers anyway, which is the
  * problem it was supposed to solve.
@@ -27,7 +27,7 @@ import {
  * has answered, and both paths move the same counter so the console can report progress
  * without a gate behind it.
  */
-describe("HushpotPool — claim progress bookkeeping", function () {
+describe("HushpotPool - claim progress bookkeeping", function () {
   let owner: HardhatEthersSigner;
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;
@@ -87,7 +87,7 @@ describe("HushpotPool — claim progress bookkeeping", function () {
     await settledDraw();
     expect((await pool.claims(0)).checked).to.eq(0);
 
-    // The roll is not gated on the sweep. Nobody has answered, and it proceeds anyway —
+    // The roll is not gated on the sweep. Nobody has answered, and it proceeds anyway -
     // because the answer no longer expires with the period.
     await expect(pool.connect(owner).startNextPeriod()).to.not.be.reverted;
     await expect(pool.connect(alice).checkMyClaim(0)).to.not.be.reverted;

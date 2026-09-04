@@ -12,7 +12,7 @@ interface Entry extends ToastPayload {
 /**
  * The bottom-of-screen record of what just happened.
  *
- * Wallet flows are long enough that people look away — approve, wait, sign, wait — and
+ * Wallet flows are long enough that people look away - approve, wait, sign, wait - and
  * come back to a screen that has quietly returned to its resting state. Whether the
  * deposit landed was knowable only by reading the balance and inferring. This says it.
  *

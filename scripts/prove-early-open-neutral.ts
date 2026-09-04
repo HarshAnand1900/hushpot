@@ -5,7 +5,7 @@ import { FhevmType } from "@fhevm/hardhat-plugin";
  * Live proof: a deposit made after an early openDraw carries zero weight for this period.
  *
  * Deposits as a fresh signer into a pool with a draw already pending, then decrypts that
- * signer's own weight. If the fix holds, it reads zero — the deposit is fully neutral,
+ * signer's own weight. If the fix holds, it reads zero - the deposit is fully neutral,
  * exactly as one made after the period has genuinely ended would be.
  */
 async function main() {

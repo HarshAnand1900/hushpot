@@ -21,7 +21,7 @@ const PERIOD_SECONDS = PERIOD_MINUTES * 60n;
 const ALICE_DEPOSIT = 1_000_000n; // 1.0 token
 const BOB_DEPOSIT = 3_000_000n; //   3.0 tokens
 
-describe("HushpotPool — draws and claims", function () {
+describe("HushpotPool - draws and claims", function () {
   let owner: HardhatEthersSigner;
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;
@@ -240,7 +240,7 @@ describe("HushpotPool — draws and claims", function () {
 
   // The solvency proof compares holdings against liabilities. A swept prize belongs to
   // its winner the moment it is parked, so it has to count as a liability even before it
-  // is folded into a leaf — otherwise the proof quietly answers a narrower question than
+  // is folded into a leaf - otherwise the proof quietly answers a narrower question than
   // it appears to.
   describe("solvency counts parked awards", function () {
     it("still proves backed while a prize sits parked, and counts it", async function () {
@@ -314,7 +314,7 @@ describe("HushpotPool — draws and claims", function () {
 
       await (await pool.connect(alice).checkMyClaim(0)).wait();
 
-      // No refreshMyBalance call here — the handle must already be readable by alice.
+      // No refreshMyBalance call here - the handle must already be readable by alice.
       const slot = await pool.slotOf(alice.address);
       const after = await fhevm.userDecryptEuint(FhevmType.euint64, await pool.balanceHandle(slot), poolAddress, alice);
 
@@ -328,7 +328,7 @@ describe("HushpotPool — draws and claims", function () {
     });
 
     it("lets anyone check on anyone else's behalf", async function () {
-      // Bob checks Alice. He pays the gas and learns nothing — the result is encrypted.
+      // Bob checks Alice. He pays the gas and learns nothing - the result is encrypted.
       await expect(pool.connect(bob).checkClaim(0, alice.address)).to.not.be.reverted;
       expect(await pool.claimChecked(0, await pool.slotOf(alice.address))).to.eq(true);
     });
@@ -427,7 +427,7 @@ describe("HushpotPool — draws and claims", function () {
       await (await pool.connect(owner).checkClaimBatch(0, [alice.address, bob.address])).wait();
       await (await pool.connect(owner).startNextPeriod()).wait();
 
-      // A claim parks the prize rather than folding it into the tree — that is what keeps
+      // A claim parks the prize rather than folding it into the tree - that is what keeps
       // a claim off the thirty-addition ancestor repair. It joins the pool when the winner
       // next touches their position, which is the same visit on which they find out they
       // won. So the pot compounds on that refresh, not on the claim.

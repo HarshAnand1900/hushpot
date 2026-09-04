@@ -6,7 +6,7 @@ import * as THREE from "three";
 import styles from "./Pot3D.module.css";
 
 /**
- * The pot — ported from the v5 design prototype's `init3D`, geometry and materials kept
+ * The pot - ported from the v5 design prototype's `init3D`, geometry and materials kept
  * to the original numbers rather than reinterpreted.
  *
  * Two dressings of the same object:
@@ -26,7 +26,7 @@ import styles from "./Pot3D.module.css";
 /**
  * A different line every click.
  *
- * Index 0 is empty on purpose — the pot says nothing until it is touched. Drawing purely
+ * Index 0 is empty on purpose - the pot says nothing until it is touched. Drawing purely
  * at random from a short list repeats often enough that it reads as broken: with a dozen
  * quips, better than one click in twelve lands on the one already showing and nothing
  * appears to happen. Excluding the current line makes every click visibly do something.
@@ -85,7 +85,7 @@ function makeEnvTexture(): THREE.Texture {
   x.fillStyle = g;
   x.fillRect(0, 0, 512, 256);
 
-  // Softbox highlights — these are what read as specular streaks on the gold.
+  // Softbox highlights - these are what read as specular streaks on the gold.
   x.fillStyle = "rgba(255,255,255,.98)";
   x.fillRect(60, 4, 170, 70);
   x.fillStyle = "rgba(255,238,200,.75)";
@@ -343,7 +343,7 @@ function makeWallTexture(): THREE.Texture {
     x.fillRect(0, y, 4096, 1 + Math.random() * 2);
   }
 
-  // Three brass datum lines — the only structure in the room.
+  // Three brass datum lines - the only structure in the room.
   x.fillStyle = "rgba(255,210,8,.62)";
   x.fillRect(0, 286, 4096, 6);
   x.fillStyle = "rgba(255,210,8,.26)";
@@ -379,7 +379,7 @@ function makeWallTexture(): THREE.Texture {
   return t;
 }
 
-/** A slow drifting haze band across the drum — air, not glyphs. */
+/** A slow drifting haze band across the drum - air, not glyphs. */
 function makeVeilTexture(): THREE.Texture {
   const c = document.createElement("canvas");
   c.width = 1024;
@@ -468,7 +468,7 @@ export function Pot3D({
    *
    * The pump used to be a side effect of a coin landing, so keeping one meant keeping the
    * other. Separating them lets the pot react to a click without pretending a deposit just
-   * happened — which it never had, and which read as a promise the page could not keep.
+   * happened - which it never had, and which read as a promise the page could not keep.
    */
   const pumpRef = useRef<(() => void) | null>(null);
   const [quip, setQuip] = useState("");
@@ -493,7 +493,7 @@ export function Pot3D({
     const height = exhibit ? mount.clientHeight || size : size;
 
     // A dimmed exhibit is decoration behind the page, not the thing being looked at, and
-    // it covers the whole viewport — at 1.6x that is roughly five million pixels a frame,
+    // it covers the whole viewport - at 1.6x that is roughly five million pixels a frame,
     // for ever. Rendering it at 1.0 costs nothing visible through the dim layer and cuts
     // the fill work by about two and a half times.
     const decorative = exhibit && dim !== false;
@@ -790,7 +790,7 @@ export function Pot3D({
     rigRoot.add(rig);
     scene.add(rigRoot);
 
-    // Nested additive shells — a soft halo without a post-processing pass.
+    // Nested additive shells - a soft halo without a post-processing pass.
     const glowShells: THREE.Mesh[] = [];
     for (const [rad, op] of [
       [2.0, 0.075],
@@ -821,13 +821,13 @@ export function Pot3D({
     coins.position.y = CY;
     scene.add(coins);
 
-    // A sealed-green face inside a gold rim — the same green as the seal tag and the
+    // A sealed-green face inside a gold rim - the same green as the seal tag and the
     // keyhole, so a coin going in reads as ciphertext rather than money. Sits just
     // proud of both faces of the coin, leaving the gold showing as an edge.
     const pips = new THREE.InstancedMesh(
       new THREE.CylinderGeometry(0.172, 0.172, 0.058, 28),
       // Lit rather than flat: it needs to darken at an angle the way the reference
-      // does, and an unlit fill reads as a sticker. Low metalness — a metallic green
+      // does, and an unlit fill reads as a sticker. Low metalness - a metallic green
       // picks up the gold bouncing around the room and turns olive.
       new THREE.MeshStandardMaterial({
         color: 0x14cc5c,
@@ -865,7 +865,7 @@ export function Pot3D({
       live.push({
         x: SLOT_X + (Math.random() - 0.5) * 0.1,
         y: 2.9,
-        // Kept inside the slot's length now the coin is wider — half the coin plus
+        // Kept inside the slot's length now the coin is wider - half the coin plus
         // half this jitter has to stay under the slot's 0.43 half-length.
         z: (Math.random() - 0.5) * 0.36,
         vy: 0,
@@ -873,14 +873,14 @@ export function Pot3D({
       });
     };
 
-    // The pool never stops taking deposits, so the pot never sits still — a coin
+    // The pool never stops taking deposits, so the pot never sits still - a coin
     // lands on its own every couple of seconds and the body pumps with it. Only on
     // the landing's full scene: behind the app tabs it would pull the eye off the
     // panels, and the small inline pot has no room for it.
     // The comment above described a coin landing, and for a while nothing dropped one:
     // the interval pumped the body and `dropCoinRef` was assigned but never called from
     // anywhere in the app, so the pot breathed over an empty slot. The coin is the half
-    // that reads as a deposit — the pump on its own is just an idle animation.
+    // that reads as a deposit - the pump on its own is just an idle animation.
     let ambient = 0;
     const stillPreferred = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (exhibit && !dim && !stillPreferred) {
@@ -1360,7 +1360,7 @@ export function Pot3D({
     let t = 0;
 
     // Frames the decorative background is allowed to skip, and the cheap checks that let
-    // it skip whole stretches. The page felt worst while a transaction was in flight —
+    // it skip whole stretches. The page felt worst while a transaction was in flight -
     // exactly when a full-screen 3D render is competing with FHE work on the main thread.
     let frame = 0;
     let modalOpen = false;
@@ -1411,7 +1411,7 @@ export function Pot3D({
       pips.count = live.length;
       // The slot turns with the rig, so the coins are held in rig-local space and
       // swung into world space here. Rotated edge-on and squared to the slot's
-      // length — a coin lying flat would not fit through it.
+      // length - a coin lying flat would not fit through it.
       const ry = rig.rotation.y;
       const cosY = Math.cos(ry);
       const sinY = Math.sin(ry);
@@ -1503,7 +1503,7 @@ export function Pot3D({
 
       {/* The quip is separable from the instruction line above it. A `quiet` pot sits in a
           cell that supplies its own caption, but that is no reason for it to stop talking
-          back when clicked — the line is the reward for touching it. */}
+          back when clicked - the line is the reward for touching it. */}
       {quip && (!quiet || quips) && <div className={exhibit ? styles.exhibitQuip : styles.quip}>{quip}</div>}
     </div>
   );

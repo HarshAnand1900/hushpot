@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-/// @title TimeWeightedTree — plaintext prototype of Hushpot's odds accounting
+/// @title TimeWeightedTree - plaintext prototype of Hushpot's odds accounting
 /// @notice Still plain `uint64`, no FHE. Same reason as before: encrypted overflow and
 /// encrypted arithmetic bugs are silent, so we prove the arithmetic where we can print it.
 ///
 /// WHAT THIS ADDS OVER SegmentTree
 /// -------------------------------
 /// A leaf's weight is no longer just "how much you deposited". It is "how much, times how
-/// long it sat there this period" — ticket-minutes. Deposit half way through the week and
+/// long it sat there this period" - ticket-minutes. Deposit half way through the week and
 /// you earn half the odds of someone who was there the whole week with the same amount.
 ///
 /// THE PROBLEM THAT SHAPES EVERYTHING BELOW
@@ -23,8 +23,8 @@ pragma solidity ^0.8.27;
 ///     balance * (drawTime - lastChange)  =  balance * drawTime  -  balance * lastChange
 ///
 /// The second half contains no drawTime, so it can be computed the instant someone deposits
-/// and folded into a running total. The first half multiplies drawTime — the same number for
-/// everybody — against the *sum* of balances. So the whole pool resolves to one expression
+/// and folded into a running total. The first half multiplies drawTime - the same number for
+/// everybody - against the *sum* of balances. So the whole pool resolves to one expression
 /// over three running totals, evaluated on demand, with no per-user sweep ever.
 ///
 /// This contract stores those totals as a deficit from full credit, so that:
@@ -38,7 +38,7 @@ pragma solidity ^0.8.27;
 /// TIME UNITS
 /// ----------
 /// Minutes since the period started, never raw unix timestamps. `balance * unixTime` would
-/// overflow `uint64` by ~100x, and under FHE that overflow is silent — wrong odds, no revert.
+/// overflow `uint64` by ~100x, and under FHE that overflow is silent - wrong odds, no revert.
 contract TimeWeightedTree {
     uint16 public constant LEAF_COUNT = 1024;
     uint16 public constant LEAF_OFFSET = 1024;
@@ -61,7 +61,7 @@ contract TimeWeightedTree {
 
     uint32 public currentPeriod;
 
-    /// @notice Begin a new draw period. Costs nothing per user — stale corrections
+    /// @notice Begin a new draw period. Costs nothing per user - stale corrections
     /// simply stop counting, which hands everyone full credit automatically.
     function advancePeriod() external {
         currentPeriod += 1;
@@ -120,7 +120,7 @@ contract TimeWeightedTree {
 
         _balance[node] -= amount;
         // Dropping the balance removes a full period of credit, but this stake genuinely
-        // earned up to `minuteOfPeriod` — hand that portion back.
+        // earned up to `minuteOfPeriod` - hand that portion back.
         _earlyExit[node] += amount * minuteOfPeriod;
 
         _repairPath(node);
@@ -158,7 +158,7 @@ contract TimeWeightedTree {
         return _weightOf(uint256(LEAF_OFFSET) + slot);
     }
 
-    /// @notice Ticket-minutes across the whole pool. Read from the root — never summed.
+    /// @notice Ticket-minutes across the whole pool. Read from the root - never summed.
     function totalWeight() external view returns (uint64) {
         return _weightOf(1);
     }
@@ -195,7 +195,7 @@ contract TimeWeightedTree {
 
     /// @notice Whether `slot` holds the winning band for `drawPoint`.
     /// @dev The plaintext twin of the encrypted claim check. Each participant evaluates this
-    /// for themselves, learning nothing about anyone else — which is why the draw needs no
+    /// for themselves, learning nothing about anyone else - which is why the draw needs no
     /// central walk and never reveals a winner.
     function winsWith(uint16 slot, uint64 drawPoint) external view returns (bool) {
         uint64 lower = prefixWeight(slot);

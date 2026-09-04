@@ -8,7 +8,7 @@ import {HushpotPool} from "./HushpotPool.sol";
 
 /// @title The owner of the judge sandbox, which is nobody in particular.
 ///
-/// Two of the pool's six cycle steps — `openDraw` and `startNextPeriod` — are gated to the
+/// Two of the pool's six cycle steps - `openDraw` and `startNextPeriod` - are gated to the
 /// owner *only for running them early*. Once a period genuinely elapses anyone may call
 /// them. That gate is right for the real pool and wrong for a demonstration: a judge
 /// arriving on a Tuesday should not have to wait until the following Monday to press two
@@ -21,7 +21,7 @@ import {HushpotPool} from "./HushpotPool.sol";
 ///
 /// So ownership goes to this contract instead, and this contract will do those two things
 /// for anybody who asks. The key is then not published because it no longer exists as a
-/// thing worth having — after `transferOwnership` the deploying key owns nothing.
+/// thing worth having - after `transferOwnership` the deploying key owns nothing.
 ///
 /// What it deliberately cannot do is as important as what it can. There is no forwarder
 /// for `setAnnualRateBps`, so nobody can set the sandbox's yield to zero and make every

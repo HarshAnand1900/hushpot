@@ -18,13 +18,13 @@ export type LogEntry = {
  * The judge console's record of what you have run, kept across navigation.
  *
  * It was React state, which meant switching to the Pool tab to look at what a step had
- * changed — the obvious thing to do — threw away the evidence that it had run at all. You
+ * changed - the obvious thing to do - threw away the evidence that it had run at all. You
  * came back to an empty log and a progress counter reading 0/6 on a pool you had just
  * swept. That reads as the console losing your work, and on a page whose entire job is to
  * demonstrate that the protocol is trustworthy, it is close to the worst possible bug.
  *
  * Kept per pool, because the sandbox and the real deployment are different runs and
- * mixing their histories would be its own kind of lie. Nothing here is confidential —
+ * mixing their histories would be its own kind of lie. Nothing here is confidential -
  * function names, gas, and transaction hashes are all public the moment they are mined.
  */
 const KEY = `hushpot.judge.${POOL_ADDRESS.slice(2, 10)}`;
@@ -54,7 +54,7 @@ export function useJudgeSession(cycle: number, settled: boolean) {
   const [log, setLog] = useState<LogEntry[]>([]);
   const [done, setDone] = useState<Set<string>>(new Set());
   const [storedCycle, setStoredCycle] = useState<number>();
-  // Restored after mount, never during SSR — the server has no localStorage, and a first
+  // Restored after mount, never during SSR - the server has no localStorage, and a first
   // client render that disagreed with it would be a hydration mismatch.
   const [ready, setReady] = useState(false);
 
@@ -78,7 +78,7 @@ export function useJudgeSession(cycle: number, settled: boolean) {
     if (!ready || !settled) return;
     if (storedCycle === cycle) return;
     // Only ever forward. `_advancePeriod` increments and never decrements, so a lower
-    // number is not a roll — it is a failed read falling back to its default, and acting
+    // number is not a roll - it is a failed read falling back to its default, and acting
     // on it would wipe a live cycle's progress over a momentary RPC hiccup.
     if (storedCycle !== undefined && cycle < storedCycle) return;
     if (storedCycle !== undefined) setDone(new Set());

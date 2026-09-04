@@ -5,12 +5,12 @@ import {FHE, euint64, ebool, externalEuint64} from "@fhevm/solidity/lib/FHE.sol"
 
 import {ConfidentialTimeWeightedTree} from "../ConfidentialTimeWeightedTree.sol";
 
-/// @title ConfidentialTreeHarness — test-only access to the accounting engine
+/// @title ConfidentialTreeHarness - test-only access to the accounting engine
 /// @notice Exposes the tree's internals so its arithmetic can be tested against the
 /// plaintext oracle in isolation, without a token, a draw, or slot assignment in the way.
 ///
 /// @dev NOT FOR DEPLOYMENT. It credits slots without moving any tokens and reads any
-/// slot's weight regardless of ownership — both of which would be critical holes in a real
+/// slot's weight regardless of ownership - both of which would be critical holes in a real
 /// pool. `HushpotPool` is the deployable contract.
 contract ConfidentialTreeHarness is ConfidentialTimeWeightedTree {
     mapping(uint16 => ebool) private _winCache;
@@ -39,7 +39,7 @@ contract ConfidentialTreeHarness is ConfidentialTimeWeightedTree {
     ///
     /// The tree only walks as far as the highest node covering `slotsUsed`, so writing to a
     /// slot without counting it leaves the walk stopping short and every sum reading zero.
-    /// `HushpotPool` cannot hit this — it hands out slots sequentially — but this harness
+    /// `HushpotPool` cannot hit this - it hands out slots sequentially - but this harness
     /// writes to arbitrary slots on purpose, so it has to declare them.
     function _reserve(uint16 slot) private {
         if (slot >= slotsUsed) slotsUsed = slot + 1;
@@ -67,7 +67,7 @@ contract ConfidentialTreeHarness is ConfidentialTimeWeightedTree {
     }
 
     /// @dev Evaluates a slot against a caller-supplied draw point. In the real pool the
-    /// point comes from `FHE.randEuint64` and nobody can supply it — this exists so the
+    /// point comes from `FHE.randEuint64` and nobody can supply it - this exists so the
     /// encrypted result can be checked against known band boundaries.
     function checkWinAgainst(uint16 slot, externalEuint64 encryptedPoint, bytes calldata inputProof) external {
         ebool won = _checkWin(slot, FHE.fromExternal(encryptedPoint, inputProof));

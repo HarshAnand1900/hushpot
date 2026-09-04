@@ -8,7 +8,7 @@ import styles from "./Schedule.module.css";
  * What the week actually does, hour by hour.
  *
  * The first version of this was a five-row table whose second row read "MON → MON", which
- * is not a time — it is two times with an arrow between them, and it left the reader to
+ * is not a time - it is two times with an arrow between them, and it left the reader to
  * work out that the pool spends most of the week deliberately doing nothing visible. So
  * this is a bar rather than a list: one week wide, with the long quiet stretch and the
  * short loud one drawn to scale, because the whole point is that they are not the same
@@ -16,7 +16,7 @@ import styles from "./Schedule.module.css";
  *
  * The times are fixed in UTC rather than derived from `periodStart`, because the schedule
  * is a promise about when the keeper acts, not a reading of contract state. Where the two
- * disagree — as they do until the first Monday roll — the contract is the truth, and the
+ * disagree - as they do until the first Monday roll - the contract is the truth, and the
  * last panel here says so rather than letting the table quietly imply otherwise.
  */
 
@@ -54,11 +54,11 @@ const MOMENTS = [
   },
   {
     when: "THE SIX HOURS AFTER",
-    call: "checkMyClaim() — or sweepRange()",
+    call: "checkMyClaim() - or sweepRange()",
     what: "Everyone is checked, then the books are proved",
     who: "You, for yourself. Or a keeper, for everybody",
     detail:
-      "Claiming for yourself is one transaction and the path the protocol actually relies on, because its cost per depositor is flat and the person who pays is the person who gets paid. A keeper sweep does the same job for everyone at once, so nobody has to remember — a convenience worth running at this size, and one that no design should need at ten thousand. Either way a loser receives an encrypted zero, which costs the same gas and looks identical on-chain to a win, so being checked tells an observer nothing.",
+      "Claiming for yourself is one transaction and the path the protocol actually relies on, because its cost per depositor is flat and the person who pays is the person who gets paid. A keeper sweep does the same job for everyone at once, so nobody has to remember - a convenience worth running at this size, and one that no design should need at ten thousand. Either way a loser receives an encrypted zero, which costs the same gas and looks identical on-chain to a win, so being checked tells an observer nothing.",
     reveals: "That everyone was checked. Not who won",
   },
   {
@@ -67,7 +67,7 @@ const MOMENTS = [
     what: "And the week opens again",
     who: "The keeper again",
     detail:
-      "The claim window closes and the next period begins. This is the one step a weekly cadence keeps in the operator's hands: the contract only opens it to everybody else after the full thirty days, which a seven-day week never reaches. What protects an unclaimed slot is that thirty-day hold, not a sweep check — the contract does not verify one, and the owner can roll early. The Judge panel declines to until every slot is covered, but that is the app being careful, not the contract.",
+      "The claim window closes and the next period begins. This is the one step a weekly cadence keeps in the operator's hands: the contract only opens it to everybody else after the full thirty days, which a seven-day week never reaches. What protects an unclaimed slot is that thirty-day hold, not a sweep check - the contract does not verify one, and the owner can roll early. The Judge panel declines to until every slot is covered, but that is the app being careful, not the contract.",
     reveals: "Nothing",
   },
 ];
@@ -108,7 +108,7 @@ export function Schedule({ drawNumber }: { drawNumber: number }) {
 
         <p className={styles.barNote}>
           Six days and eighteen hours of accrual, then a six-hour window to settle the draw, pay whoever won and prove
-          the books. That window is when the <strong>keeper</strong> works — not when you can. Deposits and withdrawals
+          the books. That window is when the <strong>keeper</strong> works - not when you can. Deposits and withdrawals
           stay open every minute of the week, those six hours included.
         </p>
       </div>
@@ -139,14 +139,14 @@ export function Schedule({ drawNumber }: { drawNumber: number }) {
         <div className={styles.basisHead}>WHERE THE POT FIGURE COMES FROM</div>
         <p className={styles.copy}>
           The pot shown for draw #{drawNumber} is an <strong>estimate</strong>, and deliberately so. The exact figure is
-          the yield on this week&apos;s pool plus anything sponsored — but the live pool total is encrypted, and
+          the yield on this week&apos;s pool plus anything sponsored - but the live pool total is encrypted, and
           publishing it continuously is the one thing that would break this. Read it, wait for a deposit, read it again,
           and the difference is that depositor&apos;s amount in the clear.
         </p>
         <p className={styles.copy}>
           So the yield half is computed from the total the <strong>last draw published</strong>, using the
           contract&apos;s own formula, run in your browser. Both inputs are already public. The sponsored half is not
-          estimated at all — sponsorships are plain transfers and the figure is exact.
+          estimated at all - sponsorships are plain transfers and the figure is exact.
         </p>
         <p className={styles.copy}>
           Nothing about the current week is disclosed to produce it, and nothing here is invented: every number on this
@@ -160,7 +160,7 @@ export function Schedule({ drawNumber }: { drawNumber: number }) {
           The contract has no calendar. A period is seven days measured from{" "}
           <strong>whenever the roll was last called</strong>, so the table above is a promise about when the keeper
           acts, not a rule the chain enforces. The first period started when the pool was deployed, which was not a
-          Monday — so the countdown on the pool page runs to that anniversary until the first Monday roll cuts it short
+          Monday - so the countdown on the pool page runs to that anniversary until the first Monday roll cuts it short
           and locks the boundary in place.
         </p>
         <p className={styles.copy}>

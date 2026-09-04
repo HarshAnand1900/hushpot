@@ -4,7 +4,7 @@ import { ethers } from "hardhat";
  * Sponsor the next draw up to a target prize.
  *
  * The prize is derived, not chosen: `pooled * rate / 52`. That is the property worth
- * keeping — a late depositor grows the pot exactly as much as they grow their own odds —
+ * keeping - a late depositor grows the pot exactly as much as they grow their own odds -
  * and it means a pool sized for decent newcomer odds necessarily shows a modest prize.
  *
  * `sponsorPrize` is the sanctioned way out of that, and it is reserve-neutral over one

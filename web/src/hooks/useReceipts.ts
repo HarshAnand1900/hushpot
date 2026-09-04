@@ -12,8 +12,8 @@ export type Receipt = { drawId: bigint; handle: string; opened: boolean };
  * Which draws are waiting for you to open them.
  *
  * The notification problem, stated honestly: telling somebody they won is exactly the
- * disclosure this protocol exists to prevent. Any channel that carries the *result* — a
- * push, an email, an on-chain message to one address — knows the result, and so does
+ * disclosure this protocol exists to prevent. Any channel that carries the *result* - a
+ * push, an email, an on-chain message to one address - knows the result, and so does
  * anyone watching the channel. Winners would be identifiable by the traffic alone, even if
  * every payload were encrypted, because losers would get no traffic.
  *
@@ -29,7 +29,7 @@ export type Receipt = { drawId: bigint; handle: string; opened: boolean };
  * person has the key to.
  *
  * Which draws you have already opened is kept in this browser. That is public information
- * — `claimChecked` says it on-chain — so writing it down costs nothing. The amounts are
+ * - `claimChecked` says it on-chain - so writing it down costs nothing. The amounts are
  * never stored, only draw ids.
  */
 const OPENED_KEY = `hushpot.opened.${POOL_ADDRESS.slice(2, 10)}`;

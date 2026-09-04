@@ -2,7 +2,7 @@
  * Regenerate the live figures in README.md's "What is running right now" table.
  *
  * Those numbers are the first thing a reviewer checks, and they go stale every time a
- * draw settles or somebody deposits — which during a submission week is constantly. A
+ * draw settles or somebody deposits - which during a submission week is constantly. A
  * pre-submission audit found the table claiming 20 depositors and 2 draws against a chain
  * holding 21 and 3, so this exists to make re-reading them a single command rather than
  * six calls assembled by hand.

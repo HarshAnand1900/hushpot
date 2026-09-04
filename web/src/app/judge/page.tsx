@@ -33,7 +33,7 @@ type StepState = "ready" | "running" | "done" | "blocked" | "failed";
  * Every feature on one page, runnable from a connected wallet.
  *
  * The bounty asks that a judge be able to try the whole thing. A draw is two on-chain
- * steps with an off-chain decryption between them, which used to mean a Hardhat task —
+ * steps with an off-chain decryption between them, which used to mean a Hardhat task -
  * so the interesting half of the protocol was invisible to anyone assessing it.
  *
  * Owner-gated calls are labelled as such rather than hidden, because most of this is not
@@ -58,7 +58,7 @@ export default function JudgeTab() {
   const { writeContractAsync } = useWriteContract();
 
   // Which pool this tab points at is read from the URL on the client, so it waits for
-  // mount — the server renders the main pool's copy and React does not patch text it
+  // mount - the server renders the main pool's copy and React does not patch text it
   // hydrated.
   const [onSandbox, setOnSandbox] = useState(false);
   useEffect(() => setOnSandbox(IS_SANDBOX), []);
@@ -77,7 +77,7 @@ export default function JudgeTab() {
   const target = covered ?? state.depositors;
   // `checkClaim` has no `covered` bound, so a depositor who joins after a draw settles and
   // answers it anyway pushes `checked` past the count that draw covered. Their award is
-  // forced to an encrypted zero by `slotAssignedAt`, so nothing is mispaid — but the panel
+  // forced to an encrypted zero by `slotAssignedAt`, so nothing is mispaid - but the panel
   // would render "22 / 21", which reads as a bug. Clamped here rather than in the contract:
   // a redeploy to correct a display artefact would put the repo and the chain back out of
   // step, which is a worse problem than the one it fixes.
@@ -85,14 +85,14 @@ export default function JudgeTab() {
   const sweptAll = cursor !== undefined && target > 0 && cursor >= target;
   // How many more times step 04 has to be pressed. A sweep covers four slots, and without
   // this the panel showed progress but never said that pressing the same button again is
-  // what finishes it — which reads as a stuck pool rather than an unfinished one.
+  // what finishes it - which reads as a stuck pool rather than an unfinished one.
   const sweepsLeft = Math.max(0, Math.ceil((target - answered) / 4));
 
   /**
    * When this period actually elapses, read from the chain rather than written down.
    *
    * This was the literal string "3 September", which was true of the period it was written
-   * during and wrong by two rolls afterwards — and wrong in the worst direction, since a
+   * during and wrong by two rolls afterwards - and wrong in the worst direction, since a
    * reviewer reading it after that date would believe a gate had lifted while the contract
    * still held it shut.
    */
@@ -107,14 +107,14 @@ export default function JudgeTab() {
   /**
    * Whether the last settled draw belongs to the *current* period.
    *
-   * This is `startNextPeriod`'s own requirement — it reverts with `DrawNotSettled` unless
-   * `draws[drawCount - 1].period == currentPeriod` — and it is also `openDraw`'s: it
+   * This is `startNextPeriod`'s own requirement - it reverts with `DrawNotSettled` unless
+   * `draws[drawCount - 1].period == currentPeriod` - and it is also `openDraw`'s: it
    * reverts with `DrawAlreadySettledThisPeriod` when that same equality holds. One flag
    * gates both, in opposite directions: a draw settled this period means open (step 02)
    * is done and roll (step 06) is the thing to do next; no draw settled this period means
    * the reverse.
    *
-   * This used to be conflated with the claim window's 30-day/five-period reach — true for
+   * This used to be conflated with the claim window's 30-day/five-period reach - true for
    * far longer than a period lasts, since a draw stays claimable well after the period it
    * settled in has moved on. That flag correctly gates sweeping (below), which shares
    * nothing with the period-equality check: `sweepRange` never tests `d.period ==
@@ -125,7 +125,7 @@ export default function JudgeTab() {
   const settledThisPeriod = lastDraw !== undefined && lastDraw.period === state.currentPeriod;
 
   /**
-   * Whether the pool's most recent draw can still be swept — the 30-day, five-period
+   * Whether the pool's most recent draw can still be swept - the 30-day, five-period
    * window `sweepRange` itself enforces, independent of which period is current now.
    */
   const claimStillOpen =
@@ -139,7 +139,7 @@ export default function JudgeTab() {
    * This used to read `claimChecked` once per slot and count the trues, because the only
    * alternative was `sweepCursor`, which `sweepRange` advances and a self-settled claim
    * does not. `checkedCount` is now maintained by both paths, so one read replaces N and
-   * — more to the point — it is the exact number the roll itself is gated on, rather than
+   * - more to the point - it is the exact number the roll itself is gated on, rather than
    * a reconstruction of it that could disagree.
    */
   const countChecked = useCallback(async () => {
@@ -216,7 +216,7 @@ export default function JudgeTab() {
   };
 
   const send = async (functionName: string, args: unknown[] = [], gasFallback?: bigint) => {
-    // Estimated, not stated. A stated ceiling has to be affordable up front — see
+    // Estimated, not stated. A stated ceiling has to be affordable up front - see
     // `gasLimitFor`, where a flat limit was pricing modest wallets out of a call they
     // could easily pay for.
     const gas = gasFallback
@@ -243,7 +243,7 @@ export default function JudgeTab() {
    *
    * On the real pool that is the pool itself, and early callers must be the owner. On the
    * sandbox the owner is a contract that forwards these two to anyone, so they go there
-   * instead — which is what makes every step on this page runnable from a stranger's
+   * instead - which is what makes every step on this page runnable from a stranger's
    * wallet without a key changing hands.
    */
   const sendGated = async (functionName: "openDraw" | "startNextPeriod"): Promise<Outcome> => {
@@ -323,7 +323,7 @@ export default function JudgeTab() {
     //
     // Read the count back rather than reusing `drawId`. `settleDraw` writes `draws[
     // drawCount]` and *then* increments, so the draw just settled is the one this page's
-    // `drawId` was pointing one behind — reporting it would print the previous draw's
+    // `drawId` was pointing one behind - reporting it would print the previous draw's
     // prize under the new draw's name.
     const settledCount = (await publicClient!.readContract({
       address: POOL_ADDRESS,
@@ -346,7 +346,7 @@ export default function JudgeTab() {
    * Seal the draw, then say what became readable.
    *
    * "gas 214817" is true and tells a judge nothing. What matters is that a handle now
-   * exists which anybody — not just this app — can decrypt, and that until this moment it
+   * exists which anybody - not just this app - can decrypt, and that until this moment it
    * could not be decrypted by anyone at all.
    */
   const open = async (): Promise<Outcome> => {
@@ -367,7 +367,7 @@ export default function JudgeTab() {
    * ciphertext so neither figure is revealed. A judge who only sees "OK · gas 189204" is
    * being asked to take that on trust, which is precisely the thing this project argues
    * nobody should have to do. So the published `ebool` is decrypted here through the same
-   * public path anyone else can use, and the answer — with the handle it came from — is
+   * public path anyone else can use, and the answer - with the handle it came from - is
    * what gets reported.
    */
   const solvency = async (): Promise<Outcome> => {
@@ -413,7 +413,7 @@ export default function JudgeTab() {
       title: "Open the draw",
       sig: onSandbox ? "SandboxOperator.openDraw()" : "openDraw()",
       note: settledThisPeriod
-        ? `Draw #${Number(state.drawCount) - 1} has already settled in this period, and the contract allows one per period. The next draw only opens after a roll, step 06 — which works right now, with nothing else required first: claims survive it, so there is no need to pay anyone out before rolling. Step 04 stays independent and optional, whenever anyone wants it; it pays four slots a press, so ${sweepsLeft > 0 ? `${sweepsLeft} press${sweepsLeft === 1 ? "" : "es"} would finish it` : "everyone is already covered"}.`
+        ? `Draw #${Number(state.drawCount) - 1} has already settled in this period, and the contract allows one per period. The next draw only opens after a roll, step 06 - which works right now, with nothing else required first: claims survive it, so there is no need to pay anyone out before rolling. Step 04 stays independent and optional, whenever anyone wants it; it pays four slots a press, so ${sweepsLeft > 0 ? `${sweepsLeft} press${sweepsLeft === 1 ? "" : "es"} would finish it` : "everyone is already covered"}.`
         : onSandbox
           ? "Seals the pool total and publishes it for decryption. Sent through the sandbox's owner contract, which forwards this call to any address, so it works from your wallet, now, without waiting for the period to elapse."
           : "Seals the pool total and publishes it for decryption. Anyone may call it once the period has elapsed; the owner may call it early so a week-long cycle fits in a demo.",
@@ -421,7 +421,7 @@ export default function JudgeTab() {
       // round: the contract allows one draw per period, so a draw already settled in this
       // period means the next thing to do is roll, not open another. Without this the step
       // read READY, reverted with DrawAlreadySettledThisPeriod, and surfaced as "the node
-      // rejected the gas limit" — an estimation failure wearing a disguise.
+      // rejected the gas limit" - an estimation failure wearing a disguise.
       disabled:
         !isConnected || state.drawPending || settledThisPeriod || (!state.periodEnded && !isOwner && !onSandbox),
       go: () => run("open", onSandbox ? "SandboxOperator.openDraw()" : "openDraw()", open),
@@ -442,7 +442,7 @@ export default function JudgeTab() {
       role: "ANYONE",
       title: "Pay everyone out",
       sig: "sweepRange(uint256, uint16)",
-      note: `Credits four slots the prize or an encrypted zero. Nobody learns who won, including whoever runs it. A slot already checked is skipped instead of paid twice, so this is safe to repeat. ${answered} of ${target} covered${sweepsLeft > 1 ? ` — press Run ${sweepsLeft} more times to finish` : sweepsLeft === 1 ? " — one more Run finishes it" : ""}.`,
+      note: `Credits four slots the prize or an encrypted zero. Four per press because one claim is 60-80 encrypted operations, and more than four will not fit in a single transaction's compute budget. Nobody learns who won, including whoever runs it. A slot already checked is skipped instead of paid twice, so this is safe to repeat. It is also optional: the roll in step 06 does not wait for it, and nobody forfeits a prize by going unswept. ${answered} of ${target} covered${sweepsLeft > 1 ? `, so ${sweepsLeft} more presses would finish it` : sweepsLeft === 1 ? ", so one more press would finish it" : ""}.`,
       disabled: !isConnected || state.drawCount === 0n || !claimStillOpen || sweptAll,
       go: () =>
         run("sweep", `sweepRange(${drawId}, 4)`, async () => {
@@ -471,14 +471,14 @@ export default function JudgeTab() {
       title: "Roll the period",
       sig: onSandbox ? "SandboxOperator.startNextPeriod()" : "startNextPeriod()",
       // No sweep gate, and the note used to claim one. It said the contract reverts with
-      // `ClaimsOutstanding` "for the owner too" — an error that no longer exists, guarding
+      // `ClaimsOutstanding` "for the owner too" - an error that no longer exists, guarding
       // a rule that was removed, for a reason that stopped being true when the tree started
       // keeping a generation of history. Rolling ends nothing now: a claim outlives its
       // period, so a slot nobody has answered yet is not a slot about to lose anything.
       note: !settledThisPeriod
-        ? "Nothing to roll yet. This period has not had its own draw settled, so there is no draw for the roll to close out — step 02, then step 03, come first."
+        ? "Nothing to roll yet. This period has not had its own draw settled, so there is no draw for the roll to close out - step 02, then step 03, come first."
         : onSandbox
-          ? `Opens the next period, through the owner contract so it needs no key and no thirty-day wait. ${answered} of ${target} claims answered — the roll does not wait for the rest, because a claim stays answerable for a period after its own. The pool is then back at step 01.`
+          ? `Opens the next period, through the owner contract so it needs no key and no thirty-day wait. ${answered} of ${target} claims answered - the roll does not wait for the rest, because a claim stays answerable for a period after its own. The pool is then back at step 01.`
           : `Opens the next period. ${answered} of ${target} claims answered, and the roll does not wait for the rest: the tree keeps a generation of history, so a claim outlives the period it belongs to. Held back thirty days from everybody but the owner all the same, so nobody else can shorten the window.`,
       disabled: !isConnected || state.drawCount === 0n || state.drawPending || !settledThisPeriod,
       go: () =>
@@ -500,7 +500,7 @@ export default function JudgeTab() {
   return (
     <>
       <div className="warmGlow" aria-hidden="true" />
-      <AppHeader pot={pot} />
+      <AppHeader pot={pot} drawNumber={Number(state.drawCount)} />
 
       <main className={`${styles.page} rise`}>
         {/* hero ------------------------------------------------------------ */}
@@ -558,7 +558,7 @@ export default function JudgeTab() {
 
             {/* A divergence notice lived here while the main pool ran older bytecode than
                 the repo. Both pools now run the same source, so there is nothing to warn
-                about — and a notice claiming otherwise would be worse than none, since it
+                about - and a notice claiming otherwise would be worse than none, since it
                 told a reviewer this pool lacked a fix it has. What immutability actually
                 cost is in the README, where it reads as history rather than as a caveat. */}
           </div>

@@ -19,11 +19,11 @@ const OPERATOR_UNTIL = 2_000_000_000;
 
 /**
  * Auto-shielding lets someone deposit ordinary tokens without ever meeting the word
- * "wrap". These tests run against OpenZeppelin's ERC7984ERC20Wrapper — the exact
+ * "wrap". These tests run against OpenZeppelin's ERC7984ERC20Wrapper - the exact
  * implementation behind Zama's cUSDTMock on Sepolia (verified on-chain: rate 1,
  * 6 decimals, underlying USDTMock), so this is the real path rather than a stand-in.
  */
-describe("HushpotPool — auto-shielding plain tokens", function () {
+describe("HushpotPool - auto-shielding plain tokens", function () {
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;
 
@@ -144,7 +144,7 @@ describe("HushpotPool — auto-shielding plain tokens", function () {
 
     it("reverts without an approval, rather than failing silently", async function () {
       await (await usdt.mint(alice.address, 1000n)).wait();
-      // No approve() — a plain ERC-20 does revert here, unlike the confidential path.
+      // No approve() - a plain ERC-20 does revert here, unlike the confidential path.
       await expect(pool.connect(alice).depositUnderlying(400n)).to.be.reverted;
     });
   });
@@ -166,12 +166,12 @@ describe("HushpotPool — auto-shielding plain tokens", function () {
       const enc = await fhevm.createEncryptedInput(poolAddress, bob.address).add64(400n).encrypt();
       await (await pool.connect(bob).deposit(enc.handles[0], enc.inputProof)).wait();
 
-      // Same deposit, same period, same odds — the entry route makes no difference.
+      // Same deposit, same period, same odds - the entry route makes no difference.
       expect(await poolBalance(alice)).to.eq(400n);
       expect(await poolBalance(bob)).to.eq(400n);
       expect(await poolWeight(alice)).to.eq(await poolWeight(bob));
 
-      // Only a draw publishes the total — there is no on-demand reader, by design.
+      // Only a draw publishes the total - there is no on-demand reader, by design.
       await (await pool.openDraw()).wait();
       const published = await fhevm.publicDecrypt([await pool.pendingTotalHandle()]);
       expect(BigInt(Object.values(published.clearValues ?? {})[0] as string)).to.eq(800n * PERIOD_MINUTES);

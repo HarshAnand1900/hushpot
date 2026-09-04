@@ -21,7 +21,7 @@ export interface MyPosition {
  * Three steps, and the middle one surprises people: computing an encrypted value is a
  * *transaction*, not a call, because FHE operations mutate coprocessor state. So we ask
  * the contract to recompute your balance, wait for it to land, then decrypt the handle
- * off-chain. Nobody else can do any of this for you — the contract only ever grants
+ * off-chain. Nobody else can do any of this for you - the contract only ever grants
  * decryption rights to the slot's owner.
  */
 export function useMyPosition() {
@@ -32,7 +32,7 @@ export function useMyPosition() {
   const { signTypedDataAsync } = useSignTypedData();
 
   // Always starts locked, even when a session is stored. Holding a session means the next
-  // reveal costs no signature — it does not mean the position has been fetched, and
+  // reveal costs no signature - it does not mean the position has been fetched, and
   // claiming otherwise would show "decrypted" over figures nobody has decrypted yet.
   const [stage, setStage] = useState<RevealStage>("locked");
 
@@ -51,7 +51,7 @@ export function useMyPosition() {
 
     try {
       // A slot is only assigned by depositing, and `slotOf` reverts without one. Someone
-      // who has not deposited has a position — it is simply empty. Unlock it as zero
+      // who has not deposited has a position - it is simply empty. Unlock it as zero
       // rather than refusing: an empty position is a legitimate thing to be shown, and
       // the deposit and withdraw controls live behind this same gate.
       //

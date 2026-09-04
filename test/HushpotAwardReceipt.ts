@@ -21,7 +21,7 @@ const PERIOD_SECONDS = 10080n * 60n;
  * rolls, so by the time a depositor asks, the claim has already happened and their balance
  * moved while they were not looking. Before `awardOf` there was nothing left to consult.
  */
-describe("HushpotPool — the award receipt", function () {
+describe("HushpotPool - the award receipt", function () {
   let keeper: HardhatEthersSigner;
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;

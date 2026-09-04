@@ -27,7 +27,7 @@ export function Solvency() {
 
   /**
    * The three lines the design puts under the badge: what the pool owes, what it holds,
-   * and the comparison between them. The first is a handle rather than a number — that is
+   * and the comparison between them. The first is a handle rather than a number - that is
    * the whole point, and printing a total there would undo the proof it is describing.
    */
   const readRows = useCallback(
@@ -57,7 +57,7 @@ export function Solvency() {
   );
 
   /**
-   * Read whatever proof already exists. No wallet, no transaction — the result was made
+   * Read whatever proof already exists. No wallet, no transaction - the result was made
    * publicly decryptable when it was produced, so a passing visitor can check it. A
    * solvency proof only a connected wallet can see would defeat the point.
    */

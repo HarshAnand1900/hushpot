@@ -18,7 +18,7 @@ export interface CheckResult {
 /**
  * Genuinely recompute a settled draw from public chain state.
  *
- * Everything here is a plain `eth_call` against a public RPC — no wallet, no signature,
+ * Everything here is a plain `eth_call` against a public RPC - no wallet, no signature,
  * no trust in this app. Anyone can run the same five checks with cast or curl.
  *
  * WHAT THIS PROVES
@@ -96,7 +96,7 @@ export function useVerifyDraw() {
           question: "Is there a real committed ciphertext, fixed before anyone claimed?",
           value: `${drawPoint.slice(0, 26)}…`,
           ok: dieIsReal && drawPoint === shown.drawPoint,
-          detail: "a euint64 handle — unreadable by us, by you, and by the contract itself",
+          detail: "a euint64 handle - unreadable by us, by you, and by the contract itself",
         });
         setStep(2);
 
@@ -109,7 +109,7 @@ export function useVerifyDraw() {
 
         // The contract pays `prizeFor(total) + sponsoredThisDraw`, capped by the reserve.
         // This check used to compare against the formula half alone, so every sponsored
-        // draw failed it — including the one the page opens on, and the panel told a
+        // draw failed it - including the one the page opens on, and the panel told a
         // reader the contract disagreed with itself. It did not; the check was short a
         // term that both the README and the threat model already said it included.
         //
@@ -127,7 +127,7 @@ export function useVerifyDraw() {
 
         const settledAtBlock = blockOf(drawId);
         // Sponsorships for draw 0 run from deployment; for any later draw, from the block
-        // after its predecessor settled — that is the window the contract accumulated over.
+        // after its predecessor settled - that is the window the contract accumulated over.
         const prevBlock = drawId > 0n ? blockOf(drawId - 1n) : undefined;
         const fromBlock = prevBlock !== undefined ? prevBlock + 1n : DEPLOY_BLOCK;
 
@@ -189,7 +189,7 @@ export function useVerifyDraw() {
               : `found ${present.length}`,
           ok: present.length === 0,
           detail:
-            "the draw record holds a total, a prize and a ciphertext handle — no address field, and no function that would return one",
+            "the draw record holds a total, a prize and a ciphertext handle - no address field, and no function that would return one",
         });
         setStep(5);
       } catch (e) {

@@ -12,14 +12,14 @@ import styles from "./DrawTimeline.module.css";
  *
  * Two different questions, and the second one is answerable without giving anything away.
  * `claimChecked` is public per slot, so the chain will happily say whether you have opened
- * a draw — it just will not say what you found. That distinction is the product, so the
+ * a draw - it just will not say what you found. That distinction is the product, so the
  * copy states it rather than leaving it to be assumed.
  */
 export function DrawTimeline({ drawId, claimable }: { drawId: bigint; claimable: boolean }) {
   const { address } = useAccount();
   const publicClient = usePublicClient();
 
-  // This draw's own settle time, not `lastDrawSettledAt` — that value describes the newest
+  // This draw's own settle time, not `lastDrawSettledAt` - that value describes the newest
   // draw only, so reading it here stamped every draw in the list with the same moment and
   // gave each of them the newest draw's claim deadline.
   const { at: settled, grace } = useSettledAt(drawId + 1n);
@@ -95,7 +95,7 @@ export function DrawTimeline({ drawId, claimable }: { drawId: bigint; claimable:
     };
 
     // Polled, because a sweep happening while this page is open should be visible without
-    // a reload — the claim counts are the part of the receipt that actually moves.
+    // a reload - the claim counts are the part of the receipt that actually moves.
     void load();
     const id = setInterval(() => void load(), 20_000);
 
@@ -105,7 +105,7 @@ export function DrawTimeline({ drawId, claimable }: { drawId: bigint; claimable:
     };
   }, [publicClient, address, drawId]);
 
-  // Only the most recent draw can still be claimed — the period rolls once the window
+  // Only the most recent draw can still be claimed - the period rolls once the window
   // closes, and a rolled period ends every claim behind it.
   const closesAt = settledAt && grace ? settledAt + grace : undefined;
   const remaining = closesAt && now ? closesAt - now : undefined;

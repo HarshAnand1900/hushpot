@@ -7,10 +7,10 @@ import {ERC7984} from "@openzeppelin/confidential-contracts/token/ERC7984/ERC798
 // solhint-disable-next-line max-line-length
 import {ERC7984ERC20Wrapper} from "@openzeppelin/confidential-contracts/token/ERC7984/extensions/ERC7984ERC20Wrapper.sol";
 
-/// @title TestConfidentialWrapper — local stand-in for Zama's cUSDTMock
+/// @title TestConfidentialWrapper - local stand-in for Zama's cUSDTMock
 /// @dev Local-only. On Sepolia the pool uses Zama's official `cUSDTMock`
 /// (0x4E7B06D78965594eB5EF5414c357ca21E1554491), which is this same OpenZeppelin
-/// wrapper — verified on-chain: rate 1, 6 decimals, underlying USDTMock.
+/// wrapper - verified on-chain: rate 1, 6 decimals, underlying USDTMock.
 ///
 /// Deploying the identical implementation locally means the auto-shield path is tested
 /// against the real thing rather than an approximation.

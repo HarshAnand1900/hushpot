@@ -115,7 +115,7 @@
   font-weight: 500;
 }
 
-/* Opens the sealed wallet figure. Small and inline — it is an offer, not an instruction. */
+/* Opens the sealed wallet figure. Small and inline - it is an offer, not an instruction. */
 .reveal {
   font-family: var(--font-mono), monospace;
   font-size: 10px;
@@ -129,7 +129,7 @@
   cursor: not-allowed;
 }
 
-/* Withdraw's honest label for a balance it did not decrypt itself — same voice as
+/* Withdraw's honest label for a balance it did not decrypt itself - same voice as
    .reveal, not a button, since there is nothing to press: the decrypt already happened
    on the position panel this sheet was opened from. */
 .revealedTag {
@@ -284,7 +284,7 @@
   color: #e8e2cf;
 }
 
-/* The open ring from the design — a mark, not an emoji. */
+/* The open ring from the design - a mark, not an emoji. */
 .noteMark {
   flex: none;
   width: 16px;
@@ -440,7 +440,7 @@
 }
 
 /* Confirmation that the faucet did something. The confidential balance it produces is a
-   ciphertext, so there is no number to display — saying so beats an unchanged screen. */
+   ciphertext, so there is no number to display - saying so beats an unchanged screen. */
 .minted {
   border: 1px solid rgba(255, 210, 8, 0.4);
   background: rgba(255, 210, 8, 0.07);
@@ -495,7 +495,7 @@
 }
 
 /* Leaving, offered quietly beneath the withdraw action. Deliberately not a primary
-   button — it is the right choice for someone who is done, and the wrong one for anyone
+   button - it is the right choice for someone who is done, and the wrong one for anyone
    who simply wants some of their money back. */
 .exit {
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -517,7 +517,7 @@
   cursor: not-allowed;
 }
 
-/* Sits under the leave control. Quiet, because it is a caution rather than an error —
+/* Sits under the leave control. Quiet, because it is a caution rather than an error -
    but present, because the loss it describes is silent and permanent. */
 .exitNote {
   margin: 8px 0 0;

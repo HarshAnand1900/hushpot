@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-/// @title SegmentTree — plaintext prototype of Hushpot's weighted-selection structure
+/// @title SegmentTree - plaintext prototype of Hushpot's weighted-selection structure
 /// @notice This contract deliberately uses plain `uint64` instead of `euint64`.
 ///
 /// Why plaintext first? Inside FHE every value is an opaque handle. If the tree
-/// math is wrong you get no revert and no wrong number — just a silently wrong
+/// math is wrong you get no revert and no wrong number - just a silently wrong
 /// winner, with nothing to print. So we get the structure provably correct in the
 /// clear, then swap `uint64` -> `euint64`. That swap is mostly mechanical; the
 /// logic below is the actual thinking.
@@ -66,12 +66,12 @@ contract SegmentTree {
     ///
     /// @dev Think of every participant as occupying a contiguous band of the number
     /// line [0, totalWeight): slot A owns [0, wA), slot B owns [wA, wA + wB), and so
-    /// on. `drawPoint` lands in exactly one band, and this descent finds which —
+    /// on. `drawPoint` lands in exactly one band, and this descent finds which -
     /// without ever materialising those bands.
     ///
     /// At each node we ask a single question: does the draw point fall inside the
     /// left subtree's share? If yes, descend left unchanged. If no, the left subtree
-    /// is entirely behind us, so we subtract its total and descend right — which
+    /// is entirely behind us, so we subtract its total and descend right - which
     /// re-expresses `drawPoint` as an offset *within* the right subtree, keeping the
     /// exact same question valid at the next level down.
     ///
@@ -120,7 +120,7 @@ contract SegmentTree {
 
     /// @notice Whether `slot` holds the winning band for `drawPoint`.
     /// @dev The plaintext twin of Hushpot's claim check. Each participant can evaluate
-    /// this for themselves without learning anything about anyone else — which is the
+    /// this for themselves without learning anything about anyone else - which is the
     /// whole reason the draw needs no central walk and reveals no winner.
     ///
     /// Under FHE this becomes two encrypted comparisons and an AND, with the result fed

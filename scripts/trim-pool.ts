@@ -6,7 +6,7 @@ import hre, { ethers } from "hardhat";
  *
  * Partial rather than `exitPool`, which is what `shrink-pool.ts` does: exiting removes the
  * depositor along with the money, and a pool of twenty is part of what makes the demo mean
- * anything. This also flattens the spread, which is the shape a real pool has — a few
+ * anything. This also flattens the spread, which is the shape a real pool has - a few
  * larger depositors and a long tail, rather than three whales and eighteen minnows.
  *
  * TRIM is "address:amount" pairs, amounts in whole cUSDT.
@@ -23,7 +23,7 @@ async function main() {
     const [addr, whole] = pair.split(":");
     const who = signers.find((s) => s.address.toLowerCase() === addr.toLowerCase());
     if (!who) {
-      console.log(`no signer for ${addr} — skipping`);
+      console.log(`no signer for ${addr} - skipping`);
       continue;
     }
 
@@ -39,7 +39,7 @@ async function main() {
 
     const slot = await p.slotOf(who.address);
     if (await p.boostedThisPeriod(slot)) {
-      console.log(`slot ${slot} took its boost this period — committed, skipping`);
+      console.log(`slot ${slot} took its boost this period - committed, skipping`);
       continue;
     }
 

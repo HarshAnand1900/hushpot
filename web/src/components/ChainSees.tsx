@@ -9,7 +9,7 @@ import styles from "./ChainSees.module.css";
 /**
  * The same three reads an explorer would make, made here.
  *
- * Not a diagram of what the chain sees — the actual return values of the actual calls,
+ * Not a diagram of what the chain sees - the actual return values of the actual calls,
  * side by side: a published number, your handle, and a stranger's handle. Two of the
  * three come back as ciphertext, and the page does not pretend to open either.
  */
@@ -35,7 +35,7 @@ export function ChainSees() {
     try {
       const drawCount = (await read("drawCount")) as bigint;
 
-      // The published total — the one legible number in the whole system.
+      // The published total - the one legible number in the whole system.
       let total = "not published yet";
       let die = "no draw settled yet";
       if (drawCount > 0n) {

@@ -483,7 +483,7 @@
 }
 
 /* A confidential row has nothing to show, and is drawn as nothing rather than as a
-   redaction — there is no hidden value behind it to redact. */
+   redaction - there is no hidden value behind it to redact. */
 .expMasked {
   color: var(--masked);
   letter-spacing: 0.18em;

@@ -8,7 +8,7 @@ import { CHAIN_ID } from "./contract";
  * Wallet + RPC configuration, via Reown AppKit (formerly WalletConnect).
  *
  * AppKit supplies the connect modal, which detects installed browser wallets over
- * EIP-6963 and offers WalletConnect for phones — so one component covers extensions,
+ * EIP-6963 and offers WalletConnect for phones - so one component covers extensions,
  * mobile and everything in between, and it stays current as wallets come and go without
  * us maintaining a list.
  *

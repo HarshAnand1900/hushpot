@@ -32,7 +32,7 @@ export default function DrawsTab() {
   return (
     <>
       <Pot3D variant="exhibit" dim />
-      <AppHeader pot={pot} />
+      <AppHeader pot={pot} drawNumber={Number(state.drawCount)} />
 
       <main className={`${styles.page} rise`}>
         {/* summary band --------------------------------------------------- */}
@@ -80,8 +80,8 @@ export default function DrawsTab() {
                 <span>{draws.length} SETTLED</span>
               </div>
 
-              {/* The draw currently underway has no record to show — `draws[id]` is not
-                  written until settlement — so it was invisible here, and the page read as
+              {/* The draw currently underway has no record to show - `draws[id]` is not
+                  written until settlement - so it was invisible here, and the page read as
                   history with no present tense. This is that missing row. */}
               <div className={styles.live}>
                 <span className={styles.liveId}>
@@ -131,7 +131,7 @@ export default function DrawsTab() {
                 claimable={isClaimable(draw.period, state.currentPeriod, settledAt[String(draw.id)])}
               />
 
-              {/* local verification — real read-only calls, no wallet involved */}
+              {/* local verification - real read-only calls, no wallet involved */}
               <div className={styles.verify}>
                 <div className={styles.verifyStatus}>
                   {error
@@ -187,7 +187,7 @@ export default function DrawsTab() {
               </div>
             </div>
 
-            {/* The prefix walk is how bands work in general, not a fact about this draw —
+            {/* The prefix walk is how bands work in general, not a fact about this draw -
                 it was making one panel carry two jobs. */}
             <div className={`panel ${styles.wide}`}>
               <div className="panelHead">

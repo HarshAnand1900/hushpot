@@ -19,7 +19,7 @@ export interface DrawRecord {
  * Every settled draw, newest first.
  *
  * Note what a draw record contains: a pool total, a prize, and the ciphertext handle of
- * the die. There is no winner field — not hidden, not omitted for privacy, simply never
+ * the die. There is no winner field - not hidden, not omitted for privacy, simply never
  * computed. The missing column is the product working.
  */
 export function useDraws(drawCount: bigint) {

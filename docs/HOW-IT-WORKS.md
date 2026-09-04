@@ -1,4 +1,4 @@
-# Hushpot — How It Works
+# Hushpot - How It Works
 
 The mechanics: how a winner is picked without decrypting anyone's position, how a claim survives a roll, why staying is
 worth more than arriving, what stays encrypted and what has to be public, and where the yield comes from. For the pitch
@@ -34,7 +34,7 @@ no amount of engineering moves it, because the ceiling is on the shape of the al
 Hushpot replaces the walk with an **encrypted segment tree**. A slot's band is a prefix sum, a prefix sum is a walk from
 leaf to root, and that is `log2(slots)` levels instead of `n` iterations. At the deployed 16,384-slot capacity the
 deepest possible check is fourteen levels, and the tree only walks as far as the highest node covering the slots
-actually in use — a pool of nine pays for a tree of four. Raising the cap from 1,024 to 16,384 moved none of the
+actually in use - a pool of nine pays for a tree of four. Raising the cap from 1,024 to 16,384 moved none of the
 measured costs for that reason. `HushpotDepthGas.ts` pins the ladder and prints it on every run.
 
 ### The incidence wall
@@ -43,19 +43,19 @@ This is the one that decides whether a design survives mainnet, and it is mostly
 
 Whatever a claim costs, **somebody has to pay it `n` times per draw**. Making claims cheap, batchable and permissionless
 does not change that. It changes who is inconvenienced. At the measured 649,774 gas a claim, a 10,000-depositor pool
-costs about 6.5 billion gas to settle — every draw, forever — and there is no batch size that turns that into a
+costs about 6.5 billion gas to settle - every draw, forever - and there is no batch size that turns that into a
 reasonable expense for whoever volunteered.
 
 So the protocol does not depend on a sweep. `checkMyClaim` is one transaction, sent by the person it pays, and it is the
 only settlement path Hushpot requires. Cost per depositor is flat, nobody funds anybody else's claim, and what the pool
-costs to run does not grow with the number of people in it. The keeper sweep is a convenience — sensible on a small pool
+costs to run does not grow with the number of people in it. The keeper sweep is a convenience - sensible on a small pool
 or an L2, useful for depositors who have wandered off, and never load-bearing.
 
 ### A claim outlives its period
 
 A claim recomputes your band from the tree, and the tree is period-scoped: roll it, and the corrections age out while
 balances keep moving. The band moves with them. So the same call after a roll used to return a **different** answer
-rather than a stale one, and was refused outright — which meant anyone not swept in time simply forfeited.
+rather than a stale one, and was refused outright - which meant anyone not swept in time simply forfeited.
 
 The obvious repair is to block the roll until everyone has been checked. That was tried here and removed, because it
 reads as safety and is not: it makes the cycle depend on the same O(n) sweep [the incidence wall](#the-incidence-wall)
@@ -78,7 +78,7 @@ period 4's weights once period 5, 6, 7 and 8 have begun. Snapshotting every slot
 storage per draw; this is O(1) amortised, because a node pays once on its first touch in a period and nothing after.
 
 **Measured**, in `HushpotDepthGas.ts` so it cannot drift: deposits inside a period cost **+0.4%**, and the first deposit
-after a roll costs **208,387 gas more** — once per node per period, never per depositor.
+after a roll costs **208,387 gas more** - once per node per period, never per depositor.
 
 Archives are keyed by the period they were **taken** in, not the period whose values they hold. That is what bounds the
 lookup: the values a node held in period P are in the earliest archive taken after P, so a reader walks forward from P +
@@ -88,7 +88,7 @@ backwards an unbounded distance, because a node left untouched for a year has hi
 ### The window is thirty days, not a number of rolls
 
 `CLAIM_GRACE` has always said thirty days. The check did not: it was `currentPeriod > draw.period + 1`, one roll of
-grace, so a claim expired after a **fortnight** — and the owner, who may roll early, could bring even that forward. The
+grace, so a claim expired after a **fortnight** - and the owner, who may roll early, could bring even that forward. The
 contract contradicted its own constant by more than half the window.
 
 It is now wall-clock time, from a `settledAt` the draw records for itself:
@@ -99,12 +99,12 @@ if (currentPeriod > d.period + MAX_HISTORY) revert ClaimWindowClosed();
 ```
 
 The second line is the tree's reach rather than a second policy, and `startNextPeriod` will not roll past a draw still
-inside its grace — five periods is thirty-five days, so at the seven-day cadence the time test always binds first. That
+inside its grace - five periods is thirty-five days, so at the seven-day cadence the time test always binds first. That
 roll guard is **not** the sweep gate described above: it costs nobody an O(n) pass, it asks the owner to wait rather
 than asking somebody to pay, and it clears itself as the grace expires. At the natural cadence it never fires at all.
 
 One detail worth keeping from the single-generation version: the stamp stored `period + 1`, because storing the raw
-period collides with period 0 being real — its history was written and instantly unreachable, the bands stopped covering
+period collides with period 0 being real - its history was written and instantly unreachable, the bands stopped covering
 the total, and a draw point could land in the gap so that **nobody won at all**. It returned a plausible number on
 encrypted values, with no revert. The test that caught it asserts `alice + bob == prize` against a figure captured while
 the period was still current. The struct now carries `was` explicitly, which removes the sentinel and the class of bug
@@ -143,28 +143,28 @@ pool therefore resolves to running totals plus one multiplication, and **no end-
 Time-weighting rewards depositing **early in the week**. It said nothing about staying past the week you arrived in, so
 week fifty looked exactly like week one: the pool rewarded showing up and never rewarded loyalty.
 
-`boostStreak` adds five percent of a full stake's ticket-minutes for each period held, four periods deep — so money left
+`boostStreak` adds five percent of a full stake's ticket-minutes for each period held, four periods deep - so money left
 alone for a month carries **1.20×** the weight of the same amount deposited this morning. Deliberately modest: base
 weight already scales linearly with balance and holding time within a period, and the boost is a nudge on top of that,
 not a second axis competing with it for what actually decides odds.
 
 The period a slot is _assigned in_ is never one of the periods it credits, whatever minute the deposit landed in.
-`streakOf` counts full periods held _after_ joining — `currentPeriod - since - 1`, not `currentPeriod - since` — so
+`streakOf` counts full periods held _after_ joining - `currentPeriod - since - 1`, not `currentPeriod - since` - so
 depositing a minute before a roll gives the same zero streak as depositing a minute after one. Counting from `since`
 alone credited a full period the instant the clock ticked over: a last-minute joiner would read identically to someone
 who held the whole week, one minute after they arrived.
 
 The balance the boost multiplies is anchored to what was actually held for as long as the streak claims, not to whatever
-the slot holds the moment the button is pressed. `streakOf` and the slot's live balance are otherwise unrelated — a slot
+the slot holds the moment the button is pressed. `streakOf` and the slot's live balance are otherwise unrelated - a slot
 exists as long as it isn't fully exited, so a tiny stake could sit open for a month building the full streak, then take
 on a large fresh deposit moments before boosting and have the _whole_ deposit inherit a month's multiplier it was never
 staked for. `_creditBonus` applies the boost to `min(current balance, balance as of the anchor period)` instead, using
-the same generational history the claim window relies on — so fresh capital added after the streak's anchor point is
+the same generational history the claim window relies on - so fresh capital added after the streak's anchor point is
 excluded, and a balance that shrank since the anchor (a partial withdrawal that keeps the slot open) is not inflated
 back up either.
 
 Two things make it affordable. It is **opt-in and self-funded**: the obvious design applies the boost to everyone at the
-roll, which is an O(n) encrypted pass somebody has to pay for every period — [the incidence wall](#the-incidence-wall)
+roll, which is an O(n) encrypted pass somebody has to pay for every period - [the incidence wall](#the-incidence-wall)
 again. Here each depositor pays for their own, once, and a pool nobody boosts costs nobody anything. And it **expires
 with the period**, which is what makes "held four periods" mean four periods of continuous holding rather than a number
 that keeps climbing after the money has gone.
@@ -175,7 +175,7 @@ Taking the boost commits the stake until the period ends:
 if (boostedThisPeriod(slot)) revert BoostLocked();
 ```
 
-Without that, boost-then-withdraw buys a full period of odds and hands the capital straight back — strictly better than
+Without that, boost-then-withdraw buys a full period of odds and hands the capital straight back - strictly better than
 staying, and therefore the only thing anyone would do. The check is plaintext and costs no FHE operations.
 
 It discloses nothing new. The streak comes from `slotAssignedAt`, which was already public because taking a slot is a
@@ -183,11 +183,11 @@ transaction anyone can watch; the boost multiplies a balance that stays a cipher
 a slot has been here four weeks and still nothing about how much is in it.
 
 **A second guard closes a window `BoostLocked` does not.** Every other write to the tree is neutral once
-`minuteOfPeriod` saturates — a deposit or withdrawal made after that point adds the same amount to
+`minuteOfPeriod` saturates - a deposit or withdrawal made after that point adds the same amount to
 `lateCredit`/`earlyExit` that it adds to `balance`, so the two cancel and a settled draw's weights are untouched. The
 boost has no such cancellation; it adds straight to `earlyExit`, which is the entire point of it. That meant a depositor
 could watch a draw settle, boost before anyone had run `checkClaim`, and widen their own band for a total and drawPoint
-that were already fixed — capturing probability mass from whoever's pre-boost band would otherwise have contained the
+that were already fixed - capturing probability mass from whoever's pre-boost band would otherwise have contained the
 draw point, undetectably, since results stay encrypted. `boostStreak` now reverts once a draw already exists for the
 current period, open or settled:
 
@@ -195,17 +195,17 @@ current period, open or settled:
 if (drawPending || (drawCount > 0 && draws[drawCount - 1].period == currentPeriod)) revert PeriodEnded();
 ```
 
-Not `periodEnded()` — the owner may open a draw before the period has elapsed, and the total is fixed the moment it
+Not `periodEnded()` - the owner may open a draw before the period has elapsed, and the total is fixed the moment it
 opens regardless of the clock. `HushpotBoostSettlementSafety.ts` pins both cases: the exploit window closed, and
 boosting mid-period with no draw yet still works exactly as before.
 
 **The same gap existed in the ordinary deposit path, reachable without touching the boost at all.** The
-"deposit-after-saturation is neutral" property that guard's own reasoning leans on is not automatic — it holds under
+"deposit-after-saturation is neutral" property that guard's own reasoning leans on is not automatic - it holds under
 ordinary operation only because `openDraw` will not let a non-owner in before `periodEnded()`, so by the time a draw can
 open at all without the owner's help, the clock has already saturated for everyone. The owner's early-open exemption is
 exactly the case that breaks it: opening before `periodEnded()` snapshots the total while `minuteOfPeriod` has not yet
 saturated, and any deposit or withdrawal made before the roll was a live, uncancelled change to weight the snapshot
-never accounted for. Measured directly, not assumed — `HushpotEarlyOpenNeutrality.ts` shows a deposit made entirely
+never accounted for. Measured directly, not assumed - `HushpotEarlyOpenNeutrality.ts` shows a deposit made entirely
 after an early `openDraw` landing with its full weight, and a decrypted total that included it.
 
 `minuteOfPeriod` now saturates the moment a draw is pending, not only once real time has elapsed:
@@ -216,37 +216,37 @@ function minuteOfPeriod() public view override returns (uint64) {
 }
 ```
 
-A no-op under ordinary operation, where the clock has already saturated by the time a draw exists — it only changes
+A no-op under ordinary operation, where the clock has already saturated by the time a draw exists - it only changes
 anything in exactly the window the owner's exemption opens. Six tests cover both directions: deposits, top-ups and
 withdrawals all land at zero net weight while a draw is pending, early-open or not, and ordinary accrual with no draw
 pending is untouched.
 
-### Odds are measured against the last published total — and that is not what decides the draw
+### Odds are measured against the last published total - and that is not what decides the draw
 
 Your odds are `yourWeight ÷ poolTotal`, where `poolTotal` is the figure published at the **last settled draw**, never a
 live reading. The UI labels every odds figure `· ESTIMATE` for exactly this reason: it is a snapshot, not a promise.
 
 That is not a convenience, it is the whole point. Given a live denominator, you could divide your own odds into it,
 recover the running pool total, then watch it move by a single deposit and recover that deposit's size by subtraction.
-Freezing the denominator at a draw boundary means the only total anybody learns is the one the draw already made public
-— the running total stays exactly as sealed as everyone's individual balance.
+Freezing the denominator at a draw boundary means the only total anybody learns is the one the draw already made
+public - the running total stays exactly as sealed as everyone's individual balance.
 
 The cost is that the shown figure drifts out of date the moment anyone deposits. Your weight can only grow between draws
-(ticket-minutes accrue with time), while the published `poolTotal` sits still until the next draw — so the ratio the app
+(ticket-minutes accrue with time), while the published `poolTotal` sits still until the next draw - so the ratio the app
 shows you only ever drifts **upward**, and can climb past 100%. The app does not paper over that with a capped
 percentage: past 100% it switches to a `×` multiple of the last total, still marked `· ESTIMATE`. It is not a guarantee
-of winning at any multiple — it is a readout of how stale the denominator has become, nothing more.
+of winning at any multiple - it is a readout of how stale the denominator has become, nothing more.
 
 **What actually decides the draw is never this figure.** `openDraw()` computes `total = _weightOf(_treeRoot())` fresh,
-on-chain, from the live confidential tree, at the moment the draw opens — not the total from last time. If the pool grew
+on-chain, from the live confidential tree, at the moment the draw opens - not the total from last time. If the pool grew
 between when you checked your odds and when the draw ran, everyone's real share shrank together, yours included, by
 exactly the same dilution a straightforward reading of "money in, chance of winning" would predict. A 96% estimate
-checked days before settlement can lose, honestly, if enough capital arrived in between — the estimate was accurate for
+checked days before settlement can lose, honestly, if enough capital arrived in between - the estimate was accurate for
 the pool as it stood when you read it, not a forecast of the pool as it will stand when the dice actually roll.
 
 There is no way to see the real number before it is used: the live total is ciphertext until the instant `openDraw()`
 seals and publishes it for that draw, and the draw point that gets compared against it is
-[never decrypted by anyone](#selection). Whether you won is knowable only after settlement, from your own claim — never
+[never decrypted by anyone](#selection). Whether you won is knowable only after settlement, from your own claim - never
 by inference from what the app showed you beforehand, and never by watching the chain (see
 [confidentiality under observation](#nothing-leaks-to-a-live-observer) below).
 
@@ -264,10 +264,10 @@ contains it wins.
 ### Proportionality is proved exhaustively, not sampled
 
 A weighted lottery is only fair if the chance of winning equals the share of the pool, and the usual way to argue that
-is a Monte Carlo run — a few hundred thousand random draws, and a distribution that comes out close enough.
+is a Monte Carlo run - a few hundred thousand random draws, and a distribution that comes out close enough.
 
 `SegmentTree.ts` does something stronger. It builds a pool whose weights sum to 100, then walks **every** draw point in
-`[0, 100)` — not a sample of them, all of them — and asserts that each slot is selected exactly as many times as its
+`[0, 100)` - not a sample of them, all of them - and asserts that each slot is selected exactly as many times as its
 weight:
 
 ```
@@ -291,7 +291,7 @@ adds `FHE.select(won, prize, 0)` to their balance. Cost per depositor is flat, a
 
 A loser's claim adds an encrypted zero. On-chain it is indistinguishable from a winner's, down to the gas.
 
-`checkClaim(drawId, account)` is the same thing callable by any address, for any address — safe to expose, because the
+`checkClaim(drawId, account)` is the same thing callable by any address, for any address - safe to expose, because the
 result is encrypted either way and the caller learns nothing from making the call. That is what lets a keeper sweep a
 pool so nobody has to remember to collect. It is a convenience and not a dependency: see
 [the incidence wall](#the-incidence-wall) for why a design that needs the sweep does not reach mainnet.
@@ -319,7 +319,7 @@ it handed out.
 ### Why there is no "you won" notification
 
 Telling somebody they won is the disclosure this whole design exists to prevent. Any channel carrying the result knows
-the result, and so does anyone watching the channel — and even with an encrypted payload, winners would be identifiable
+the result, and so does anyone watching the channel - and even with an encrypted payload, winners would be identifiable
 from the traffic alone, because losers would receive none.
 
 What the app does instead is ring a doorbell that sounds the same for everybody. `ClaimChecked` fires for every
@@ -336,10 +336,10 @@ forward instead of rederiving it per person, which makes it about 1.6× cheaper 
 encrypted award, and a slot already checked is skipped, never credited twice.
 
 A sweep is a convenience rather than a deadline. Rolling used to end every open claim, which made sweeping before the
-roll the only thing standing between an absent winner and a forfeited prize — the tree now keeps five generations of
+roll the only thing standing between an absent winner and a forfeited prize - the tree now keeps five generations of
 history, so a claim outlives its own period and nobody has to be swept in time.
 
-Claims stay open for **30 days** after settlement (`CLAIM_GRACE`), and — the part that matters — **no number of rolls
+Claims stay open for **30 days** after settlement (`CLAIM_GRACE`), and - the part that matters - **no number of rolls
 ends them**. Each tree node keeps five generations of history and the window is measured in wall-clock time from the
 draw's own `settledAt`, so a draw settled in period 4 is still evaluated against period 4's weights through periods 5,
 6, 7 and 8. A depositor nobody swept in time has lost nothing.
@@ -347,8 +347,9 @@ draw's own `settledAt`, so a draw settled in period 4 is still evaluated against
 > ⚠️ **What that changed.** The grace used to be a claim on paper only. A claim was answerable while its own period was
 > current, then for one roll after; `CLAIM_GRACE` said thirty days while the code allowed about fourteen, and an owner
 > rolling early could cut it shorter still. The only thing in the way was the Judge panel declining to offer the button
-> — a frontend courtesy, not a contract rule. The window is now thirty real days, `startNextPeriod` will not roll past a
-> draw still inside it, and both are tested. See [`docs/THREAT-MODEL.md`](THREAT-MODEL.md#43-the-owner).
+>
+> - a frontend courtesy, not a contract rule. The window is now thirty real days, `startNextPeriod` will not roll past a
+>   draw still inside it, and both are tested. See [`docs/THREAT-MODEL.md`](THREAT-MODEL.md#43-the-owner).
 
 ### Weights freeze on their own
 
@@ -384,7 +385,7 @@ Full detail, including what we cannot prove, is in [`docs/THREAT-MODEL.md`](THRE
 ### Nothing leaks to a live observer
 
 Everything above holds for someone reading the chain after the fact. It is worth checking separately for someone
-watching **live** — every transaction, every gas number, every storage slot, as it happens — because that is a strictly
+watching **live** - every transaction, every gas number, every storage slot, as it happens - because that is a strictly
 stronger position and a weighting scheme built on plaintext branches could still leak through it even while the state
 itself stays encrypted.
 
@@ -397,8 +398,8 @@ euint64 award =
         : FHE.asEuint64(0);
 ```
 
-The `if` here (`contracts/HushpotPool.sol`, `checkClaim`) tests **eligibility** — was this slot even assigned before the
-draw it's being checked against — which is already public from that slot's own `SlotAssigned` event. The win/loss bit
+The `if` here (`contracts/HushpotPool.sol`, `checkClaim`) tests **eligibility** - was this slot even assigned before the
+draw it's being checked against - which is already public from that slot's own `SlotAssigned` event. The win/loss bit
 itself, `_checkWinAt(...)`, never reaches a branch: it is the condition argument to `FHE.select`, evaluated entirely
 inside the coprocessor, and both arms of the select cost the same regardless of which one is chosen. Solidity has no way
 to spend more gas on one ciphertext value than another it never inspects.
@@ -407,18 +408,18 @@ Two more paths that could plausibly leak, checked directly rather than assumed:
 
 - **Storage.** `_awardOf[drawId][slot] = award` and `_parkAward(slot, award)` both run unconditionally, once per check,
   writing an `euint64` handle either way. A loss writes an encrypted zero; a win writes an encrypted prize. Both are one
-  ciphertext handle in one storage slot — indistinguishable on-chain, and nothing about the write itself (its slot, its
+  ciphertext handle in one storage slot - indistinguishable on-chain, and nothing about the write itself (its slot, its
   size, whether it happens at all) depends on the outcome.
-- **Gas.** The one real signal is that individually checking different slots costs slightly different gas — but it
+- **Gas.** The one real signal is that individually checking different slots costs slightly different gas - but it
   tracks the slot's own index, not its outcome. `_checkWinAt` walks the segment tree from the slot's leaf to the root,
   and that walk touches one tree level per **set bit** in the slot index (already public, from `SlotAssigned`), so more
   set bits means more encrypted comparisons. Measured directly by calling `checkClaim` on slots one at a time
   (`scripts/gas-parity-check.ts`) rather than batched: a 0-bit slot costs ~526,849 gas, a 1-bit slot ~603,714–718
-  regardless of _which_ bit is set, a 2-bit slot ~680,586 — a constant ~76,866 gas per set bit, matching the tree walk
+  regardless of _which_ bit is set, a 2-bit slot ~680,586 - a constant ~76,866 gas per set bit, matching the tree walk
   exactly and explained in full by a value that was never secret. Win or loss never enters the estimate.
 
-So the four things a live observer actually gets — that a check happened, when, which slot, and (with individual calls)
-that slot's Hamming weight — are the same four things a _later_ reader of the chain gets from the same transaction.
+So the four things a live observer actually gets - that a check happened, when, which slot, and (with individual calls)
+that slot's Hamming weight - are the same four things a _later_ reader of the chain gets from the same transaction.
 Watching in real time buys nothing extra.
 
 ### Showing it, not claiming it
@@ -466,7 +467,7 @@ interface IYieldSource {
 }
 ```
 
-The draw, the claim, the weighting and the per-slot accounting are untouched, because none of them read a strategy —
+The draw, the claim, the weighting and the per-slot accounting are untouched, because none of them read a strategy -
 they read `prizeReserve`, and a harvest credits the same counter the admin currently tops up. `annualRateBps` stops
 being a parameter and becomes a measurement: the prize is whatever was actually harvested since the last draw, rather
 than a rate applied to ticket-minutes.
@@ -474,7 +475,7 @@ than a rate applied to ticket-minutes.
 Two things genuinely change, and neither is cosmetic:
 
 - **Solvency gets harder to prove.** `proveSolvency` compares tokens held against tokens owed. Lend the principal out
-  and the pool no longer holds it, so the proof has to include the strategy's position — which means trusting the
+  and the pool no longer holds it, so the proof has to include the strategy's position - which means trusting the
   strategy's own accounting for the part that is no longer in hand.
 - **Withdrawal stops being instant in the worst case.** Principal is withdrawable in every phase today because it is
   sitting in the contract. A strategy with a redemption delay would break that, so any real source has to be one that
@@ -516,7 +517,7 @@ one `npx hardhat test` away from being caught.
 
 Deploy, deposit and claim figures are read back off a live Sepolia deployment, measured when it held fourteen seeded
 depositors with one settled draw and one full sweep, averaged over all fourteen claim transactions. They are the
-conditions those measurements were taken under rather than a description of the pool today, which is larger — a claim
+conditions those measurements were taken under rather than a description of the pool today, which is larger - a claim
 scales with tree depth, and the ladder in `HushpotDepthGas.ts` is what tracks that. The paged-sweep and depth figures
 come from `HushpotSweepGas.ts` and `HushpotDepthGas.ts`, which print them on every run so they cannot drift silently.
 
@@ -527,7 +528,7 @@ which walks that path anyway.
 
 About 200k of that 650k is the receipt: storing the award ciphertext and granting the depositor the right to open it. It
 was 451k before, so the figure got worse on purpose, and it is worth saying why rather than quietly reporting the old
-number. Without it, a depositor swept by a keeper — which is nearly all of them — had no way to learn what the draw paid
+number. Without it, a depositor swept by a keeper - which is nearly all of them - had no way to learn what the draw paid
 them, and no way at all once the period rolled. The cheaper claim was cheaper because it answered a question and then
 destroyed the answer.
 
@@ -560,14 +561,14 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 - every slot is selected exactly as often as its weight, checked by enumerating every draw point rather than sampling
 - bands tile the number line with no gaps and no overlaps, checked exhaustively against a plaintext oracle
 - a prize parked on a slot whose owner has left is never handed to whoever inherits that slot, and dropping it leaves
-  the pool over-collateralised rather than under — the direction of that error is asserted, not assumed
+  the pool over-collateralised rather than under - the direction of that error is asserted, not assumed
 - a period cannot roll past a draw still inside its thirty-day grace, if doing so would push it beyond what the tree's
-  history can still answer — deliberately not a sweep gate, which was tried, removed, and is why this one is shaped the
+  history can still answer - deliberately not a sweep gate, which was tried, removed, and is why this one is shaped the
   way it is
-- a loyalty boost cannot change a draw's numbers once that draw exists for the period, open or settled — not gated on
+- a loyalty boost cannot change a draw's numbers once that draw exists for the period, open or settled - not gated on
   the clock, since the owner may open a draw before it has genuinely elapsed
 - a deposit or withdrawal carries zero net weight for a draw the owner opened early, the same as one made after the
-  period has genuinely ended — checked directly against a decrypted total, not inferred
+  period has genuinely ended - checked directly against a decrypted total, not inferred
 - a withdrawal is clamped to the balance held, because a ciphertext cannot be branched on
 - no second draw can settle in the same period
 - a prize never touches principal
@@ -581,4 +582,4 @@ comfortably; the old one-claim-per-transaction limit came from the pre-optimisat
 - the sandbox's owner contract forwards a draw and a roll to a stranger, and exposes no third function that could reach
   the yield rate or ownership
 - a depositor swept by somebody else can still open their own result for that draw, after the period has rolled and
-  `checkClaim` has stopped being callable — and the keeper that ran the sweep cannot open it
+  `checkClaim` has stopped being callable - and the keeper that ran the sweep cannot open it

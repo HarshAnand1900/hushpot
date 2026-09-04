@@ -24,7 +24,7 @@
   max-width: 60ch;
 }
 
-/* The auto-claim receipt. Stated as a count off the chain rather than a promise —
+/* The auto-claim receipt. Stated as a count off the chain rather than a promise -
    anyone can verify it by reading claimChecked for each slot. */
 .sweepStatus {
   display: flex;
@@ -46,7 +46,7 @@
   color: var(--yellow);
 }
 
-/* Which settled draw you are asking about. Closed ones stay listed rather than hidden —
+/* Which settled draw you are asking about. Closed ones stay listed rather than hidden -
    "you cannot claim this any more" is information, and hiding it just looks like a gap. */
 .picker {
   display: flex;

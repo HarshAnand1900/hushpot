@@ -10,7 +10,7 @@ import { addressesFor } from "../config/addresses";
  * official confidential USDT mock, so judges and anyone from an earlier season already
  * hold the token and its open faucet is the underlying's public `mint`.
  *
- * Anywhere else — a local node — the token pair is deployed first, using the same
+ * Anywhere else - a local node - the token pair is deployed first, using the same
  * OpenZeppelin wrapper implementation that sits behind the Sepolia mock.
  */
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
@@ -28,9 +28,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     underlying = known.underlyingToken;
     log(`Using Zama's official confidential token`);
     log(`  cUSDTMock  ${confidentialToken}`);
-    log(`  USDTMock   ${underlying}  (open mint — this is the faucet)`);
+    log(`  USDTMock   ${underlying}  (open mint - this is the faucet)`);
   } else {
-    log(`No known tokens for chain ${chainId} — deploying a local pair`);
+    log(`No known tokens for chain ${chainId} - deploying a local pair`);
 
     const usdt = await deploy("TestERC20", { from: deployer, log: true });
     const wrapper = await deploy("TestConfidentialWrapper", {

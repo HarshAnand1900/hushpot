@@ -21,14 +21,14 @@ interface IConfidentialWrapper {
     function wrap(address to, uint256 amount) external returns (euint64);
 }
 
-/// @title HushpotPool — confidential no-loss prize savings
+/// @title HushpotPool - confidential no-loss prize savings
 /// @notice Deposit a confidential token, keep your principal, and win the pool's yield.
 /// Amounts, balances, odds and the winner all stay encrypted; the draw stays verifiable.
 ///
 /// NO LOSS, STRUCTURALLY
 /// ---------------------
-/// Deposits and prizes live in separate accounting. A draw never touches principal — it
-/// only ever distributes yield — so "withdraw your full deposit whenever you like" is a
+/// Deposits and prizes live in separate accounting. A draw never touches principal - it
+/// only ever distributes yield - so "withdraw your full deposit whenever you like" is a
 /// property of the design rather than a promise we make.
 ///
 /// GETTING IN
@@ -44,13 +44,13 @@ interface IConfidentialWrapper {
 ///
 /// WHAT LEAKS
 /// ----------
-/// That a given address deposited, and when — both are inherent to a public chain, since
+/// That a given address deposited, and when - both are inherent to a public chain, since
 /// the transaction itself is visible.
 ///
 /// Via {deposit}, never how much: the amount is a ciphertext handle from the moment it
 /// leaves the wallet, and no plaintext figure exists anywhere in this contract.
 ///
-/// Via {depositUnderlying}, the amount IS public, and deliberately so — it is a plain
+/// Via {depositUnderlying}, the amount IS public, and deliberately so - it is a plain
 /// ERC-20 transfer of an ordinary token, and it emits the figure in
 /// {DepositedFromUnderlying}. That path exists for convenience, for anyone who does not
 /// already hold the confidential token. Everything after the entry is encrypted either
@@ -66,7 +66,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
     struct Draw {
         /// @notice Pool-wide ticket-minutes, published at settlement. The one aggregate
-        /// Hushpot ever reveals — and only here, once a period, never continuously.
+        /// Hushpot ever reveals - and only here, once a period, never continuously.
         uint64 total;
         /// @notice Prize for this draw. Public, and nobody's balance.
         uint64 prize;
@@ -88,7 +88,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     bool public drawPending;
     euint64 private _pendingTotal;
 
-    /// @notice Tokens set aside to pay prizes. Public — prizes are not anybody's balance.
+    /// @notice Tokens set aside to pay prizes. Public - prizes are not anybody's balance.
     uint64 public prizeReserve;
 
     /// @notice Sponsorships received since the last settlement, added to the next prize.
@@ -118,7 +118,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @notice Extra ticket-minutes per full period held, in basis points of a full stake.
     /// @dev Five percent a period, four periods deep, so a stake held continuously for a
     /// month carries twenty percent more weight than the same money deposited this
-    /// morning — enough to matter to someone deciding whether to stay, not so much that
+    /// morning - enough to matter to someone deciding whether to stay, not so much that
     /// base weight (which already scales linearly with balance) stops being the thing
     /// that actually decides odds.
     uint64 public constant BOOST_BPS_PER_PERIOD = 500;
@@ -130,7 +130,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     uint256 public lastDrawSettledAt;
 
     /// @notice A draw's claim progress: how many slots it covered, and how many have
-    /// answered. Reported, not enforced — the roll is deliberately *not* gated on these
+    /// answered. Reported, not enforced - the roll is deliberately *not* gated on these
     /// being equal, because a claim now outlives its period and waiting for a sweep would
     /// make the cycle depend on one. See {startNextPeriod}.
     ///
@@ -140,13 +140,13 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     ///
     /// `checked` is incremented by {checkClaim} and by the sweep alike, because a depositor
     /// who settles their own claim should count exactly as much as a keeper doing it for
-    /// them — otherwise self-service would leave the pool unable to roll.
+    /// them - otherwise self-service would leave the pool unable to roll.
     ///
     /// Two `uint16`s in one struct rather than two mappings: they are written together,
     /// read together, and pack into a single storage slot.
     ///
     /// Deliberately not folded into {Draw}, which is the return shape of the public
-    /// `draws()` getter — widening that would break every already-deployed pool's ABI
+    /// `draws()` getter - widening that would break every already-deployed pool's ABI
     /// against one frontend.
     struct Claims {
         uint16 covered;
@@ -156,14 +156,14 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     mapping(uint256 => Claims) public claims;
 
     /// @dev Which slots have already had a given draw evaluated. Public, and it reveals
-    /// only that someone was checked — never whether they won.
+    /// only that someone was checked - never whether they won.
     mapping(uint256 => mapping(uint16 => bool)) public claimChecked;
 
     /// @notice What a draw awarded one slot: the prize, or an encrypted zero.
     ///
     /// @dev The receipt that makes "did I win?" answerable more than once.
     ///
-    /// Claims are meant to be swept — a keeper checks everybody before the period rolls so
+    /// Claims are meant to be swept - a keeper checks everybody before the period rolls so
     /// that nobody has to remember to collect. That is good for depositors and it used to
     /// destroy the only way they could find out. The award was credited to the balance and
     /// the handle discarded, so the sole evidence of a win was a balance that had moved,
@@ -220,7 +220,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     event Deposited(address indexed account, uint16 indexed slot);
     event Withdrawn(address indexed account, uint16 indexed slot);
 
-    /// @dev `amount` is deliberately in the clear — see {depositUnderlying}.
+    /// @dev `amount` is deliberately in the clear - see {depositUnderlying}.
     event DepositedFromUnderlying(address indexed account, uint16 indexed slot, uint256 amount);
 
     error NotAnOperator();
@@ -251,7 +251,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     // -------------------------------------------------------------------------
 
     /// @notice Move an encrypted amount into the pool and start earning odds immediately.
-    /// @dev Odds accrue from this minute onward, pro-rata for the rest of the period —
+    /// @dev Odds accrue from this minute onward, pro-rata for the rest of the period -
     /// there is no waiting period and no lock.
     ///
     /// The tree is credited with the amount the token reports as *actually* transferred,
@@ -275,11 +275,11 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
     /// @notice Deposit plain tokens and let the pool shield them for you.
     /// @dev The convenience path, for anyone holding ordinary tokens rather than
-    /// confidential ones. One approval, one call — no separate wrapping step.
+    /// confidential ones. One approval, one call - no separate wrapping step.
     ///
     /// ⚠️ PRIVACY TRADEOFF, AND IT IS REAL. `amount` is a plain number in a plain ERC-20
-    /// transfer, so **this deposit's size is public**. Everything afterwards is encrypted —
-    /// the position, the odds, the winnings — but the entry itself is visible.
+    /// transfer, so **this deposit's size is public**. Everything afterwards is encrypted -
+    /// the position, the odds, the winnings - but the entry itself is visible.
     ///
     /// Someone who already holds the confidential token should use {deposit} instead,
     /// where the amount never appears in the clear. Anyone wanting both convenience and
@@ -293,7 +293,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         underlyingToken.safeTransferFrom(msg.sender, address(this), amount);
         underlyingToken.forceApprove(address(token), amount);
 
-        // The wrapper mints to us and grants transient access to the caller — us.
+        // The wrapper mints to us and grants transient access to the caller - us.
         euint64 minted = IConfidentialWrapper(address(token)).wrap(address(this), amount);
         FHE.allowThis(minted);
 
@@ -310,7 +310,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// because a ciphertext cannot be compared and branched on. Either way the caller
     /// receives exactly what they own and never less.
     ///
-    /// Odds for the current period keep the credit already earned — leaving early costs
+    /// Odds for the current period keep the credit already earned - leaving early costs
     /// you the remaining time, not the time you already served.
     function withdraw(externalEuint64 encryptedAmount, bytes calldata inputProof) external {
         uint16 slot = slotOf(msg.sender);
@@ -337,7 +337,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     ///
     /// The period a slot is *assigned in* never counts, no matter what minute the deposit
     /// landed in. `currentPeriod - since` alone credited a full period the instant the
-    /// clock ticked over — someone joining a minute before the roll had "held one period"
+    /// clock ticked over - someone joining a minute before the roll had "held one period"
     /// a minute later, identical to someone who was there the whole week. Since is when the
     /// join happened, not when a full period of holding began; that begins at `since + 1`,
     /// and only once `currentPeriod` has moved past it has a period actually elapsed intact.
@@ -353,7 +353,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     ///
     /// @dev Opt-in and self-funded, which is the whole point. The obvious design applies
     /// the boost to everybody at the roll, and that is an O(n) encrypted pass somebody has
-    /// to pay for every period — the same incidence wall that made a mandatory sweep
+    /// to pay for every period - the same incidence wall that made a mandatory sweep
     /// unworkable. Here each depositor pays for their own, once, and a pool nobody boosts
     /// costs nobody anything.
     ///
@@ -365,19 +365,19 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// otherwise buy a full period of odds and hand the capital straight back, which beats
     /// staying and would therefore be the only thing anyone did.
     ///
-    /// Blocked once this period already has a draw — open or settled. Every other write to
+    /// Blocked once this period already has a draw - open or settled. Every other write to
     /// the tree after that point is provably neutral: a deposit or withdrawal made once
     /// `minuteOfPeriod` saturates adds the same amount to `lateCredit`/`earlyExit` that it
     /// adds to `balance`, so the two cancel and a settled draw's numbers stay untouched.
-    /// The boost does not cancel — it adds straight to `earlyExit` with nothing offsetting
-    /// it — so taking one after a draw exists for this period would inflate a slot's band
+    /// The boost does not cancel - it adds straight to `earlyExit` with nothing offsetting
+    /// it - so taking one after a draw exists for this period would inflate a slot's band
     /// for a total and drawPoint that were already fixed, before `checkClaim` has read
     /// either for anyone.
     ///
     /// `periodEnded()` is not the right test for this: the owner may open a draw before the
     /// period has elapsed, and that draw's total is fixed the moment it opens regardless of
     /// the clock. The boundary that matters is whether *a draw already exists* for the
-    /// current period — open counts, not just settled, because `_pendingTotal` is snapshot
+    /// current period - open counts, not just settled, because `_pendingTotal` is snapshot
     /// at `openDraw`, before settlement.
     function boostStreak() external {
         if (drawPending || (drawCount > 0 && draws[drawCount - 1].period == currentPeriod)) revert PeriodEnded();
@@ -389,10 +389,10 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         if (periods == 0) revert NoStreakYet();
 
         // Ticket-minutes per unit of balance. A full period is PERIOD_MINUTES, so this is
-        // that multiplied by the bonus rate — the arithmetic is plaintext, and only the
+        // that multiplied by the bonus rate - the arithmetic is plaintext, and only the
         // balance it scales is encrypted.
         uint64 factor = (PERIOD_MINUTES * BOOST_BPS_PER_PERIOD * uint64(periods)) / 10_000;
-        // The first period `streakOf` actually credits — see the note on {_creditBonus}
+        // The first period `streakOf` actually credits - see the note on {_creditBonus}
         // for why the boost is applied to the balance from here, not to whatever sits in
         // the slot right now.
         uint32 anchorPeriod = currentPeriod - periods;
@@ -406,7 +406,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @dev The reason this exists as its own function rather than falling out of a large
     /// withdrawal: the contract cannot tell that you emptied your balance. `withdraw`
     /// clamps to what you hold, and asking "was that all of it?" is a comparison on
-    /// ciphertext — the one thing FHE will not let a contract branch on.
+    /// ciphertext - the one thing FHE will not let a contract branch on.
     ///
     /// So this does not *detect* an empty balance, it *creates* one. Requesting
     /// `type(uint64).max` clamps to the whole balance, which leaves the leaf at exactly
@@ -421,7 +421,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// The slot is not reused until the period rolls. See {_retireSlot} for why that
     /// delay is load-bearing rather than lazy.
     ///
-    /// This does not close the griefing case — an attacker will not volunteer to leave —
+    /// This does not close the griefing case - an attacker will not volunteer to leave -
     /// and that one stays priced rather than prevented. See `docs/THREAT-MODEL.md`.
     function exitPool() external {
         uint16 slot = slotOf(msg.sender);
@@ -437,7 +437,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     }
 
     /// @notice Compute your principal and authorise yourself to decrypt it.
-    /// @dev A transaction, not a view — FHE operations mutate coprocessor state. Read the
+    /// @dev A transaction, not a view - FHE operations mutate coprocessor state. Read the
     /// handle with {balanceHandle} afterwards and decrypt off-chain via EIP-712.
     ///
     /// Only the slot's owner can do this. Without that restriction anyone could grant
@@ -458,7 +458,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
     /// @dev What a slot actually owns: what the tree holds plus anything won and not yet
     /// folded in. The split between the two is an implementation detail of when the
-    /// ancestor sums get repaired — it must never be visible in a balance, or a winner
+    /// ancestor sums get repaired - it must never be visible in a balance, or a winner
     /// would check straight after a draw and be told they had lost.
     function _heldBy(uint16 slot) private returns (euint64) {
         euint64 held = _balance[uint256(LEAF_OFFSET) + slot];
@@ -471,7 +471,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @dev Purely a UX affordance, and a load-bearing one. Reading your own position
     /// needs an on-chain recompute because FHE operations mutate coprocessor state and so
     /// cannot be a free `view` call. Doing balance and weight as separate calls meant three
-    /// wallet prompts to answer "what do I have?" — a signature and two transactions.
+    /// wallet prompts to answer "what do I have?" - a signature and two transactions.
     /// This collapses it to a signature and one transaction.
     function refreshMyPosition() external {
         uint16 slot = slotOf(msg.sender);
@@ -510,7 +510,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// slot, so there is no delegation to redirect and no position to speak of.
     ///
     /// It is added to the next prize in full rather than earning notional yield for the
-    /// week — at 5% a week of yield on a sponsorship is about a thousandth of it, which is
+    /// week - at 5% a week of yield on a sponsorship is about a thousandth of it, which is
     /// not worth a second accumulator or a second thing to explain. Handing over all of it
     /// at once does far more for the pot than lending it would.
     ///
@@ -525,7 +525,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         uint64 credited = _fundReserve(amount);
 
         // The money joins the very next prize instead of merely making the tank deeper.
-        // Topping up the reserve alone changed nothing visible — `prizeFor` is a function
+        // Topping up the reserve alone changed nothing visible - `prizeFor` is a function
         // of the pool and the rate, so a sponsorship only ever mattered when the reserve
         // was about to run dry. That is not what the word "sponsor" promises.
         sponsoredThisDraw += credited;
@@ -557,7 +557,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @notice Prize a draw would pay at the given pool size, before the reserve cap.
     /// @dev Deliberately proportional to the pool. Because the pot grows with the deposits
     /// that fund it, a large depositor arriving takes more odds *and* contributes more
-    /// prize — leaving everyone else's expected return exactly unchanged. A fixed pot
+    /// prize - leaving everyone else's expected return exactly unchanged. A fixed pot
     /// would let latecomers extract value from existing depositors.
     function prizeFor(uint64 total) public view returns (uint64) {
         return uint64((uint256(total) * annualRateBps) / RATE_DIVISOR);
@@ -578,7 +578,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @dev The obvious objection to a pool whose balances are encrypted is that nobody
     /// can check the money is still there. This answers it without giving anything up:
     /// the comparison runs on ciphertext, and the only thing made public is the single
-    /// bit that comes out of it — backed, or not.
+    /// bit that comes out of it - backed, or not.
     ///
     /// Neither figure is revealed. Not what the pool holds, not what it owes, and
     /// certainly not any individual position.
@@ -590,7 +590,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
         // What the pool owes is the tree root PLUS anything parked. A swept prize belongs
         // to its winner from the moment it is parked, even though it has not been folded
-        // into a leaf yet — counting only the root would understate the liability for as
+        // into a leaf yet - counting only the root would understate the liability for as
         // long as any award sat unclaimed, and the proof would be answering a narrower
         // question than the one it appears to answer.
         euint64 owed = FHE.add(_balance[_treeRoot()], _parkedTotalOf());
@@ -616,7 +616,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         return _awardOf[drawId][slot];
     }
 
-    /// @notice Handle for the last solvency proof. Publicly decryptable — that is the point.
+    /// @notice Handle for the last solvency proof. Publicly decryptable - that is the point.
     function solvencyHandle() external view returns (ebool) {
         return _fullyBacked;
     }
@@ -633,7 +633,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @dev Saturates the moment a draw is pending, not only once the clock genuinely runs
     /// out.
     ///
-    /// A deposit or withdrawal made after `minuteOfPeriod` saturates is provably neutral —
+    /// A deposit or withdrawal made after `minuteOfPeriod` saturates is provably neutral -
     /// it adds the same amount to `lateCredit`/`earlyExit` that it adds to `balance`, so
     /// the two cancel and a sealed total is untouched. Under ordinary operation that is
     /// exactly when it matters: `openDraw` will not let a non-owner in before
@@ -643,13 +643,13 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// The owner's early-open exemption breaks that. Opening before `periodEnded()`
     /// snapshots `_pendingTotal` while the clock has not yet saturated, and any deposit or
     /// withdrawal in the window between that snapshot and the roll is then a live,
-    /// uncancelled change to weight the snapshot never accounted for — the exact shape of
+    /// uncancelled change to weight the snapshot never accounted for - the exact shape of
     /// the timing gap `boostStreak` closed, reachable here through the ordinary deposit
     /// path instead of the loyalty boost. `HushpotEarlyOpenAudit.ts` measured it directly:
     /// a deposit made entirely after an early `openDraw` landed with its full, uncancelled
     /// weight rather than the zero net effect the rest of the design relies on.
     ///
-    /// A pending draw is the actual boundary — not `periodEnded()` on its own, which the
+    /// A pending draw is the actual boundary - not `periodEnded()` on its own, which the
     /// owner can already be on the near side of, and not `currentPeriod` matching a draw's
     /// `period`, which stays true long after settlement and would saturate the *next*
     /// period's accrual before it had even started. Saturating exactly while
@@ -662,8 +662,8 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
     /// @notice Begin a draw by publishing the pool total for decryption.
     /// @dev Two steps are unavoidable: the draw point must be reduced modulo the pool
-    /// total, and encrypted modulo requires a plain divisor. So the total — the one
-    /// aggregate we publish anyway — is decrypted off-chain and returned with a proof.
+    /// total, and encrypted modulo requires a plain divisor. So the total - the one
+    /// aggregate we publish anyway - is decrypted off-chain and returned with a proof.
     /// The randomness itself never leaves the chain and is never decrypted.
     ///
     /// Anyone may call this once the period has elapsed. The owner may call it early, so
@@ -690,12 +690,12 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
     /// @notice Finish the draw with the decrypted total and its proof.
     /// @dev {FHE.checkSignatures} reverts unless the cleartext genuinely matches the
-    /// ciphertext, so whoever relays this cannot lie about the total — they can only
+    /// ciphertext, so whoever relays this cannot lie about the total - they can only
     /// decline to relay it at all. That is what keeps an off-chain step trustless.
     ///
     /// The draw point is then produced on-chain by the protocol's own generator and
-    /// reduced into the pool's range. It stays encrypted forever: no one — not the caller,
-    /// not the owner, not this contract — ever learns where it landed.
+    /// reduced into the pool's range. It stays encrypted forever: no one - not the caller,
+    /// not the owner, not this contract - ever learns where it landed.
     function settleDraw(bytes calldata abiEncodedCleartexts, bytes calldata decryptionProof) external {
         if (!drawPending) revert NoDrawPending();
 
@@ -716,7 +716,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         prizeReserve -= prize;
 
         // Uniform over the whole 64-bit range, then folded into [0, total). The residual
-        // modulo bias is on the order of total / 2^64 — far below any observable effect.
+        // modulo bias is on the order of total / 2^64 - far below any observable effect.
         euint64 point = FHE.rem(FHE.randEuint64(), total);
         FHE.allowThis(point);
 
@@ -745,13 +745,13 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// A claim recomputes your band from the live tree, which is only sound while the
     /// weights the draw was settled against still stand. They do: once `minuteOfPeriod`
     /// saturates at the end of a period, a deposit adds `amount * PERIOD_MINUTES` to the
-    /// balance term and the same to late credit, so it cancels exactly — and a withdrawal
+    /// balance term and the same to late credit, so it cancels exactly - and a withdrawal
     /// cancels through early exit the same way. Nothing can move underneath a settled
     /// draw until the period rolls.
     ///
     /// Which means the roll is the only thing that ends a claim, and holding it back costs
     /// nothing at all: no snapshots, no per-slot state, no encrypted work. The price is
-    /// paid in cycle length rather than gas — no draw runs during the grace, and deposits
+    /// paid in cycle length rather than gas - no draw runs during the grace, and deposits
     /// made in it earn their full credit when the next period opens.
     function startNextPeriod() external {
         if (drawPending) revert DrawAlreadyPending();
@@ -798,7 +798,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @notice Evaluate a draw for one participant and pay them if they won.
     ///
     /// @dev Deliberately callable by anyone, for anyone. The result is encrypted either
-    /// way, so the caller learns nothing — which means a keeper can sweep every
+    /// way, so the caller learns nothing - which means a keeper can sweep every
     /// participant after each draw and the prize simply *appears* in the winner's balance.
     /// Nobody has to remember to check, and because everyone gets checked, the fact that
     /// someone was checked says nothing about whether they won.
@@ -811,7 +811,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// the numbers this draw was settled against cannot move underneath it.
     ///
     /// The claim window is thirty days of wall-clock time, not a count of rolls. It was
-    /// `currentPeriod > d.period + 1` — a single roll of grace — which expired a claim
+    /// `currentPeriod > d.period + 1` - a single roll of grace - which expired a claim
     /// after a fortnight while {CLAIM_GRACE} promised a month, and let the owner bring
     /// even that forward by rolling early. Time is the promise that was made, so time is
     /// what is checked.
@@ -826,7 +826,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         if (!d.settled) revert DrawNotSettled();
         // No period check. The tree keeps one generation of history, so a draw settled
         // against period 4 is still evaluated against period 4's weights after period 5
-        // has begun — see {ConfidentialTimeWeightedTree-_checkWinAt}. This used to revert
+        // has begun - see {ConfidentialTimeWeightedTree-_checkWinAt}. This used to revert
         // the moment the period rolled, which meant anybody who had not been checked in
         // time simply forfeited, and the only thing preventing that was an operator
         // remembering to sweep.
@@ -841,7 +841,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
 
         // The band belongs to the slot, not to whoever holds it now. A slot retired with
         // {exitPool} is released at the roll and handed to somebody new, while the previous
-        // holder's weight still stands in the tree — it has to, or the bands would stop
+        // holder's weight still stands in the tree - it has to, or the bands would stop
         // summing to the total this draw was settled against. So the band is left alone and
         // the award is not written: the new holder answers for a draw they were not in, and
         // the answer is no.
@@ -860,8 +860,8 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         FHE.allowThis(award);
         FHE.allow(award, account);
 
-        // Parked, not credited. Crediting repairs all ten ancestor sums — thirty encrypted
-        // additions — to deposit what is, for all but one checker, an encrypted zero. The
+        // Parked, not credited. Crediting repairs all ten ancestor sums - thirty encrypted
+        // additions - to deposit what is, for all but one checker, an encrypted zero. The
         // award joins the tree on this slot's next deposit or withdrawal, which walks that
         // path anyway. Winnings still join the principal, just one transaction later.
         _parkAward(slot, award);
@@ -872,8 +872,8 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @notice Check a draw for a handful of participants in one transaction.
     ///
     /// @dev ⚠️ Not a whole-pool sweep, despite the shape. A single claim is roughly 60–80
-    /// encrypted operations — the prefix walk, the range comparison, the select and the
-    /// credit — so only about one or two fit inside the per-transaction HCU ceiling.
+    /// encrypted operations - the prefix walk, the range comparison, the select and the
+    /// credit - so only about one or two fit inside the per-transaction HCU ceiling.
     /// Measured on Sepolia: ~2.4M gas each, and five together revert.
     ///
     /// A keeper should therefore page through participants with one transaction each
@@ -884,13 +884,13 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// @notice Check a draw for yourself and open the answer, in one transaction.
     ///
     /// @dev {checkClaim} parks the award but leaves the balance cache untouched, so a
-    /// depositor asking "did I win?" needed a second transaction — {refreshMyBalance} —
+    /// depositor asking "did I win?" needed a second transaction - {refreshMyBalance} -
     /// before there was anything they were allowed to decrypt. Two wallet prompts to
     /// answer one question, with a block of waiting between them.
     ///
     /// Folding here would be the wrong saving: it repairs every ancestor sum to deposit
     /// what is, for all but one checker, an encrypted zero. {_heldBy} instead reads leaf
-    /// plus parked — one addition — which is the same number a fold would eventually
+    /// plus parked - one addition - which is the same number a fold would eventually
     /// produce, without touching the tree.
     function checkMyClaim(uint256 drawId) external {
         checkClaim(drawId, msg.sender);
@@ -927,12 +927,12 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
     /// Two costs disappear here.
     ///
     /// The prefix walk goes first. A lone claim climbs the tree to rederive the combined
-    /// weight of everyone ordered before it — three additions per set bit of the slot index.
+    /// weight of everyone ordered before it - three additions per set bit of the slot index.
     /// Sweeping in slot order makes that a running total instead: `edge += weight`, one
     /// addition, and the weight was needed anyway.
     ///
     /// The credit walk goes second, and it is the larger of the two. `_creditSlot` repairs
-    /// all ten ancestors, thirty encrypted additions, once per participant — rebuilding the
+    /// all ten ancestors, thirty encrypted additions, once per participant - rebuilding the
     /// same interior sums over and over to add an encrypted zero to everyone who lost. This
     /// parks the award on the slot instead and lets the next deposit or withdrawal fold it
     /// in, on a path walk that transaction was paying for regardless.
@@ -960,7 +960,7 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         // was swept for a draw they had no claim on: `checked` could climb past `covered`
         // and render as "35 / 30", a finished sweep became resumable each time somebody
         // new arrived, and each pointless slot still paid for a `_weightAt` and two
-        // storage writes. Their awards were always zero, so nothing was ever mispaid —
+        // storage writes. Their awards were always zero, so nothing was ever mispaid -
         // the cost was gas and a counter that stopped meaning anything.
         uint16 covered = claims[drawId].covered;
         uint16 from = sweepCursor[drawId];
@@ -1007,8 +1007,8 @@ contract HushpotPool is ConfidentialTimeWeightedTree, Ownable {
         // not clear it, and `_ensureSlot` hands the slot on believing it is empty. The
         // next depositor folded the award into their own balance.
         //
-        // The band is still counted above — dropping it would shift every later slot's
-        // edge and break the partition — but nothing is recorded and nothing is parked.
+        // The band is still counted above - dropping it would shift every later slot's
+        // edge and break the partition - but nothing is recorded and nothing is parked.
         // The prize then goes unawarded, exactly as it does for a claim nobody makes.
         address holder = slotOwner[slot];
         if (holder != address(0)) {

@@ -13,10 +13,10 @@ const SCALE = 10n ** BigInt(TOKEN_DECIMALS);
 /**
  * Grow the prize without competing for it.
  *
- * PoolTogether V5 calls this sponsoring — `PrizeVault.sponsor` delegates a deposit to the
+ * PoolTogether V5 calls this sponsoring - `PrizeVault.sponsor` delegates a deposit to the
  * sponsorship address so it earns for the pool but never wins. Ours is simpler: the money
  * goes straight to the shared reserve, so there is no slot, no odds, and nothing to
- * delegate. It is public and in plain tokens on purpose — a claim about the prize should
+ * delegate. It is public and in plain tokens on purpose - a claim about the prize should
  * be checkable by anyone.
  */
 export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () => void }) {
@@ -123,7 +123,7 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
         args: [amount],
         // Stated rather than estimated. If the approval above has not reached the node
         // doing the estimating, `eth_estimateGas` reverts and the wallet substitutes an
-        // enormous fallback — which the RPC then rejects outright as over its cap, giving
+        // enormous fallback - which the RPC then rejects outright as over its cap, giving
         // a "gas limit too high" error for a transaction that actually costs very little.
         // Measured on Sepolia: 364,977 used, 499,195 estimated. Unused gas is refunded.
         gas: 1_200_000n,
@@ -150,7 +150,7 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
       <div className={styles.body}>
         <p className={styles.copy}>
           Anyone can grow the prize without taking any share of it. Whatever you put in is added to the very next prize
-          on top of the yield — not lent, not staked, and not recoverable. It never becomes a position, never earns
+          on top of the yield - not lent, not staked, and not recoverable. It never becomes a position, never earns
           odds, and can never win itself back, so every depositor&apos;s chances are untouched. There is simply more to
           hand out, and one of them gets all of it.
         </p>
@@ -190,7 +190,7 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
         {isConnected && (
           <div className={styles.wallet}>
             YOUR tUSDT <strong>{formatUnits(held)}</strong>
-            {short && amount > 0n && <> — not enough for this. The faucet mints 10,000 to anyone who asks.</>}
+            {short && amount > 0n && <> - not enough for this. The faucet mints 10,000 to anyone who asks.</>}
           </div>
         )}
 
@@ -198,7 +198,7 @@ export function SponsorPot({ reserve, onDone }: { reserve: bigint; onDone?: () =
         {error && <div className={styles.error}>{error}</div>}
 
         <div className={styles.note}>
-          Plain tokens, and deliberately public — a claim about the size of the prize should be checkable by everybody.
+          Plain tokens, and deliberately public - a claim about the size of the prize should be checkable by everybody.
           On mainnet this reserve would be fed by real yield instead.
         </div>
       </div>

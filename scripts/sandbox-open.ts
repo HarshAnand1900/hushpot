@@ -5,7 +5,7 @@ import { ethers } from "hardhat";
  *
  * `hushpot:draw` calls `openDraw` on the pool directly, which is correct for a pool whose
  * owner is the deployer. The sandbox's owner is {SandboxOperator}, so the same call reverts
- * with `PeriodNotElapsed` until the week is up — the operator exists precisely so any wallet
+ * with `PeriodNotElapsed` until the week is up - the operator exists precisely so any wallet
  * can skip that wait, and this is the path a judge takes from the panel.
  */
 async function main() {

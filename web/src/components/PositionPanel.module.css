@@ -330,7 +330,7 @@
   background: rgba(255, 210, 8, 0.1);
 }
 
-/* The time multiplier — the one number in the record a depositor can act on.
+/* The time multiplier - the one number in the record a depositor can act on.
    Yellow because it moves your odds; the note beside it says why it is what it is. */
 .credit {
   color: var(--yellow);
@@ -402,7 +402,7 @@
 }
 
 /* One rung per earnable step, 1.0x through 1.4x. Unlit rungs are the point of the
-   control — they are the only thing on screen that says the number can go up. */
+   control - they are the only thing on screen that says the number can go up. */
 .rung {
   flex: 1;
   height: 3px;
@@ -426,7 +426,7 @@
   color: var(--text-3);
 }
 
-/* A transaction, so it says what it costs — the stake is committed until the week ends —
+/* A transaction, so it says what it costs - the stake is committed until the week ends -
    and the commitment is read before it is agreed to rather than met as a revert. */
 .boost {
   margin-top: 8px;

@@ -18,7 +18,7 @@ import {
  * pool pays for a shallow tree and depth arrives with the crowd. This pins that: the cost
  * of joining should step up at powers of two and sit flat between them.
  */
-describe("HushpotPool — deposit cost against pool size", function () {
+describe("HushpotPool - deposit cost against pool size", function () {
   let owner: HardhatEthersSigner;
   let usdt: TestERC20;
   let pool: HushpotPool;
@@ -44,7 +44,7 @@ describe("HushpotPool — deposit cost against pool size", function () {
 
   it("prices the copy-on-write that keeps an old claim answerable", async function () {
     // The tree keeps one generation of history so a claim outlives its period. A node pays
-    // for that once, on its first touch in a new period, and nothing afterwards — so the
+    // for that once, on its first touch in a new period, and nothing afterwards - so the
     // honest figure is not the average, it is the first deposit after a roll compared with
     // the second.
     const [a, b] = signers;

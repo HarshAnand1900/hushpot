@@ -18,7 +18,7 @@ import {
  *
  * A claim recomputes a band from the tree, and the tree is period-scoped: roll, and the
  * corrections age out while balances keep moving. The band moves with them, so the same
- * call after a roll used to return a *different* answer rather than a stale one — which is
+ * call after a roll used to return a *different* answer rather than a stale one - which is
  * why it was refused outright, and why anybody not swept in time simply forfeited.
  *
  * Each node now keeps five generations of history, written copy-on-write on its first
@@ -26,11 +26,11 @@ import {
  * roll is the same answer that would have been given before it, for the whole thirty days
  * the contract promises rather than for the single roll it used to allow.
  *
- * The failure modes this is aimed at are all silent — they return a plausible number on
- * encrypted values nobody can eyeball — so every assertion here compares against a figure
+ * The failure modes this is aimed at are all silent - they return a plausible number on
+ * encrypted values nobody can eyeball - so every assertion here compares against a figure
  * captured while the period was still current.
  */
-describe("HushpotPool — claims across a roll", function () {
+describe("HushpotPool - claims across a roll", function () {
   let owner: HardhatEthersSigner;
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;
@@ -71,7 +71,7 @@ describe("HushpotPool — claims across a roll", function () {
 
   /**
    * A draw with no time passing. The owner may open early and roll early, so this drives
-   * the period counter without burning any of the thirty-day grace — which is the only way
+   * the period counter without burning any of the thirty-day grace - which is the only way
    * to reach the far end of the tree's history while a claim is still live.
    */
   async function fastDraw() {
@@ -101,7 +101,7 @@ describe("HushpotPool — claims across a roll", function () {
     await join(bob);
     await runDraw();
 
-    // Roll with nobody checked — which used to forfeit both of them outright.
+    // Roll with nobody checked - which used to forfeit both of them outright.
     await (await pool.startNextPeriod()).wait();
     expect(await pool.currentPeriod()).to.eq(1);
 
@@ -160,7 +160,7 @@ describe("HushpotPool — claims across a roll", function () {
 
     // Four rolls is past what one generation of history could reach, and comfortably more
     // than the fortnight the old rule allowed. No time passes, so all of it is inside the
-    // thirty-day grace and all of it must still answer — the promise CLAIM_GRACE makes.
+    // thirty-day grace and all of it must still answer - the promise CLAIM_GRACE makes.
     for (let i = 0; i < 4; i++) {
       await (await pool.startNextPeriod()).wait();
       await fastDraw();
@@ -177,7 +177,7 @@ describe("HushpotPool — claims across a roll", function () {
     await join(bob);
     await runDraw();
 
-    // The window is wall-clock now, so this is what closes it — not the roll count.
+    // The window is wall-clock now, so this is what closes it - not the roll count.
     await time.increase(31n * 24n * 60n * 60n);
 
     await expect(pool.connect(owner).checkClaim(0, alice.address)).to.be.revertedWithCustomError(
@@ -192,7 +192,7 @@ describe("HushpotPool — claims across a roll", function () {
     await runDraw();
 
     // MAX_HISTORY rolls is as far as the tree can answer. The owner may roll early, but
-    // not so early that draw 0 falls out of history while its grace is still running —
+    // not so early that draw 0 falls out of history while its grace is still running -
     // otherwise the thirty days would hold only for as long as the operator allowed.
     // MAX_HISTORY rolls is exactly as far as the tree can answer, so the fifth is allowed
     // and the sixth is not.
@@ -224,7 +224,7 @@ describe("HushpotPool — claims across a roll", function () {
     expect(await pool.slotOf(carol.address), "Carol should inherit Alice's slot").to.eq(slot);
 
     // Carol's balance must be her own deposit and nothing else. If the leaf's archived
-    // generation were still reachable, she would be holding — and be able to decrypt —
+    // generation were still reachable, she would be holding - and be able to decrypt -
     // whatever Alice had before she left.
     await (await pool.connect(carol).refreshMyBalance()).wait();
     const balance = await fhevm.userDecryptEuint(FhevmType.euint64, await pool.balanceHandle(slot), poolAddress, carol);

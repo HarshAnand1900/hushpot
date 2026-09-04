@@ -35,8 +35,8 @@ Every figure below comes from a public getter on the live contract. You can read
 | ---------------- | ------------------------------------------------------------ |
 | Depositors       | **21**, holding encrypted balances                           |
 | Pooled principal | **~285,000 cUSDT**                                           |
-| Draws settled    | **3** — #0 **505.00**, #1 **264.66**, #2 **1,273.75** cUSDT  |
-| Claims answered  | 20/20, 5/20, 1/21 — all three still claimable to 3 Oct       |
+| Draws settled    | **3** - #0 **505.00**, #1 **264.66**, #2 **1,273.75** cUSDT  |
+| Claims answered  | 20/20, 5/20, 1/21 - all three still claimable to 3 Oct       |
 | Prize reserve    | 9,197.45 cUSDT                                               |
 | Currently        | period #2, draw #2 settled, waiting on the roll to period #3 |
 
@@ -165,7 +165,7 @@ whole six-step cycle from their own wallet with no key to import. Its owner is
 who asks, and nothing else. The pool contract is immutable, with no proxy and no admin upgrade path. That matters for
 the claim that there is no winner field, since an upgradeable contract could always add one later.
 
-**The full detail — gating table, the sandbox mechanism, the weekly schedule, running a keeper, and what immutability
+**The full detail - gating table, the sandbox mechanism, the weekly schedule, running a keeper, and what immutability
 has cost here in practice:** [`docs/OPERATING.md`](docs/OPERATING.md).
 
 ---

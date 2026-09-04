@@ -4,7 +4,7 @@ import { ethers } from "hardhat";
  * Page a sweep with `sweepRange`, which walks slot indices rather than accounts.
  *
  * `hushpot:sweep` calls `checkClaim(drawId, account)` per depositor, and `slotOf` reverts
- * for an account that has left — so one `exitPool` anywhere in the pool stops the whole
+ * for an account that has left - so one `exitPool` anywhere in the pool stops the whole
  * task. `sweepRange` iterates the slots the draw covered, ownerless ones included, which
  * is the case it was written for.
  */

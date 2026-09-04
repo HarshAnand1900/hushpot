@@ -38,7 +38,7 @@ type Entry = {
  *
  * Everything here is public and always was. The point is what is missing from it: the
  * confidential rows carry •••••• where an amount would go, because there is no amount
- * field to render — and no settlement names a winner, because no winner is ever resolved.
+ * field to render - and no settlement names a winner, because no winner is ever resolved.
  */
 /**
  * Totals come from contract state; the feed comes from logs.
@@ -46,7 +46,7 @@ type Entry = {
  * They used to both come from logs, and the public RPC will not support that. It is load
  * balanced across nodes with different history, so the same `eth_getLogs` returned 97
  * entries on one call and 22 on the next, and the panel then reported "PAID OUT 922.81"
- * beside a rail reading 2,344.33 — one settled draw found instead of three. A number that
+ * beside a rail reading 2,344.33 - one settled draw found instead of three. A number that
  * changes when you reload is worse than no number.
  *
  * `slotsUsed()` and `draws(i).prize` are state, so every node agrees on them. They are
@@ -106,7 +106,7 @@ export function ContractLog({
       ]);
       setHead(block);
 
-      // The two deposit events are emitted by different functions, not both by one — the
+      // The two deposit events are emitted by different functions, not both by one - the
       // filter below is belt-and-braces for a shared transaction, not the normal case, so
       // counting must not assume an overlap that is usually empty.
       const plainTxs = new Set((plain as unknown as Raw[]).map((l) => l.transactionHash));
@@ -124,7 +124,7 @@ export function ContractLog({
         ...(plain as unknown as Raw[]).map((l) =>
           row(
             l,
-            // The figure is here because this route genuinely published it — a plain
+            // The figure is here because this route genuinely published it - a plain
             // ERC-20 transfer of tUSDT, wrapped on arrival. Printing it beside the
             // shielded rows without saying so made it look like a leak rather than the
             // documented trade-off it is.
@@ -160,7 +160,7 @@ export function ContractLog({
           .map((l) => row(l, "RESERVE", `RESERVE TOPPED UP +${formatUnits(l.args.amount as bigint)} cUSDT`, true)),
       ].sort((a, b) => Number(b.block - a.block));
 
-      // A standing summary above the feed. Everything in it is already public — how many
+      // A standing summary above the feed. Everything in it is already public - how many
       // people are in, how many deposits they have made between them, what has been paid
       // out. None of it is anybody's position.
       const accounts = new Set<string>();
@@ -168,7 +168,7 @@ export function ContractLog({
         accounts.add(l.args.account as string);
       }
       // Logs only ever accumulate, so a count that came back lower than one already seen
-      // is a bad read rather than news — the public endpoint is load balanced across nodes
+      // is a bad read rather than news - the public endpoint is load balanced across nodes
       // that do not all hold the same history, and the same query returned 97 entries on
       // one call and 22 on the next. Keeping the high-water mark makes these figures stop
       // moving backwards between polls, which is what made them untrustworthy on screen.
@@ -193,7 +193,7 @@ export function ContractLog({
 
       const shown = all.slice(0, limit);
 
-      // Ages, for the newest rows only — not every row shown. Each one is a separate
+      // Ages, for the newest rows only - not every row shown. Each one is a separate
       // `getBlock` call, and this panel polls every 20 seconds for as long as the tab is
       // open: at `limit=100` that is 100 extra RPC calls a poll, against the same public
       // endpoint that has already rate-limited this project once. Age matters most where
@@ -237,7 +237,7 @@ export function ContractLog({
         <div className={styles.stats}>
           {/* Only figures backed by contract state survive here. Deposits made, claims
               checked and sponsorship totals were counted from logs, and this endpoint
-              answers the same log query from nodes holding different history — so those
+              answers the same log query from nodes holding different history - so those
               three changed on every reload and sometimes read 1. They are still visible
               as rows in the feed below, where a partial list is obviously a recent slice
               rather than a total that happens to be wrong. */}

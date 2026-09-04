@@ -31,7 +31,7 @@ const PUBLIC = [
 ];
 
 const CONTRACTS = [
-  // The pool address is read from the URL on the client — `?pool=sandbox` swaps it — so it
+  // The pool address is read from the URL on the client - `?pool=sandbox` swaps it - so it
   // is a function of mount, not a constant. The other two never move.
   { name: "HushpotPool", address: () => POOL_ADDRESS, purpose: "the pool, the draw, and the claim" },
   { name: "cUSDTMock", address: () => TOKEN_ADDRESS, purpose: "Zama's confidential USDT, an ERC-7984" },
@@ -79,7 +79,7 @@ export default function ProofTab() {
   return (
     <>
       <Pot3D variant="exhibit" dim />
-      <AppHeader pot={pot} />
+      <AppHeader pot={pot} drawNumber={Number(state.drawCount)} />
 
       <main className={`${styles.page} rise`}>
         {/* ── 01 · the claim, tested live ───────────────────────────────── */}

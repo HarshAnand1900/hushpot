@@ -1,5 +1,5 @@
 /*
- * The renderer is called as `setSize(w, h, false)` — the `false` tells three.js not to
+ * The renderer is called as `setSize(w, h, false)` - the `false` tells three.js not to
  * write inline styles, so the canvas element keeps only its *buffer* attributes. Those are
  * multiplied by the device pixel ratio, so on a 1.5x display a 158px mount produced a
  * 237px canvas that overflowed its box and sat on top of the type beside it.
@@ -34,13 +34,13 @@
 }
 
 /* Behind the app tabs: the same room, pushed back so panels stay readable. Not
-   interactive there — the pot is the landing's toy, not a distraction mid-deposit. */
+   interactive there - the pot is the landing's toy, not a distraction mid-deposit. */
 .dimmed {
   opacity: 0.1;
   filter: saturate(0.5);
 }
 
-/* The Pool tab is where the real work happens — the room drops back to a hint so
+/* The Pool tab is where the real work happens - the room drops back to a hint so
    the balance, odds and buttons have the screen to themselves. Must follow .dimmed
    to win on source order. */
 .dimmedFaint {

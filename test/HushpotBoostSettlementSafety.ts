@@ -25,16 +25,16 @@ import {
  *
  * Without a guard, that gap meant a depositor could watch a draw settle, then call
  * `boostStreak()` before `checkClaim` had run for anyone, and widen their own band for a
- * total and drawPoint that were already fixed — silently capturing probability mass from
+ * total and drawPoint that were already fixed - silently capturing probability mass from
  * whoever's true, pre-boost band would otherwise have contained the draw point. Since
  * results stay encrypted, this would have been unfalsifiable after the fact: nobody would
  * ever know a win had been redirected.
  *
- * `boostStreak` now reverts once a draw already exists for the current period — open or
+ * `boostStreak` now reverts once a draw already exists for the current period - open or
  * settled, not "the clock ran out": the owner may open a draw before the period has
  * elapsed, and the total is fixed the moment it opens regardless of `periodEnded()`.
  */
-describe("HushpotPool — boost cannot move a settled draw's numbers", function () {
+describe("HushpotPool - boost cannot move a settled draw's numbers", function () {
   let owner: HardhatEthersSigner;
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;
@@ -87,10 +87,10 @@ describe("HushpotPool — boost cannot move a settled draw's numbers", function 
     await join(alice);
     await join(bob);
 
-    await draw(); // draw #0, period 0 — alice's join period, never credited
+    await draw(); // draw #0, period 0 - alice's join period, never credited
     await (await pool.startNextPeriod()).wait(); // period 1
     await draw(); // draw #1, period 1
-    await (await pool.startNextPeriod()).wait(); // period 2 — alice has now held one full period (1)
+    await (await pool.startNextPeriod()).wait(); // period 2 - alice has now held one full period (1)
     expect(await pool.streakOf(alice.address)).to.eq(1);
 
     // Draw #2, opened early by the owner: periodEnded() is still false, which is exactly
@@ -106,7 +106,7 @@ describe("HushpotPool — boost cannot move a settled draw's numbers", function 
     const weightBefore = await weight(alice);
 
     // Draw #2 has settled and nobody has checked it yet. This is the exact window the
-    // vulnerability lived in — alice has a real, eligible streak, not a zero one.
+    // vulnerability lived in - alice has a real, eligible streak, not a zero one.
     await expect(pool.connect(alice).boostStreak()).to.be.revertedWithCustomError(pool, "PeriodEnded");
 
     const weightAfter = await weight(alice);
@@ -116,9 +116,9 @@ describe("HushpotPool — boost cannot move a settled draw's numbers", function 
   it("still works normally, mid-period, well before any draw exists", async function () {
     await join(alice);
     await draw();
-    await (await pool.startNextPeriod()).wait(); // period 1 — alice's join period, not credited yet
+    await (await pool.startNextPeriod()).wait(); // period 1 - alice's join period, not credited yet
     await draw();
-    await (await pool.startNextPeriod()).wait(); // period 2 — one full period held, no draw yet this period
+    await (await pool.startNextPeriod()).wait(); // period 2 - one full period held, no draw yet this period
     expect(await pool.streakOf(alice.address)).to.eq(1);
 
     const before = await weight(alice);

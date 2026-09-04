@@ -3,7 +3,7 @@
  *
  * The Sepolia entries are Zama's official Developer Program mock tokens, reused here
  * rather than deploying our own so that anyone who took part in an earlier season already
- * holds the token — including the judges. The underlying has an open `mint`, so it doubles
+ * holds the token - including the judges. The underlying has an open `mint`, so it doubles
  * as the faucet and no separate faucet contract is needed.
  *
  * All values below were read directly from Sepolia on 8 August 2026, not copied from

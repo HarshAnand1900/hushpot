@@ -30,13 +30,13 @@ export type FlowStep = "idle" | "approving" | "depositing" | "withdrawing" | "do
  *
  * Two things here are not obvious and both cause silent failures if missed:
  *
- * 1. The test USDT copies real Tether's approve semantics — approving a non-zero amount
+ * 1. The test USDT copies real Tether's approve semantics - approving a non-zero amount
  *    while a non-zero allowance already exists reverts. Any stale allowance has to be
  *    zeroed first, which is why `approve` is sometimes two transactions.
  *
  * 2. A confidential transfer that exceeds your balance does NOT revert; it silently moves
  *    nothing. So the pool credits whatever actually arrived, and the UI has to refuse an
- *    oversized deposit up front — otherwise the user pays gas for a no-op with no error.
+ *    oversized deposit up front - otherwise the user pays gas for a no-op with no error.
  */
 export function useDeposit() {
   const { address } = useAccount();
@@ -56,7 +56,7 @@ export function useDeposit() {
    * Deposit confidential tokens, with the amount encrypted before it is broadcast.
    *
    * The only deposit route this app has. The contract also exposes `depositUnderlying`,
-   * which takes plain tUSDT — but its `amount` rides in a plain ERC-20 transfer, so the
+   * which takes plain tUSDT - but its `amount` rides in a plain ERC-20 transfer, so the
    * size of any deposit made that way is public forever, and no amount of encryption
    * downstream can unpublish it. It is not wired to anything here. On this route nothing
    * but a ciphertext leaves the browser, and the chain records that an address deposited
@@ -79,7 +79,7 @@ export function useDeposit() {
         })) as boolean;
 
         // Kicked off before the branch so the two paths share it, and so a returning
-        // depositor — who needs no grant at all — starts encrypting immediately.
+        // depositor - who needs no grant at all - starts encrypting immediately.
         const encrypt = async () => {
           await paint();
           const { getFhevm, toHex } = await import("@/lib/fhe");
@@ -117,7 +117,7 @@ export function useDeposit() {
           args: [encrypted.handle, encrypted.proof],
           // Estimated where possible, with the flat ceiling as the fallback it was always
           // meant to be. A stated limit is money the wallet has to hold before it will
-          // submit, and 3.6M priced out wallets that could afford the call — see
+          // submit, and 3.6M priced out wallets that could afford the call - see
           // `gasLimitFor`.
           gas: await gasLimitFor(
             publicClient,
@@ -143,7 +143,7 @@ export function useDeposit() {
             ? {
                 kind: "success",
                 title: "Deposit confirmed",
-                detail: "Nothing but a ciphertext left this browser — the size was never written down.",
+                detail: "Nothing but a ciphertext left this browser - the size was never written down.",
                 hash: tx,
               }
             : {
@@ -170,7 +170,7 @@ export function useDeposit() {
    * Withdraw principal. The amount is encrypted in the browser before it is broadcast, so
    * unlike the plain-token deposit path this leaves no figure in the clear.
    *
-   * Asking for more than you hold is clamped to your balance rather than reverted — a
+   * Asking for more than you hold is clamped to your balance rather than reverted - a
    * ciphertext can't be compared and branched on, so the contract takes the minimum. You
    * always receive exactly what you own, never less and never more.
    */
@@ -193,7 +193,7 @@ export function useDeposit() {
           abi: poolAbi,
           functionName: "withdraw",
           args: [toHex(encrypted.handles[0]), toHex(encrypted.inputProof)],
-          // Withdraw walks the same tree path a deposit does — the debit, the early-exit
+          // Withdraw walks the same tree path a deposit does - the debit, the early-exit
           // credit and the ancestor repair, so it belongs on the same estimate-first
           // path, not on whatever the wallet guesses for an FHE call.
           gas: await gasLimitFor(
@@ -233,8 +233,8 @@ export function useDeposit() {
    * Take everything out and give the slot back.
    *
    * Distinct from a withdrawal on purpose. `withdraw` clamps to whatever you asked for and
-   * leaves the slot yours; this empties the balance by construction — it requests
-   * `type(uint64).max`, which clamps to the whole of it — and then releases the slot at the
+   * leaves the slot yours; this empties the balance by construction - it requests
+   * `type(uint64).max`, which clamps to the whole of it - and then releases the slot at the
    * next period roll.
    *
    * Worth offering because a slot is otherwise permanent: every sweep pays gas for every

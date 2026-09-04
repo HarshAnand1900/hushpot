@@ -19,7 +19,7 @@ interface ApprovableToken {
 const POOL = "HushpotPool";
 
 /**
- * Deposit the way the product does — confidentially.
+ * Deposit the way the product does - confidentially.
  *
  * These tasks used `depositUnderlying`, which is a plain ERC-20 transfer and publishes the
  * amount. That is a documented convenience route in the contract, but using it to seed a
@@ -62,11 +62,11 @@ async function depositConfidentially(
  * extension we don't install, so go through the deployments registry.
  *
  * Also initialises the FHEVM plugin. On a real network anything that touches the
- * coprocessor — which is every write here — fails with "The Hardhat Fhevm plugin is not
+ * coprocessor - which is every write here - fails with "The Hardhat Fhevm plugin is not
  * initialized" without it. Cheap and idempotent, so it lives in the shared path. */
 async function getPool(hre: HardhatRuntimeEnvironment) {
   await hre.fhevm.initializeCLIApi();
-  // `HUSHPOT_POOL` points every task at a different deployment of the same contract —
+  // `HUSHPOT_POOL` points every task at a different deployment of the same contract -
   // the judge sandbox, mainly, which is deployed outside the registry precisely so it
   // cannot be confused with the real pool. Unset, this is the deployed one.
   const override = process.env.HUSHPOT_POOL;
@@ -120,7 +120,7 @@ task("hushpot:status", "Show pool state").setAction(async (_args, hre) => {
     console.log(`  prize         ${draw.prize}`);
     console.log(`  period        #${draw.period}`);
     console.log(`  claim window  ${draw.period === (await pool.currentPeriod()) ? "open" : "closed"}`);
-    console.log(`  winner        never resolved — the point of the whole thing`);
+    console.log(`  winner        never resolved - the point of the whole thing`);
   }
 });
 
@@ -156,7 +156,7 @@ task("hushpot:faucet", "Mint yourself test tokens from the underlying's open fau
 
     let remaining = BigInt(args.amount);
     if (remaining > MINT_CHUNK) {
-      console.log(`the faucet caps a single mint at ${MINT_CHUNK / 1_000_000n} tokens — splitting`);
+      console.log(`the faucet caps a single mint at ${MINT_CHUNK / 1_000_000n} tokens - splitting`);
     }
 
     while (remaining > 0n) {
@@ -236,7 +236,7 @@ task("hushpot:draw", "Run a full draw: open, decrypt the total off-chain, settle
       console.log(`opening draw...`);
       await (await pool.openDraw()).wait();
     } else {
-      console.log(`a draw is already open — settling it`);
+      console.log(`a draw is already open - settling it`);
     }
 
     // The off-chain half. The relayer cannot lie about the total: settleDraw verifies the
@@ -254,7 +254,7 @@ task("hushpot:draw", "Run a full draw: open, decrypt the total off-chain, settle
     console.log(`\ndraw #${id} settled`);
     console.log(`  pool total   ${draw.total} ticket-minutes`);
     console.log(`  prize        ${draw.prize}`);
-    console.log(`  winner       unknown — and it stays that way`);
+    console.log(`  winner       unknown - and it stays that way`);
   });
 
 task("hushpot:sweep", "Check a draw for every depositor, paying whoever won")
@@ -268,7 +268,7 @@ task("hushpot:sweep", "Check a draw for every depositor, paying whoever won")
     for (let slot = 0; slot < slots; slot++) {
       const owner = await pool.slotOwner(slot);
       // A slot given up with `exitPool` reads as the zero address until the roll releases
-      // it, and `checkClaim(drawId, address(0))` reverts `NoSlotAssigned` — which used to
+      // it, and `checkClaim(drawId, address(0))` reverts `NoSlotAssigned` - which used to
       // abort the whole sweep partway through. The contract already handles this case in
       // both `checkClaimBatch` and `_sweepSlot`; only this loop did not.
       if (owner === hre.ethers.ZeroAddress) continue;
@@ -278,7 +278,7 @@ task("hushpot:sweep", "Check a draw for every depositor, paying whoever won")
     console.log(`sweeping draw #${drawId} across ${accounts.length} depositors...\n`);
 
     // One transaction per depositor, not one for all of them. A claim is ~60-80 encrypted
-    // operations — the prefix walk, the range comparison, the select and the credit — so
+    // operations - the prefix walk, the range comparison, the select and the credit - so
     // even a handful together exceed the per-transaction HCU ceiling. `checkClaimBatch`
     // exists for small batches; a real keeper should page through like this.
     for (const account of accounts) {
@@ -294,7 +294,7 @@ task("hushpot:sweep", "Check a draw for every depositor, paying whoever won")
     }
 
     console.log(`\nThe prize has landed in one of those balances.`);
-    console.log(`Only its owner can decrypt it, so nobody here — including us — knows which.`);
+    console.log(`Only its owner can decrypt it, so nobody here - including us - knows which.`);
   });
 
 /**
@@ -302,7 +302,7 @@ task("hushpot:sweep", "Check a draw for every depositor, paying whoever won")
  *
  * Public Sepolia endpoints lag behind their own mempool, so a burst of transactions from
  * one wallet gets rejected as "replacement transaction underpriced" even when the previous
- * one was mined — the node hands out a stale nonce. Backing off and retrying is enough.
+ * one was mined - the node hands out a stale nonce. Backing off and retrying is enough.
  */
 async function withRetry<T>(label: string, fn: () => Promise<T>, attempts = 4): Promise<T> {
   for (let attempt = 1; ; attempt++) {
@@ -314,7 +314,7 @@ async function withRetry<T>(label: string, fn: () => Promise<T>, attempts = 4): 
       if (!transient || attempt >= attempts) throw error;
 
       const pause = 5000 * attempt;
-      console.log(`  ${label} failed: ${message.slice(0, 70)} — retrying in ${pause / 1000}s`);
+      console.log(`  ${label} failed: ${message.slice(0, 70)} - retrying in ${pause / 1000}s`);
       await new Promise((resolve) => setTimeout(resolve, pause));
     }
   }
@@ -346,7 +346,7 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
     //
     // Kept in the hundreds-to-thousands, not the hundreds of thousands. Seeded accounts
     // that dwarf the real wallets make the demo worse in two ways: whoever is presenting
-    // has no meaningful odds against them, and the prize — which scales with the pool —
+    // has no meaningful odds against them, and the prize - which scales with the pool -
     // drains the reserve in a couple of draws. This spread totals around 76,000, so a
     // full week yields roughly 73 cUSDT and the reserve lasts hundreds of cycles.
     const amounts = [
@@ -396,7 +396,7 @@ task("hushpot:seed", "Fill the pool with several depositors, so the demo means s
       // says a real one looks like.
       // The table holds thirty spreads; past that it wraps rather than throwing. Asking
       // for more depositors than there are amounts used to fail with "Cannot mix BigInt
-      // and other types" — an undefined array slot, thirty deposits into a run that had
+      // and other types" - an undefined array slot, thirty deposits into a run that had
       // already spent real gas.
       const amount = amounts[(i - 1) % amounts.length] * 1_000_000n * BigInt(args.scale);
 
@@ -472,7 +472,7 @@ task("hushpot:next-period", "Close the claim window and start the next period").
  *
  * Seeding once produces a snapshot: everyone joined in the same minute holding round
  * numbers, which is not what a pool looks like and not what exercises the code. This
- * moves it — a few people join, a few add to what they hold, one or two take money out —
+ * moves it - a few people join, a few add to what they hold, one or two take money out -
  * so deposits land at different times and odds actually differ by more than size.
  *
  * Deliberately does not draw. Run it, look at the app, then run `hushpot:draw` yourself:
@@ -566,7 +566,7 @@ task("hushpot:activity", "Simulate one day of deposits, top-ups and withdrawals"
  * The keeper: one tick of the weekly cycle, and only what is due.
  *
  * Deliberately a single idempotent pass rather than a long-running loop. Run it every few
- * minutes from cron and it decides for itself what the pool needs — nothing at all, most
+ * minutes from cron and it decides for itself what the pool needs - nothing at all, most
  * of the time. A process that has to stay alive for a week is a process that will be dead
  * on the week that matters.
  *
@@ -597,7 +597,7 @@ task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.
 
     const act = async (what: string, fn: () => Promise<unknown>) => {
       console.log(`${stamp}  ${what}`);
-      if (args.dryRun) return console.log(`            (dry run — nothing sent)`);
+      if (args.dryRun) return console.log(`            (dry run - nothing sent)`);
       await withRetry(what, fn);
     };
 
@@ -625,13 +625,13 @@ task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.
       // A draw settles against bands that {_checkWin} recomputes from the *live* tree, so
       // it is only final while the tree cannot move. That used to hold only because
       // elapsing saturates `minuteOfPeriod`, making a deposit add `amount × PERIOD` to the
-      // balance term and the same to `lateCredit` — cancelling to zero, but only once the
+      // balance term and the same to `lateCredit` - cancelling to zero, but only once the
       // clock had genuinely run out. Forcing the draw early skipped that, and a deposit
       // between the forced settlement and the roll shifted the bands of every later slot
       // against a die that was already committed.
       //
       // `minuteOfPeriod` now saturates the moment a draw is pending, not only once real
-      // time has elapsed — see the note on the override in `HushpotPool.sol` — so forcing
+      // time has elapsed - see the note on the override in `HushpotPool.sol` - so forcing
       // early no longer opens that window at all. This is a contract-level fix, not an
       // operational one; the elapsed check below is simply the default cadence.
       const elapsed = await pool.periodEnded();
@@ -664,7 +664,7 @@ task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.
       const owner = await pool.slotOwner(slot);
       // A retired slot reads as the zero address until the roll frees it, and
       // `checkClaim` on that reverts `NoSlotAssigned`. Returning here on every tick meant
-      // the keeper never reached step 4 — and step 4 is the roll that would have released
+      // the keeper never reached step 4 - and step 4 is the roll that would have released
       // the slot, so the keeper wedged itself permanently on the first depositor to leave.
       // Skipping is what the contract itself does; the claim is a no-op for an empty slot.
       if (owner === hre.ethers.ZeroAddress) continue;
@@ -687,7 +687,7 @@ task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.
 /**
  * A second pool, owned by a contract so that no key has to be published at all.
  *
- * Two of the six cycle steps — opening a draw and rolling the period — are owner-gated
+ * Two of the six cycle steps - opening a draw and rolling the period - are owner-gated
  * *only for running them early*. Once a period genuinely elapses anyone may call them, but
  * that is a week away, and a judge should not have to wait a week to press a button.
  *
@@ -697,7 +697,7 @@ task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.
  * dishonest.
  *
  * So this deploys a throwaway instead. The main pool keeps its integrity; this one absorbs
- * the experimentation, and it holds nothing that matters — test tokens, a little test ETH,
+ * the experimentation, and it holds nothing that matters - test tokens, a little test ETH,
  * and a key generated for no other purpose.
  */
 task("hushpot:sandbox", "Deploy a judge sandbox anyone can run the whole cycle on")
@@ -716,7 +716,7 @@ task("hushpot:sandbox", "Deploy a judge sandbox anyone can run the whole cycle o
     const address = await pool.getAddress();
     console.log(`  at ${address}`);
 
-    // Fund the reserve while we still own it — `fundPrizeReserve` is owner-gated, and
+    // Fund the reserve while we still own it - `fundPrizeReserve` is owner-gated, and
     // ownership is about to go somewhere that will not give it back.
     const underlying = await hre.ethers.getContractAt("TestERC20", known.underlyingToken);
     const reserve = BigInt(args.reserve);

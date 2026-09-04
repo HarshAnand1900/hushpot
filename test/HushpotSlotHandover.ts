@@ -20,19 +20,19 @@ import {
  * are silent: the numbers involved are ciphertext, so a wrong answer looks exactly like a
  * right one until somebody decrypts it.
  *
- *   1. A slot is retired, released at the roll, and handed to somebody new — while the
+ *   1. A slot is retired, released at the roll, and handed to somebody new - while the
  *      weight the previous holder earned is still standing in the tree, because that is
  *      what the settled draw was measured against. The new holder inherits the band.
  *
  *   2. `_foldPending` writes the leaf and the credit or debit that called it writes again,
  *      both before `_persist` advances the stamp. A second archive therefore records a
- *      mid-transaction handle — one `_persist` never granted, since it grants the final
- *      handle — and every later claim whose band crosses that node reverts `ACLNotAllowed`.
+ *      mid-transaction handle - one `_persist` never granted, since it grants the final
+ *      handle - and every later claim whose band crosses that node reverts `ACLNotAllowed`.
  *
  * The draw point is random, so weights here are lopsided by a factor of ~10^9 to pin which
  * band it lands in rather than leaving it to chance.
  */
-describe("HushpotPool — slots that change hands", function () {
+describe("HushpotPool - slots that change hands", function () {
   let owner: HardhatEthersSigner;
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;

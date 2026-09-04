@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 import {FHE, euint64, ebool} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
-/// @title ConfidentialTimeWeightedTree — encrypted odds accounting for Hushpot
+/// @title ConfidentialTimeWeightedTree - encrypted odds accounting for Hushpot
 /// @notice The encrypted twin of `TimeWeightedTree.sol`, which stays in the repo as the
 /// correctness oracle: the two must agree on every input, and the plaintext one can be
 /// printed and stepped through when they don't.
@@ -12,13 +12,13 @@ import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 /// WHAT IT DOES
 /// ------------
 /// Tracks, for every participant, how much they hold *and how long they have held it* this
-/// period — ticket-minutes — and keeps the subtree sums needed to locate a winner without
+/// period - ticket-minutes - and keeps the subtree sums needed to locate a winner without
 /// scanning anyone. Deposit halfway through the week and you earn half the odds of someone
 /// who was there all week with the same amount.
 ///
 /// THE PROBLEM IT SOLVES
 /// ---------------------
-/// The obvious approach — `accrued += balance * (now - theirLastChange)` — is correct for
+/// The obvious approach - `accrued += balance * (now - theirLastChange)` - is correct for
 /// one user and unusable for a pool, because every user has a different `lastChange`, so
 /// totalling at draw time means visiting all of them. Expanding the pending term fixes it:
 ///
@@ -28,7 +28,7 @@ import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 /// deposits and can be summed. The left multiplies a figure that is identical for everyone,
 /// so it factors out against the sum of balances. The pool therefore resolves to running
 /// totals plus one multiplication, evaluated on demand, and **no end-of-period sweep ever
-/// runs** — a draw does zero per-user work.
+/// runs** - a draw does zero per-user work.
 ///
 /// Corrections are stored as a shortfall from full credit, so a participant who never moves
 /// has a shortfall of zero. When a period rolls over, stale shortfalls read as zero and
@@ -39,31 +39,31 @@ import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 ///
 /// WHAT STAYS PUBLIC, AND WHY IT IS SAFE
 /// -------------------------------------
-///   - the period number and its start time — a schedule, not a balance
-///   - which minute of the period a transaction landed in — already public as a block
+///   - the period number and its start time - a schedule, not a balance
+///   - which minute of the period a transaction landed in - already public as a block
 ///     timestamp, and it is what lets an encrypted amount be scaled by a plain number
-///   - which slot a transaction touched — the sender is public regardless
+///   - which slot a transaction touched - the sender is public regardless
 ///
 /// Amounts, weights, odds and the draw point are never public.
 ///
 /// TIME UNITS
 /// ----------
 /// Minutes since the period began, never raw unix timestamps: `balance * unixTime`
-/// overflows `euint64` by roughly a hundredfold, and encrypted overflow is **silent** —
+/// overflows `euint64` by roughly a hundredfold, and encrypted overflow is **silent** -
 /// wrong odds, no revert, no trace.
 abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// @dev Capacity, and the price of griefing it.
     ///
     /// A slot is claimed on first deposit and never released, and the deposit that claims
     /// it cannot be checked for size: ERC-7984 clamps rather than reverts, so a transfer
-    /// of more than you hold moves zero and succeeds. There is no way to reject that —
+    /// of more than you hold moves zero and succeeds. There is no way to reject that -
     /// `moved` is a ciphertext, and branching on it is exactly what FHE forbids. Nor would
     /// rejecting zero help, because a one-wei deposit is just as cheap and is a legitimate
     /// deposit besides. Detection is not the lever here; capacity is.
     ///
     /// So the cap is set high enough that filling it costs real money. Each claimed slot
     /// needs its own address and its own ~500k-gas deposit, which at 16,384 slots is on
-    /// the order of eight billion gas — roughly half a million dollars at mainnet prices.
+    /// the order of eight billion gas - roughly half a million dollars at mainnet prices.
     /// Legitimate depositors pay nothing for the headroom: {_treeRoot} keeps the tree only
     /// as deep as the slots actually in use, so a thirteen-person pool walks four levels
     /// here exactly as it did at 1024.
@@ -81,7 +81,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     mapping(uint256 => euint64) internal _lateCredit;
     mapping(uint256 => euint64) internal _earlyExit;
 
-    /// @dev Which period the corrections belong to. Plain, not encrypted — it records
+    /// @dev Which period the corrections belong to. Plain, not encrypted - it records
     /// *when*, never *how much*.
     mapping(uint256 => uint32) internal _stamp;
 
@@ -91,7 +91,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// A claim recomputes a band from the tree, and the tree is period-scoped: roll, and
     /// `_lateCredit`/`_earlyExit` age out while `_balance` keeps moving with new deposits.
     /// The same call afterwards returns a different band, so it used to be refused outright
-    /// — which meant a depositor who did not check in time simply forfeited.
+    /// - which meant a depositor who did not check in time simply forfeited.
     ///
     /// Rather than snapshot every slot at settlement, which is O(n) encrypted storage per
     /// draw, each node keeps the values it held before its most recent write. A node pays
@@ -99,7 +99,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// so the cost tracks activity rather than pool size.
     ///
     /// {MAX_HISTORY} generations are kept rather than one. A single generation expired a
-    /// claim at the second roll — a fortnight — while `CLAIM_GRACE` promised thirty days,
+    /// claim at the second roll - a fortnight - while `CLAIM_GRACE` promised thirty days,
     /// so the contract contradicted its own constant by more than half the window.
     ///
     /// Archives are keyed by the period they were *taken* in, not the period whose values
@@ -146,7 +146,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// @notice The period in which a slot's current holder took it.
     ///
     /// @dev A slot outlives its holder. It is retired on {exitPool}, released at the roll,
-    /// and handed to somebody new — while the tree still carries the weight the previous
+    /// and handed to somebody new - while the tree still carries the weight the previous
     /// holder earned, because that weight is what a settled draw was measured against and
     /// erasing it would shift every later band off the total.
     ///
@@ -167,7 +167,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// participant, and for everyone but the winner the amount being added is an encrypted
     /// zero.
     ///
-    /// So a sweep parks the award here instead — one addition, no walk. It is folded into
+    /// So a sweep parks the award here instead - one addition, no walk. It is folded into
     /// the tree the next time the slot deposits or withdraws, which repairs the path anyway,
     /// making the fold cost one extra addition rather than thirty.
     ///
@@ -178,7 +178,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// @dev The sum of every parked award, kept as a running encrypted total.
     ///
     /// Solvency compares what the pool holds against what it owes, and what it owes is the
-    /// tree root PLUS anything parked — a winner's prize is already theirs, it simply has
+    /// tree root PLUS anything parked - a winner's prize is already theirs, it simply has
     /// not been folded into a leaf yet. Summing 1024 slots to discover that is impossible
     /// inside one transaction, so the total is maintained incrementally instead: one
     /// addition when an award is parked, one subtraction when it is folded. Both are
@@ -240,8 +240,8 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         return _slotOfPlusOne[account] != 0;
     }
 
-    /// @dev Assign a slot on first deposit. Slot numbers are public — only what sits in
-    /// them is secret — so a plain counter is fine.
+    /// @dev Assign a slot on first deposit. Slot numbers are public - only what sits in
+    /// them is secret - so a plain counter is fine.
     function _ensureSlot(address account) internal returns (uint16) {
         uint16 plusOne = _slotOfPlusOne[account];
         if (plusOne != 0) return plusOne - 1;
@@ -255,7 +255,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
             // corrections have already aged out.
             //
             // Its *history* has not. The leaf keeps {MAX_HISTORY} generations of archived
-            // values, and those belong to whoever held the slot before — so leaving them
+            // values, and those belong to whoever held the slot before - so leaving them
             // reachable would hand the next depositor a handle over a stranger's position,
             // which they are granted decryption on. Clearing the balance handle is what
             // makes each unreachable; the values are overwritten by the first write anyway.
@@ -282,15 +282,15 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
      * @dev Give up a slot, to be recycled when the period rolls.
      *
      * The release is deferred on purpose. Emptying a leaf writes `_earlyExit` for the
-     * *current* period — the departing holder genuinely earned credit up to the minute
-     * they left — so handing the slot to somebody else the same week would gift them that
+     * *current* period - the departing holder genuinely earned credit up to the minute
+     * they left - so handing the slot to somebody else the same week would gift them that
      * credit. Waiting for the roll costs nothing and makes it impossible: {_lateCreditOf}
      * and {_earlyExitOf} both return zero once the stamp no longer matches
      * `currentPeriod`, so a slot released at a boundary is clean by construction rather
      * than by a reset anyone has to remember to write.
      *
      * The caller is responsible for having emptied the balance first. Nothing here checks
-     * it, because checking a ciphertext for zero is precisely what FHE does not allow —
+     * it, because checking a ciphertext for zero is precisely what FHE does not allow -
      * see {HushpotPool-exitPool}, which empties by construction instead.
      */
     function _retireSlot(uint16 slot, address account) internal {
@@ -323,7 +323,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     }
 
     /// @notice Minutes elapsed in the current period, saturating at the period length.
-    /// @dev Virtual so {HushpotPool} can saturate it early, the moment a draw is pending —
+    /// @dev Virtual so {HushpotPool} can saturate it early, the moment a draw is pending -
     /// see the override there for why the wall-clock condition alone is not enough.
     function minuteOfPeriod() public view virtual returns (uint64) {
         uint256 elapsed = block.timestamp - periodStart;
@@ -366,8 +366,8 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         if (was == currentPeriod) return;
         if (euint64.unwrap(_balance[node]) == bytes32(0)) return;
         // Already taken for this generation. `_stamp` is not advanced until {_persist}, so
-        // a path that writes twice before persisting — {_foldPending} followed by the
-        // credit or debit that called it — would otherwise archive a second time, over
+        // a path that writes twice before persisting - {_foldPending} followed by the
+        // credit or debit that called it - would otherwise archive a second time, over
         // values the first write had already moved on from. That second copy is wrong
         // twice over: it records a mid-transaction figure as the period's history, and the
         // handle it records was never granted to this contract, because {_persist} grants
@@ -387,7 +387,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// @dev A node's balance as it stood in `period`.
     ///
     /// `_balance` carries across periods rather than resetting, so a node untouched since
-    /// before `period` still holds the right number — hence `<=` rather than `==`. That
+    /// before `period` still holds the right number - hence `<=` rather than `==`. That
     /// also covers the gap case: a node written in period 5 and again in 8, asked for 6,
     /// finds `_stamp` too new, walks forward to the first archive taken after it, and
     /// returns the values that archive preserved.
@@ -396,7 +396,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         uint32 c = _archivedAfter(period, node);
         // `_histWas` is the period those values became current. A node first written after
         // `period` held nothing at `period`, and its archive must not be read back over
-        // that gap — which is the whole of the difference between a balance that carried
+        // that gap - which is the whole of the difference between a balance that carried
         // and one that did not exist yet.
         if (c != 0 && _hist[node][c].was <= period) return _hist[node][c].balance;
         return _zero();
@@ -414,7 +414,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         return 0;
     }
 
-    /// @dev Period-scoped corrections, which are only ever valid for their own period —
+    /// @dev Period-scoped corrections, which are only ever valid for their own period -
     /// hence `==` here where the balance uses `<=`.
     function _lateCreditAt(uint32 period, uint256 node) internal view returns (euint64) {
         if (_stamp[node] == period) return _lateCredit[node];
@@ -438,14 +438,14 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// repair the path immediately afterwards, so this adds one encrypted addition to a
     /// walk that was going to happen regardless.
     ///
-    /// Winnings join the balance without earning back-credit for the period — they were not
+    /// Winnings join the balance without earning back-credit for the period - they were not
     /// staked for the minutes before the draw, so `_lateCredit` is charged for the whole
     /// elapsed part of the period exactly as a fresh deposit would be.
     /// @dev Fold parked winnings in and repair the tree, so they start earning odds.
     ///
     /// Costs nothing at all when there is nothing pending, which is every slot except a
     /// winner's. So the thirty-addition repair is paid once, by the person who won, on a
-    /// transaction they were making anyway — and never by anyone who lost.
+    /// transaction they were making anyway - and never by anyone who lost.
     function _settlePending(uint16 slot) internal {
         if (euint64.unwrap(_pendingAward[slot]) == bytes32(0)) return;
 
@@ -490,7 +490,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     }
 
     /// @dev Remove encrypted stake, keeping the credit it already earned.
-    /// @return actual The amount really removed — clamped to the balance held, because a
+    /// @return actual The amount really removed - clamped to the balance held, because a
     /// ciphertext cannot be compared and branched on, so an over-withdrawal cannot revert.
     function _debitSlot(uint16 slot, euint64 requested) internal returns (euint64 actual) {
         if (slot >= LEAF_COUNT) revert SlotOutOfRange();
@@ -504,7 +504,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         _archive(node);
         _balance[node] = FHE.sub(_balance[node], actual);
         // Dropping the balance strips a whole period of credit, but this stake genuinely
-        // earned up to minute `m` — hand that portion back.
+        // earned up to minute `m` - hand that portion back.
         _earlyExit[node] = FHE.add(_earlyExitOf(node), FHE.mul(actual, m));
         _lateCredit[node] = _lateCreditOf(node);
         _persist(node);
@@ -519,14 +519,14 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// The credit lands in the same accumulator an early exit uses, because it is the same
     /// kind of thing: weight this slot has earned that `balance * PERIOD_MINUTES` does not
     /// describe. That accumulator is period-scoped, so the boost expires with the period
-    /// and has to be taken again — which is what keeps it O(1) per depositor rather than a
+    /// and has to be taken again - which is what keeps it O(1) per depositor rather than a
     /// pass over everybody at the roll.
     ///
     /// Nothing here is a new disclosure. `factor` is public, the transaction is public, and
     /// the balance it multiplies stays a ciphertext, so what an observer learns is that
-    /// this slot claimed a boost — which they watched happen.
-    /// @dev `anchorPeriod` is the period the credited streak started counting from —
-    /// `currentPeriod - periods` — and the boost is applied to `min(current balance,
+    /// this slot claimed a boost - which they watched happen.
+    /// @dev `anchorPeriod` is the period the credited streak started counting from -
+    /// `currentPeriod - periods` - and the boost is applied to `min(current balance,
     /// balance held as of anchorPeriod)`, not the raw current balance.
     ///
     /// Without the anchor, the streak (how long the *slot* has existed) and the balance it
@@ -534,7 +534,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     /// with a trivial amount for a month to build the full streak, then deposit a fortune
     /// moments before boosting, and the whole fortune gets the month's multiplier despite
     /// having been staked for none of it. Anchoring on the balance from when the credited
-    /// window actually began means fresh capital added after that point is excluded — the
+    /// window actually began means fresh capital added after that point is excluded - the
     /// boost can only ever apply to money that was genuinely present for as long as the
     /// streak claims. A balance that shrank since the anchor is not inflated either: the
     /// smaller, current figure is what min() picks, so a near-total withdrawal that keeps
@@ -566,7 +566,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
         return _boostStamp[slot] == currentPeriod + 1;
     }
 
-    /// @dev The highest node that still covers every slot in use — the tree's real root.
+    /// @dev The highest node that still covers every slot in use - the tree's real root.
     ///
     /// A full 1024-leaf tree is ten levels deep, and every credit used to repair all ten.
     /// With twenty depositors that is mostly ceremony: slots 0-19 sit under node 32, and
@@ -575,7 +575,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     ///
     /// So the walk stops here instead, and the depth grows with the pool rather than being
     /// paid for up front. Crossing a power of two moves the root up one level, and the
-    /// first credit afterwards computes it — no migration, no re-indexing.
+    /// first credit afterwards computes it - no migration, no re-indexing.
     ///
     /// Plain arithmetic, no ciphertext: `slotsUsed` is public, and how many people are in
     /// the pool was never a secret.
@@ -594,7 +594,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
 
     /// @dev Restore the subtree sums along the ancestors of a leaf, up to {_treeRoot}. Only ancestors can
     /// be affected by a change, which keeps this at 30 encrypted additions rather than a
-    /// full re-sum of the tree — and that bound is what makes the structure viable at all.
+    /// full re-sum of the tree - and that bound is what makes the structure viable at all.
     function _repairPath(uint256 node) internal {
         uint256 root = _treeRoot();
         node /= 2;
@@ -629,7 +629,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     }
 
     /// @notice Compute your own ticket-minutes and authorise yourself to decrypt them.
-    /// @dev A transaction, not a view — FHE operations mutate coprocessor state. Read the
+    /// @dev A transaction, not a view - FHE operations mutate coprocessor state. Read the
     /// handle afterwards with {weightHandle} and decrypt it off-chain via EIP-712.
     ///
     /// Restricted to the slot's owner. Without this check anyone could grant themselves
@@ -679,7 +679,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     }
 
     /// @dev For subclasses that need to grant rights over the cached total. Test harnesses
-    /// only — the pool never hands this out.
+    /// only - the pool never hands this out.
     function _totalCacheHandle() internal view returns (euint64) {
         return _totalCache;
     }
@@ -688,7 +688,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     // Selection
     // -------------------------------------------------------------------------
 
-    /// @dev Combined ticket-minutes of every slot ordered before this one — the lower edge
+    /// @dev Combined ticket-minutes of every slot ordered before this one - the lower edge
     /// of its band. Climbing from the leaf, a right child's left sibling covers everything
     /// before it, so one addition skips that entire subtree.
     ///
@@ -723,7 +723,7 @@ abstract contract ConfidentialTimeWeightedTree is ZamaEthereumConfig {
     ///
     /// This is the whole reason Hushpot never learns a winner. The comparison runs on
     /// ciphertext and yields an encrypted boolean the contract cannot read. It is only ever
-    /// fed into a `select`, choosing between the prize and zero — so a loser's claim
+    /// fed into a `select`, choosing between the prize and zero - so a loser's claim
     /// silently adds nothing and is indistinguishable on-chain from a winner's.
     function _checkWin(uint16 slot, euint64 drawPoint) internal returns (ebool) {
         return _checkWinAt(currentPeriod, slot, drawPoint);

@@ -18,8 +18,8 @@ export type OddsPoint = { draw: number; odds: number };
 /**
  * The odds series lives in memory for the life of the page, and nowhere else.
  *
- * It used to be written to `localStorage`, keyed by address. That looked harmless — it is
- * your own number, on your own machine — but odds are `yourWeight / publishedTotal`, and
+ * It used to be written to `localStorage`, keyed by address. That looked harmless - it is
+ * your own number, on your own machine - but odds are `yourWeight / publishedTotal`, and
  * the total is public at every draw. So the stored figure is a plaintext derivative of an
  * encrypted balance: read the file, divide by the published total, and you have the
  * position without holding any key.
@@ -33,13 +33,13 @@ const seriesByAddress = new Map<string, OddsPoint[]>();
 /**
  * Your record, assembled from two places.
  *
- * Deposits, draws entered and blocks held come off the chain — they are public facts about
+ * Deposits, draws entered and blocks held come off the chain - they are public facts about
  * an address, and the Proof tab already says so. Deposits made through the plain-token
  * route carry their size in the clear; ones made in cUSDT do not, and are shown without an
  * amount rather than guessed at.
  *
- * Odds history cannot come off the chain. Nobody stores your past weight — that is the
- * point of the product — so a series can only be built from readings you took yourself.
+ * Odds history cannot come off the chain. Nobody stores your past weight - that is the
+ * point of the product - so a series can only be built from readings you took yourself.
  * It is kept in this browser and labelled as such. Clearing site data loses it, which is
  * the correct trade for a figure the chain deliberately does not keep.
  */
@@ -123,7 +123,7 @@ export function usePositionHistory(drawCount: number, currentOdds?: number) {
           const blocks = head - rows[0].block;
           setBlocksHeld(blocks);
 
-          // Sepolia targets 12s a block. Approximate on purpose — "6 days" is what a
+          // Sepolia targets 12s a block. Approximate on purpose - "6 days" is what a
           // depositor wants to know, and pretending to the second would be false anyway.
           const hours = Number(blocks) / 300;
           setHeldFor(

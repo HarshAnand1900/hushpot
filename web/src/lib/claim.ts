@@ -13,7 +13,7 @@ export const MAX_HISTORY = 5;
  *     if (currentPeriod > d.period + MAX_HISTORY) revert ClaimWindowClosed();
  *
  * Thirty days of wall-clock time, not a count of rolls. Four different places in this app
- * tested `drawPeriod === currentPeriod` — the rule from before the tree kept history — and
+ * tested `drawPeriod === currentPeriod` - the rule from before the tree kept history - and
  * so called a draw closed while the chain would happily have paid it out. One function
  * now, so the interface and the contract cannot drift apart again.
  *

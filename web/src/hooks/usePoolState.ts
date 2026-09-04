@@ -52,7 +52,7 @@ export function usePoolState() {
      * Whether a read actually landed.
      *
      * `isLoading` is only true on the first fetch, so after a failed refetch it reads
-     * false while every field below falls back to its default — `currentPeriod` to 0 on a
+     * false while every field below falls back to its default - `currentPeriod` to 0 on a
      * pool that is in period 3. Anything deciding on those values needs to know the
      * difference between "zero" and "not answered".
      */
@@ -117,7 +117,7 @@ export function useNow(intervalMs = 1000) {
  * depending on which tab you were on.
  *
  * The exact figure is `prizeFor(liveTotal) + sponsored`, and `liveTotal` is encrypted
- * precisely so that nobody can read it — two readings either side of a deposit would give
+ * precisely so that nobody can read it - two readings either side of a deposit would give
  * up that deposit. So the yield half is estimated from the total the last draw published,
  * assuming the pool ends this week near where it ended the last one. Both inputs are
  * already public and the arithmetic is the contract's own `prizeFor`, so the estimate
@@ -129,7 +129,7 @@ export function useNow(intervalMs = 1000) {
  *
  * Before any draw has settled there is no published total to estimate from and nothing
  * sponsored, so this returns exactly zero. Callers render that as an em dash rather than
- * `0.00`, because there is no pot yet — not a pot that happens to be empty. The judge
+ * `0.00`, because there is no pot yet - not a pot that happens to be empty. The judge
  * sandbox is deliberately left in that state, with its first cycle still to run.
  */
 const RATE_DIVISOR = 10_000n * 525_600n;

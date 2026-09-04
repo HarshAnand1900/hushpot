@@ -21,8 +21,8 @@ export default function Landing() {
   const closesIn = Number(state.periodStart + state.periodSeconds) - now;
 
   // "This week's pot" is what pays out at close, projected from the last published pool
-  // total. Never a live reading — that would leak every deposit by subtraction.
-  // The same estimate the app tabs show — see useWeeklyPot for why it is an estimate.
+  // total. Never a live reading - that would leak every deposit by subtraction.
+  // The same estimate the app tabs show - see useWeeklyPot for why it is an estimate.
   const { pot: projectedPot } = useWeeklyPot(state, lastDraw);
   const pot = splitUnits(projectedPot, 2);
 
@@ -39,8 +39,8 @@ export default function Landing() {
               React does not patch text it hydrated from the server, so the serial waits
               for mount rather than naming a pool this page is not talking to. */}
           <div className={styles.serial} suppressHydrationWarning>
-            SER. {mounted ? `${POOL_ADDRESS.slice(0, 6)}—${POOL_ADDRESS.slice(-4)}` : "————"} · FHEVM SEPOLIA ·
-            NON—TRANSFERABLE RECORD
+            SER. {mounted ? `${POOL_ADDRESS.slice(0, 6)}-${POOL_ADDRESS.slice(-4)}` : "————"} · FHEVM SEPOLIA ·
+            NON-TRANSFERABLE RECORD
           </div>
         </div>
 
@@ -102,7 +102,7 @@ export default function Landing() {
             </span>
           </div>
           {/* "LIVE" belongs to the feed, not to the figure, and the distinction is the
-              whole product. The reads behind this panel really are live — polled off
+              whole product. The reads behind this panel really are live - polled off
               Sepolia every twelve seconds. The pot itself cannot be: it is
               `prizeFor(lastDraw.total) + sponsored`, carried from the last settled draw,
               because a live pool total would let anyone recover a deposit by subtraction.

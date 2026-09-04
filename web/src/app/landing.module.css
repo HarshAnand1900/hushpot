@@ -1,11 +1,11 @@
-/* Landing — the poster. Full viewport, type over the (eventual) 3D pot. */
+/* Landing - the poster. Full viewport, type over the (eventual) 3D pot. */
 
 /* Type that floats over the 3D exhibit needs help that a colour cannot give it: the scene
    behind runs from near-black to the pot's full gold as the rig turns, so light grey
    disappears into the gold and black would disappear into everything else. A scrim fixes
    that but reads as a panel the design does not have.
 
-   So the glyphs carry their own contrast instead — a tight dark halo, invisible as a
+   So the glyphs carry their own contrast instead - a tight dark halo, invisible as a
    shape, plus the heavier of the two mono weights. Applied everywhere the landing floats
    type over the scene. */
 .overlayInk {
@@ -235,7 +235,7 @@
   bottom: 116px;
 }
 
-/* A soft pool of dark behind each block — the type sits on lit gold otherwise and
+/* A soft pool of dark behind each block - the type sits on lit gold otherwise and
    stops being readable. */
 .scrim {
   position: absolute;
@@ -434,7 +434,7 @@
     justify-content: flex-start;
     padding-top: 40px;
   }
-  /* Narrow screens have no room to pin two blocks apart — let them stack in flow
+  /* Narrow screens have no room to pin two blocks apart - let them stack in flow
      so the figure and the pitch cannot collide. */
   .potBlock,
   .bottomBlock {

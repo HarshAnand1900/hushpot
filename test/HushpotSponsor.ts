@@ -16,7 +16,7 @@ import {
 const DEPOSIT = 500_000n; // 0.5 token
 const PERIOD_SECONDS = 7 * 24 * 60 * 60;
 
-describe("HushpotPool — sponsorship", function () {
+describe("HushpotPool - sponsorship", function () {
   let owner: HardhatEthersSigner;
   let minnow: HardhatEthersSigner;
   let stranger: HardhatEthersSigner;
@@ -31,7 +31,7 @@ describe("HushpotPool — sponsorship", function () {
       this.skip();
     }
 
-    // signers[0] deploys, so it is the owner — bind it rather than relying on the default.
+    // signers[0] deploys, so it is the owner - bind it rather than relying on the default.
     [owner, , minnow, stranger] = await ethers.getSigners();
 
     usdt = (await ((await ethers.getContractFactory("TestERC20")) as TestERC20__factory).deploy()) as TestERC20;

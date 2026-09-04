@@ -5,7 +5,7 @@ import {FHE, euint64} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 import {ERC7984} from "@openzeppelin/confidential-contracts/token/ERC7984/ERC7984.sol";
 
-/// @title TestConfidentialToken — a faucet-backed ERC-7984 for Sepolia and local tests
+/// @title TestConfidentialToken - a faucet-backed ERC-7984 for Sepolia and local tests
 /// @notice A confidential token whose balances are encrypted, with an open faucet so
 /// judges and testers can obtain some without asking anyone.
 ///
@@ -18,7 +18,7 @@ contract TestConfidentialToken is ERC7984, ZamaEthereumConfig {
     constructor() ERC7984("Hushpot Test USD", "hUSD", "") {}
 
     /// @notice Mint test tokens to yourself.
-    /// @param amount Plain amount to mint. Public by nature — it is a faucet, and the
+    /// @param amount Plain amount to mint. Public by nature - it is a faucet, and the
     /// figure is visible in calldata regardless. Privacy begins once the tokens move.
     function faucet(uint64 amount) external {
         require(amount > 0 && amount <= FAUCET_LIMIT, "TestToken: bad faucet amount");

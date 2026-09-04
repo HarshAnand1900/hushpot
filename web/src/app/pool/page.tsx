@@ -59,9 +59,9 @@ export default function PoolTab() {
   const weekPct = Math.min(100, (Number(state.minuteOfPeriod) / 10080) * 100);
 
   // "This week's pot" is what gets paid at close, projected from the last published pool
-  // total — never a live reading, which would leak deposits by subtraction. The share
+  // total - never a live reading, which would leak deposits by subtraction. The share
   // accrued so far is shown separately rather than standing in for the whole thing.
-  // What the last draw actually paid — not a forecast of the next one.
+  // What the last draw actually paid - not a forecast of the next one.
   //
   // Shared with every other tab, so the header never disagrees with itself.
   const { pot, yieldEstimate, lastPaid } = useWeeklyPot(state, lastDraw);
@@ -72,7 +72,7 @@ export default function PoolTab() {
   const accrued = (yieldEstimate * BigInt(Math.floor(weekPct * 100))) / 10_000n + state.sponsoredThisDraw;
   const potParts = splitUnits(pot);
 
-  // Odds are computed inside PositionPanel, against a FROZEN denominator — the total
+  // Odds are computed inside PositionPanel, against a FROZEN denominator - the total
   // published at the last draw, never a live one. With a live denominator anyone could
   // divide their own odds into it and recover the running pool total, and from that
   // every individual deposit.
@@ -83,12 +83,12 @@ export default function PoolTab() {
       {/* No full-viewport 3D exhibit here, deliberately.
       
           Pool is the page where every transaction happens, and a second three.js renderer
-          covering the viewport was competing with FHE encryption for the main thread —
+          covering the viewport was competing with FHE encryption for the main thread -
           the deposit freeze. The global CSS backdrop in layout.tsx already provides the
           glow; the pot that matters is the interactive one in the hero, which is small and
           cheap. Draws and Proof keep the exhibit: nothing blocking happens there. */}
       <div className="warmGlow" aria-hidden="true" />
-      <AppHeader pot={pot} />
+      <AppHeader pot={pot} drawNumber={Number(state.drawCount)} />
 
       <main className={`${styles.page} rise`}>
         {/* status strip -------------------------------------------------- */}
@@ -117,7 +117,7 @@ export default function PoolTab() {
                 against PERIOD #0 in the status strip. */}
             {/* Naming the next draw is only honest while it can actually be opened. In the
                 settling phase the last draw has landed but the period has not rolled, and
-                the contract allows one draw per period — so "THIS WEEK'S POT · DRAW #1"
+                the contract allows one draw per period - so "THIS WEEK'S POT · DRAW #1"
                 described a draw that could not start, beside a countdown reading zero. */}
             <div className={styles.potKicker}>
               {drawNumber === 0
@@ -244,7 +244,7 @@ export default function PoolTab() {
 
             {/* The pot filling across the week, not one bar per settled draw.
                 Draws are weekly, so a fourteen-draw history takes three months to fill and
-                showed thirteen empty boxes beside a cell headed "BUILDING TOWARD DRAW #N" —
+                showed thirteen empty boxes beside a cell headed "BUILDING TOWARD DRAW #N" -
                 a chart about the wrong axis. This is the axis the heading names, it is full
                 from the first block, and it is computed from the same figures the contract
                 uses rather than recorded: the pot for a full period, spread over its
@@ -339,8 +339,8 @@ export default function PoolTab() {
               browser with a key that never leaves it.
             </div>
             {/* Neither of these has to wait on the reveal above. Both sheets open fine on
-                an encrypted balance and carry their own inline reveal — the one the deposit
-                tab has always had — so gating them here only moved a signature to a place
+                an encrypted balance and carry their own inline reveal - the one the deposit
+                tab has always had - so gating them here only moved a signature to a place
                 nobody asked for it. Offered as the ordinary pair rather than as a caveat:
                 "withdraw without revealing first" described the plumbing, not the action. */}
             <div className={styles.revealActions}>
@@ -364,7 +364,7 @@ export default function PoolTab() {
             <span style={{ color: phase.id === "accruing" ? undefined : "var(--yellow)" }}>{phase.tag}</span>
           </div>
           {/* These three used to read `drawNumber > 0`, so every cell showed OK forever
-              once any draw had ever settled — a diagram of the mechanism rather than a
+              once any draw had ever settled - a diagram of the mechanism rather than a
               report on this one. They now track the cycle actually in front of you. */}
           <div className={styles.engine}>
             <EngineCell
@@ -420,7 +420,7 @@ export default function PoolTab() {
           lockMode={sheet === "join"}
           drawNumber={drawNumber}
           inPool={position.balance}
-          // Withdraw has no decrypt path of its own — it borrows this one, the same
+          // Withdraw has no decrypt path of its own - it borrows this one, the same
           // signature-then-transaction flow the position panel's own reveal button runs.
           // `reveal()` writes into shared state (`position`, above), so a reveal
           // triggered from inside the sheet updates `inPool` the same way the panel's
@@ -468,7 +468,7 @@ function EngineCell({ label, note, done, active }: { label: string; note: string
 }
 
 /**
- * What the cycle needs next, said where depositors stand — with a button, not just a link.
+ * What the cycle needs next, said where depositors stand - with a button, not just a link.
  *
  * There used to be a button here that gated on the elapsed period alone, so it sat greyed
  * out for the owner opening early and never worked at all on the sandbox, where the pool's

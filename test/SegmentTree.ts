@@ -16,7 +16,7 @@ async function deployFixture(): Promise<SegmentTree> {
  *
  * This is the heart of the suite: the count for each slot IS that slot's
  * selection probability numerator. If the structure is correct, the counts must
- * equal the weights exactly — not approximately.
+ * equal the weights exactly - not approximately.
  */
 async function tallySelections(tree: SegmentTree, total: number): Promise<Map<number, number>> {
   const counts = new Map<number, number>();
@@ -166,7 +166,7 @@ describe("SegmentTree", function () {
   // Hushpot does not walk the tree to find a winner. Each participant checks
   // their own band independently, which is what keeps the winner unknown even to
   // the contract. These tests prove that self-check is exactly equivalent to the
-  // centralised walk — same winner, every time — before we commit it to FHE.
+  // centralised walk - same winner, every time - before we commit it to FHE.
   // ---------------------------------------------------------------------------
   describe("self-check selection (the mechanism Hushpot actually uses)", function () {
     const weights = new Map<number, number>([
@@ -190,7 +190,7 @@ describe("SegmentTree", function () {
     });
 
     it("gives an empty slot a zero-width band", async function () {
-      // Slot 5 sits between 3 and 7, so it inherits slot 3's upper edge — and with
+      // Slot 5 sits between 3 and 7, so it inherits slot 3's upper edge - and with
       // zero weight its band is empty, meaning no draw point can ever land in it.
       expect(await tree.prefixSum(5)).to.eq(50);
       expect(await tree.winsWith(5, 50)).to.eq(false);

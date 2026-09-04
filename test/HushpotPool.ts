@@ -150,14 +150,14 @@ describe("HushpotPool", function () {
     });
 
     // The important one. An ERC-7984 transfer that exceeds the sender's balance does not
-    // revert — it silently moves nothing. So the pool must credit the amount the token
+    // revert - it silently moves nothing. So the pool must credit the amount the token
     // reports as actually transferred. Crediting the *requested* amount instead would let
     // anyone mint unlimited odds out of an empty wallet.
     it("credits only what actually moved, not what was asked for", async function () {
       await fund(alice, 100n);
       await deposit(alice, 999n); // asks for far more than she holds
 
-      // Nothing moved, so nothing was credited — and critically, not 999.
+      // Nothing moved, so nothing was credited - and critically, not 999.
       expect(await poolBalance(alice)).to.eq(0n);
       expect(await poolWeight(alice)).to.eq(0n);
       expect(await walletBalance(alice), "her tokens are untouched").to.eq(100n);

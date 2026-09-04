@@ -17,7 +17,7 @@ import {
  *
  * The path: a depositor holds for part of a period and leaves. `exitPool` clears
  * `slotOwner`, but the slot keeps its place until the period rolls and its weight for the
- * period is real — the stake was held for part of it, so the band is not empty and the
+ * period is real - the stake was held for part of it, so the band is not empty and the
  * draw point can land inside it. A sweep then evaluates that band and parks the award.
  *
  * `_pendingAward` carries no period stamp, unlike `_lateCredit` and `_earlyExit`, so
@@ -28,7 +28,7 @@ import {
  * half the time. Weights here are lopsided by a factor of ~10^9 so the retired band covers
  * effectively the whole number line, which pins the outcome.
  */
-describe("HushpotPool — awards on retired slots", function () {
+describe("HushpotPool - awards on retired slots", function () {
   let owner: HardhatEthersSigner;
   let leaver: HardhatEthersSigner;
   let joiner: HardhatEthersSigner;
@@ -122,7 +122,7 @@ describe("HushpotPool — awards on retired slots", function () {
   it("stays solvent when a retired slot's award is dropped", async function () {
     // Skipping the award raises a fair question about the books. The prize leaves
     // `prizeReserve` at settlement, and with nobody to park it on it is never added to
-    // `_parkedTotal` either — so the tokens stay in the contract while the liability does
+    // `_parkedTotal` either - so the tokens stay in the contract while the liability does
     // not grow. That has to leave the pool over-collateralised rather than under, and the
     // direction of the error is the whole point of asserting it.
     await join(leaver, BIG);

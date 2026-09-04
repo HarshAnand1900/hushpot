@@ -22,18 +22,18 @@ const isHandle = (v?: string) => !!v && /[1-9a-f]/i.test(v.slice(2));
 export type CheckableDraw = { id: bigint; prize: bigint; period: number };
 
 /**
- * Two questions, told apart — though the first one answers both at once.
+ * Two questions, told apart - though the first one answers both at once.
  *
  * "Am I owed anything?" is a payment. `checkMyClaim` is one transaction: it evaluates the
  * draw against your band *and* writes the result down, crediting the prize or an encrypted
- * zero in the same call. There is no separate claim step after checking — checking is the
+ * zero in the same call. There is no separate claim step after checking - checking is the
  * whole of it, which is also why it costs the same gas regardless of the answer. It works
  * for thirty days after settlement, not just the current period; the tree keeps five
  * periods of history so a roll does not end this the way it used to.
  *
- * "Did I win?" is information, once a check has already happened — by you or by a keeper
+ * "Did I win?" is information, once a check has already happened - by you or by a keeper
  * sweeping the pool for everyone. It opens `awardOf[draw][slot]` with a signature, costs no
- * gas, and keeps working afterwards — after a sweep, after a roll, indefinitely.
+ * gas, and keeps working afterwards - after a sweep, after a roll, indefinitely.
  *
  * This panel used to answer both by sending a transaction and diffing the balance either
  * side of it, which fails in the ordinary case: if anything checked your slot first, the
@@ -93,7 +93,7 @@ export function DidIWin({
    * *draws it can answer for* are not: `checkClaim` forces an encrypted zero, no win check
    * at all, for any draw settled before `slotAssignedAt`. A new depositor who has never
    * touched an old draw used to see it marked "YOURS TO CLAIM" anyway, because the resolve
-   * effect only tested `hasSlot` — true the moment they joined, for every draw that had
+   * effect only tested `hasSlot` - true the moment they joined, for every draw that had
    * ever run, including the ones from before they existed. Checking one would have cost
    * real gas for a result that was never in question: the contract had already decided it
    * before the transaction landed.
@@ -140,10 +140,10 @@ export function DidIWin({
   }, [publicClient, address, nonce]);
 
   /** Whether this address could possibly have anything to answer for a draw settled in
-   * `period` — false for a slot that did not exist yet, exactly as `checkClaim` decides it. */
+   * `period` - false for a slot that did not exist yet, exactly as `checkClaim` decides it. */
   const enteredBy = (period: number) => mySlot !== undefined && mySlot !== "none" && mySlot.since <= period;
   // A rehearsal of the winning screen, with no transaction behind it. Most visitors will
-  // lose — that is what a lottery is — and the screen that matters would otherwise never
+  // lose - that is what a lottery is - and the screen that matters would otherwise never
   // be seen. It is labelled on every line so it can never be mistaken for a result.
   const [preview, setPreview] = useState(false);
 
@@ -159,7 +159,7 @@ export function DidIWin({
   const resolved = useRef<string>(undefined);
 
   // How long *this* draw's thirty days still have to run. Both halves come from the
-  // contract — the draw's own `settledAt` and `CLAIM_GRACE` — rather than being counted in
+  // contract - the draw's own `settledAt` and `CLAIM_GRACE` - rather than being counted in
   // rolls here, because a countdown that disagrees with the chain is worse than none.
   const { at: settledAt, grace } = useSettledAt(BigInt(draws.length));
   const drawSettledAt = drawId !== undefined ? settledAt[String(drawId)] : undefined;
@@ -179,7 +179,7 @@ export function DidIWin({
    * Resolve which state this draw is in, from public reads only.
    *
    * Keyed on `drawId` rather than on `draw`. The parent builds its array inline, so every
-   * one of its renders — and it polls — hands down a new object with the same contents.
+   * one of its renders - and it polls - hands down a new object with the same contents.
    * Depending on that identity re-ran this effect several times a second and flashed
    * "reading the chain" over an answer that was already correct.
    */
@@ -201,7 +201,7 @@ export function DidIWin({
         setArrival(undefined);
       }
       try {
-        // Not loaded yet — nothing to resolve against, so wait rather than guess.
+        // Not loaded yet - nothing to resolve against, so wait rather than guess.
         if (mySlot === undefined) return;
 
         // No deposit, ever, and `slotOf` would revert rather than returning one.
@@ -213,7 +213,7 @@ export function DidIWin({
         // A slot, but not one this draw could ever have known about: `checkClaim` forces
         // an encrypted zero for it, without running the win check at all, so there is
         // nothing here to read and nothing worth spending gas to confirm. Same state, same
-        // copy, as never having deposited — which is exactly what was true when this draw
+        // copy, as never having deposited - which is exactly what was true when this draw
         // ran.
         if (drawPeriod !== undefined && mySlot.since > drawPeriod) {
           if (live) setAnswer({ kind: "no-slot" });
@@ -441,7 +441,7 @@ export function DidIWin({
   const markFor = (d: CheckableDraw) => {
     if (openedByDraw[String(d.id)] !== undefined) return { mark: "✓", cls: styles.pickDone };
     // A draw this slot did not exist for is not "yours to claim," whatever the window
-    // says — same reasoning as the resolve effect above.
+    // says - same reasoning as the resolve effect above.
     if (enteredBy(d.period) && isClaimable(d.period, currentPeriod, settledAt[String(d.id)], now))
       return { mark: "!", cls: styles.pickLive };
     return { mark: "·", cls: styles.pickShut };
@@ -464,7 +464,7 @@ export function DidIWin({
 
       {/* This draw's own countdown, from its own settle time. It is still gated on the
           window being open, so it can never read "CHECK CLOSES 29d" under the word
-          "CLOSED" — and it no longer borrows the newest draw's clock to say so. */}
+          "CLOSED" - and it no longer borrows the newest draw's clock to say so. */}
       {windowOpen && claimLeft !== undefined && claimLeft > 0 && (
         <div className={styles.claimBar}>
           <span className={styles.claimK}>CHECK CLOSES</span>
@@ -544,13 +544,13 @@ export function DidIWin({
 
             <p className={styles.copy}>
               {opened > 0n
-                ? "It is already in your pool balance — added the moment you were checked, which is why nothing announced it at the time. Withdraw it whenever you like; it is principal now."
+                ? "It is already in your pool balance - added the moment you were checked, which is why nothing announced it at the time. Withdraw it whenever you like; it is principal now."
                 : "Your receipt decrypts to zero. It cost the same gas as a winner's and looks identical on-chain, which is what stops anybody reading the result off the ledger."}
             </p>
             <p className={styles.fine}>
               The amount above came from decrypting your own receipt in this browser and is visible to nobody else. The
               three lines under it are public: the chain records that your slot was checked, when, and by whom, for
-              every depositor alike. That is what makes them safe to show — a losing panel says the same three things.
+              every depositor alike. That is what makes them safe to show - a losing panel says the same three things.
             </p>
           </div>
         )}
@@ -562,7 +562,7 @@ export function DidIWin({
             <div className={styles.receiptHead}>YOUR RESULT IS WAITING</div>
             <p className={styles.copy}>
               This draw was checked for you and the answer was written down, encrypted to your address. Nobody else can
-              open it — not whoever ran the check, not us, not the contract.
+              open it - not whoever ran the check, not us, not the contract.
             </p>
             <button
               className="btnPrimary"
@@ -581,7 +581,7 @@ export function DidIWin({
             <div className={styles.receiptHead}>THIS ONE IS STILL UNCHECKED</div>
             <p className={styles.copy}>
               One transaction settles it: the draw is evaluated against your band and the result written down, crediting
-              you the prize or an encrypted zero — that evaluation is the whole of it, there is no separate step after.
+              you the prize or an encrypted zero - that evaluation is the whole of it, there is no separate step after.
               On-chain those two outcomes are identical, down to the gas, which is the entire point: checking is not an
               admission of anything. Your answer opens straight afterwards, and reopens for free whenever you like.
             </p>
@@ -639,8 +639,8 @@ export function DidIWin({
                 </p>
               ) : (
                 <p>
-                  This draw&rsquo;s thirty days ran out before anybody checked your slot. Rolling does not end this —
-                  the pool keeps five periods of history and will not roll past a draw still inside its window — so the
+                  This draw&rsquo;s thirty days ran out before anybody checked your slot. Rolling does not end this -
+                  the pool keeps five periods of history and will not roll past a draw still inside its window - so the
                   only thing that closes one is the clock. Checking any time in that month, or leaving a keeper to
                   sweep, both prevent this.
                 </p>
@@ -650,8 +650,8 @@ export function DidIWin({
         )}
 
         <p className={styles.cipher}>
-          This draw paid {draw ? formatUnits(draw.prize) : "—"} cUSDT to exactly one depositor. Nobody — not the other
-          players, not the contract, not us — can say which.
+          This draw paid {draw ? formatUnits(draw.prize) : "—"} cUSDT to exactly one depositor. Nobody - not the other
+          players, not the contract, not us - can say which.
         </p>
 
         {error && <div className={styles.error}>{error}</div>}

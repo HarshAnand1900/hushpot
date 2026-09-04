@@ -17,7 +17,7 @@ import {
  * The sandbox's owner is a contract that says yes to everyone, for two things only.
  *
  * What is being tested is mostly an absence: that handing the pool to this contract gives
- * a stranger the two calls a demonstration needs, and gives them nothing else — not the
+ * a stranger the two calls a demonstration needs, and gives them nothing else - not the
  * yield rate, not ownership, not a generic call to reach whatever gets added later.
  */
 describe("SandboxOperator", function () {
@@ -58,7 +58,7 @@ describe("SandboxOperator", function () {
     operatorAddress = await operator.getAddress();
 
     // One depositor, so a draw has something to seal. The pool auto-shields, so the
-    // plain route is the shortest way to get a position in place — what is under test
+    // plain route is the shortest way to get a position in place - what is under test
     // here is who may run the cycle, not how the money got in.
     await (await usdt.mint(stranger.address, 1_000n)).wait();
     await (await usdt.connect(stranger).approve(poolAddress, 1_000n)).wait();
@@ -72,7 +72,7 @@ describe("SandboxOperator", function () {
   });
 
   it("lets a stranger open a draw before the period has elapsed", async function () {
-    // Directly, this is the call that fails — which is the whole reason the contract exists.
+    // Directly, this is the call that fails - which is the whole reason the contract exists.
     await expect(pool.connect(stranger).openDraw()).to.be.revertedWithCustomError(pool, "PeriodNotElapsed");
 
     await expect(operator.connect(stranger).openDraw()).to.not.be.reverted;
@@ -85,7 +85,7 @@ describe("SandboxOperator", function () {
     const res = await fhevm.publicDecrypt([await pool.pendingTotalHandle()]);
     await (await pool.connect(stranger).settleDraw(res.abiEncodedClearValues, res.decryptionProof)).wait();
 
-    // Everyone the draw covered has to be checked first — the roll will not end a claim
+    // Everyone the draw covered has to be checked first - the roll will not end a claim
     // window that still has answers outstanding. See HushpotRollGate.ts.
     const used = Number(await pool.slotsUsed());
     for (let i = 0; i < used; i++) await (await pool.connect(stranger).sweepRange(0, 1)).wait();
@@ -97,7 +97,7 @@ describe("SandboxOperator", function () {
 
   it("keeps the owner's dangerous powers unreachable", async function () {
     // The rate and ownership are owner-only, the owner is this contract, and this contract
-    // has no forwarder for either — so they are not merely gated, they are gone.
+    // has no forwarder for either - so they are not merely gated, they are gone.
     await expect(pool.connect(stranger).setAnnualRateBps(0)).to.be.revertedWithCustomError(
       pool,
       "OwnableUnauthorizedAccount",

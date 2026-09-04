@@ -1,4 +1,4 @@
-# Hushpot — Operating the Protocol
+# Hushpot - Operating the Protocol
 
 Who can call what, how a judge runs a full cycle today without a key changing hands, the weekly schedule a keeper
 follows, and why the contract cannot be upgraded. For the pitch and the live numbers, see
@@ -55,7 +55,7 @@ and is documented in [`docs/THREAT-MODEL.md`](THREAT-MODEL.md#43-the-owner).
 Two of the six steps are gated to the pool's owner, and not in the same way.
 
 `openDraw` opens to everybody the moment the seven-day period elapses, so any wallet can seal a draw from that point.
-The date moves with every roll, and naming one here would go stale the way an earlier draft of this line did — the
+The date moves with every roll, and naming one here would go stale the way an earlier draft of this line did - the
 current period's end is `periodStart() + PERIOD_SECONDS`, both public getters, and the judge panel shows it read from
 the chain rather than written down.
 
@@ -72,7 +72,7 @@ Before then, use the **sandbox**: a second pool that exists for exactly this and
 | Its owner | [`SandboxOperator`](https://sepolia.etherscan.io/address/0x4Cdc99F52Be94aD1A851119FEFc07557637E7Cdc#code), a contract, not a person  |
 
 **There is no key to import.** All six steps run from whatever wallet you already have. One cycle has already been run
-through it — proving the fixes this deployment exists to demonstrate live — but every step stays open to anyone: roll
+through it - proving the fixes this deployment exists to demonstrate live - but every step stays open to anyone: roll
 the period yourself and the next cycle is yours to run end to end.
 
 ### How that works
@@ -104,7 +104,7 @@ it would make that document a lie. The sandbox absorbs the experimentation inste
 ### What you will find there
 
 Six confidential deposits are seeded and **one draw has already settled**, run live to prove the fixes this deployment
-exists to demonstrate — see [What is running right now](../README.md#what-is-running-right-now). The period has not
+exists to demonstrate - see [What is running right now](../README.md#what-is-running-right-now). The period has not
 rolled since, so `startNextPeriod` is the next step waiting for a judge to press it, exactly where step 01 of a fresh
 run through the six steps would be.
 
@@ -164,7 +164,7 @@ anything in the contract. Held to this cadence it never drifts:
 The six-hour gap is a courtesy, not a safety margin: the draw is opened six hours before the nominal seven-day boundary
 so that settling and a prompt sweep both finish before the next period is due to start, and prizes land in balances the
 same day rather than sitting parked. Nothing here is time-pressured. The tree keeps five generations of history and the
-claim window is thirty days of wall-clock time, independent of how many times the period has rolled since — and
+claim window is thirty days of wall-clock time, independent of how many times the period has rolled since - and
 `startNextPeriod` itself refuses to roll past a draw still inside its grace if doing so would push it beyond that
 history depth, so there is no sequence of calls that can orphan a live claim. Rolling on schedule without sweeping first
 is a legitimate way to run this; sweeping promptly is good practice, not insurance against a stranded prize.
@@ -188,7 +188,7 @@ the pool needs, which most of the time is nothing at all:
 
 That condition is now tidiness rather than necessity. It was the whole reason the keeper existed: `checkClaim` used to
 revert once `draw.period != currentPeriod`, so a prize not swept before the roll was deducted from the reserve and
-credited to nobody, permanently — and that happened once on a live pool, by hand. Claims survive a roll now, so the
+credited to nobody, permanently - and that happened once on a live pool, by hand. Claims survive a roll now, so the
 keeper sweeps to save depositors the transaction, not to save them the prize.
 
 Deposits need no attention at the boundary: balances live in the tree across periods, and the period-scoped corrections
@@ -229,26 +229,26 @@ Immutable means a fix lands in a new contract or not at all. Three did, and all 
 writing the test that would catch the bug rather than the test that would pass.
 
 **A prize parked on a slot whose owner had left.** `_sweepSlot` credited an award to a retired slot, and `_pendingAward`
-carried no period stamp — so the next depositor handed that recycled slot folded a stranger's prize into their balance.
+carried no period stamp - so the next depositor handed that recycled slot folded a stranger's prize into their balance.
 Reproduced in `HushpotRetiredSlotAward.ts`, where the joiner's balance came back 821,917 too high.
 
 **The same bug again, through a different door.** Keeping a generation of tree history removed `checkClaim`'s period
 gate, and nothing then checked that the account holding a slot _today_ was the account that earned its band _then_. The
-`slotOwner != address(0)` guard from the first fix does not fire, because a recycled slot does have an owner — just a
+`slotOwner != address(0)` guard from the first fix does not fire, because a recycled slot does have an owner - just a
 different one. `slotAssignedAt` is what actually closes it: the band is still counted, so no later edge shifts, but the
 award is an encrypted zero unless the holder was there when the draw settled.
 
 **An archived handle with no ACL grant.** `_foldPending` archives a node, mutates the balance into a fresh handle, and
-leaves the grant to `_persist` — but `_creditSlot` then archives _again_ before the stamp advances, storing that
+leaves the grant to `_persist` - but `_creditSlot` then archives _again_ before the stamp advances, storing that
 intermediate handle. `_persist` grants only the final one, so the archived handle has no ACL entry and every later claim
 whose band crosses that node reverts with `ACLNotAllowed()`. Unrecoverable: the prize becomes permanently unclaimable
 for everyone whose prefix includes that leaf. An idempotence guard in `_archive` fixes it.
 
 That third one is worth dwelling on, because it is the one that would have shipped. It needs no `exitPool` and no
-unusual sequence — a winner making an ordinary second deposit is enough. The first two could be argued away on a pool
+unusual sequence - a winner making an ordinary second deposit is enough. The first two could be argued away on a pool
 where nobody had ever left, and that argument was made here, once, honestly. It was not available for this one.
 
 **Both pools now run this source.** There is no divergence to disclose: the addresses in
 [`web/src/lib/contract.ts`](../web/src/lib/contract.ts) are the deployments these contracts compile to, and Etherscan
 carries the verified source for each. What immutability cost was several redeployments across this build and a pool's
-worth of history discarded each time — which is the real price of not being able to patch, paid rather than described.
+worth of history discarded each time - which is the real price of not being able to patch, paid rather than described.

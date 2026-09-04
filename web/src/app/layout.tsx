@@ -26,12 +26,12 @@ const grotesk = Space_Grotesk({
 });
 
 // Regular (400) deliberately not loaded. Every uppercase, letter-spaced label across the
-// app — panel headers, step markers, stat kickers, all of it — sets no font-weight of its
+// app - panel headers, step markers, stat kickers, all of it - sets no font-weight of its
 // own, so it rendered at 400 by default: thin strokes, small size, wide tracking, on a
 // dark background. The worst combination for legibility this design has, and it was
 // everywhere. With only 500/600 available, an unweighted request resolves to the nearest
 // loaded weight per the CSS font-matching spec, so every one of those labels gets medium
-// weight for free — no changes needed to the ~100 individual rules that set the size and
+// weight for free - no changes needed to the ~100 individual rules that set the size and
 // tracking themselves.
 const mono = IBM_Plex_Mono({
   subsets: ["latin"],

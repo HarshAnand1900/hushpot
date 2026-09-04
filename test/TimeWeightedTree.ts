@@ -70,7 +70,7 @@ describe("TimeWeightedTree", function () {
     it("beats a 5x larger last-minute deposit with a small one held all week", async function () {
       // Alice: 100, in from the very start.
       await (await tree.deposit(3, 100, 0)).wait();
-      // Bob: 500 — five times more — but only in for the final hour.
+      // Bob: 500 - five times more - but only in for the final hour.
       await (await tree.deposit(7, 500, PERIOD - 60n)).wait();
 
       const alice = await tree.weightOf(3);
@@ -89,7 +89,7 @@ describe("TimeWeightedTree", function () {
       await (await tree.deposit(3, 100, PERIOD - 60n)).wait();
       expect(await tree.weightOf(3)).to.eq(100n * 60n);
 
-      // No per-user settlement — just move to the next period.
+      // No per-user settlement - just move to the next period.
       await (await tree.advancePeriod()).wait();
 
       expect(await tree.weightOf(3)).to.eq(100n * PERIOD);
@@ -143,7 +143,7 @@ describe("TimeWeightedTree", function () {
         expect(await tree.prefixWeight(slot), `band start for slot ${slot}`).to.eq(cursor);
         cursor += await tree.weightOf(slot);
       }
-      // The last band ends exactly at the pool total — no gap, no overhang.
+      // The last band ends exactly at the pool total - no gap, no overhang.
       expect(cursor).to.eq(await tree.totalWeight());
     });
 

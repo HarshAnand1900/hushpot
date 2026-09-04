@@ -13,7 +13,7 @@ export type ToastKind = "success" | "error" | "pending";
 export interface ToastPayload {
   kind: ToastKind;
   title: string;
-  /** One short clause of context. Optional — many toasts do not need it. */
+  /** One short clause of context. Optional - many toasts do not need it. */
   detail?: string;
   /** A transaction hash, rendered as a link to Etherscan. */
   hash?: string;
@@ -31,7 +31,7 @@ export function toast(payload: ToastPayload) {
 /**
  * Turn a thrown wallet or RPC error into something worth reading.
  *
- * Wallet errors arrive as paragraphs — a summary, a details block, a docs link, a version
+ * Wallet errors arrive as paragraphs - a summary, a details block, a docs link, a version
  * string. Showing all of it in a toast is worse than showing none, and "Transaction
  * declined" is the only part most people need.
  */

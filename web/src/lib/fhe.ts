@@ -6,7 +6,7 @@ import { POOL_ADDRESS, TOKEN_ADDRESS } from "./contract";
  * Contracts this session can decrypt for.
  *
  * The pool holds your position; the confidential token holds your wallet balance. Both
- * have to be named when the session is signed — an EIP-712 grant is scoped to a fixed
+ * have to be named when the session is signed - an EIP-712 grant is scoped to a fixed
  * list, so a handle from a contract missing here is refused however clearly you own it.
  */
 const SESSION_CONTRACTS: string[] = [POOL_ADDRESS, TOKEN_ADDRESS];
@@ -17,7 +17,7 @@ const PUBLIC_RPC = "https://ethereum-sepolia-rpc.publicnode.com";
  * The relayer SDK, and the session that makes decryption bearable.
  *
  * Reading one of your own encrypted values normally costs a typed-data signature plus a
- * relayer round trip — seconds, and a wallet popup. Doing that per value, per glance,
+ * relayer round trip - seconds, and a wallet popup. Doing that per value, per glance,
  * would make the app feel broken.
  *
  * So a session is opened once: one keypair, one signature, valid for seven days, cached in
@@ -38,12 +38,12 @@ async function createInstanceLazy() {
   // Loads the FHE WASM. Required before an instance can be built in the browser.
   await initSDK();
 
-  // Must be the EIP-1193 provider itself, not a wagmi wallet client — or an RPC URL.
+  // Must be the EIP-1193 provider itself, not a wagmi wallet client - or an RPC URL.
   type Network = Parameters<typeof createInstance>[0]["network"];
   const ethereum = (window as unknown as { ethereum?: Network }).ethereum;
 
-  // Fall back to a plain RPC when there is no wallet. Public decryption — the solvency
-  // proof, the pool total — needs no signature, and a proof only a connected wallet can
+  // Fall back to a plain RPC when there is no wallet. Public decryption - the solvency
+  // proof, the pool total - needs no signature, and a proof only a connected wallet can
   // read would defeat the purpose of publishing it.
   const network: Network = ethereum ?? (PUBLIC_RPC as Network);
 
@@ -67,7 +67,7 @@ export function preloadFhevm() {
  * `encrypt()` hands back `Uint8Array` for both the handles and the proof, but viem wants
  * `0x`-prefixed hex for `bytes32` and `bytes` arguments. Passing the raw array through
  * fails deep inside viem with "e.replace is not a function", which is a miserable thing
- * to debug — so convert at the boundary, always.
+ * to debug - so convert at the boundary, always.
  */
 export function toHex(value: Uint8Array | string): `0x${string}` {
   if (typeof value === "string") return (value.startsWith("0x") ? value : `0x${value}`) as `0x${string}`;
@@ -93,13 +93,13 @@ let session: DecryptSession | null = null;
  * Where a session survives a reload.
  *
  * `localStorage`, so it outlives the tab. The reasoning: the EIP-712 grant you sign is
- * already valid for seven days — that is the permission you gave. Throwing the session
+ * already valid for seven days - that is the permission you gave. Throwing the session
  * away when the tab closes did not shorten that grant, it just made you re-sign to use
  * the days you had already authorised. One signature a week rather than one per tab.
  *
  * The trade this makes, stated plainly: the keypair now sits on disk for the week. It is
  * generated in the browser and never leaves it, and it only decrypts handles you already
- * own — but anyone with access to your machine and your browser profile could open your
+ * own - but anyone with access to your machine and your browser profile could open your
  * balance without your wallet. On a shared computer, use the LOCK AGAIN control on
  * YOUR POSITION, which clears it immediately.
  */
@@ -119,7 +119,7 @@ function persist(s: DecryptSession | null) {
     if (!s) localStorage.removeItem(STORE_KEY);
     else localStorage.setItem(STORE_KEY, JSON.stringify(s));
   } catch {
-    /* private mode, or storage disabled — the session simply stays in memory */
+    /* private mode, or storage disabled - the session simply stays in memory */
   }
 }
 
@@ -131,8 +131,8 @@ function restore(): DecryptSession | null {
     const s = JSON.parse(raw) as DecryptSession;
 
     const expiresAt = (s.startTimestamp + s.durationDays * 86_400) * 1000;
-    // A signature authorises a fixed set of contracts. If that set has moved — a redeploy,
-    // or a contract added to the list — the stored one cannot speak for the new one, and
+    // A signature authorises a fixed set of contracts. If that set has moved - a redeploy,
+    // or a contract added to the list - the stored one cannot speak for the new one, and
     // reusing it fails as "not authorized" for handles the user demonstrably owns.
     const covers =
       Array.isArray(s.contracts) &&
@@ -157,7 +157,7 @@ function sweepStaleSessions() {
       if (key && key.startsWith("hushpot.session.") && key !== STORE_KEY) localStorage.removeItem(key);
     }
   } catch {
-    /* storage unavailable — nothing was stored to go stale */
+    /* storage unavailable - nothing was stored to go stale */
   }
 }
 
@@ -166,7 +166,7 @@ function sweepStaleSessions() {
  *
  * The `user` argument is not decoration. An EIP-712 decrypt grant authorises one address,
  * and callers that only asked "is there a session?" would happily reuse the previous
- * account's grant after a wallet switch — the relayer then refuses with "not authorized to
+ * account's grant after a wallet switch - the relayer then refuses with "not authorized to
  * user decrypt handle", naming an address the user is no longer using. Persisting sessions
  * across tabs made that a routine occurrence rather than a rare one.
  */
@@ -210,7 +210,7 @@ export async function openSession(
   const fhevm = await getFhevm();
   const { publicKey, privateKey } = fhevm.generateKeypair();
 
-  // Timestamps must be numbers here, not strings — the SDK is strict about it.
+  // Timestamps must be numbers here, not strings - the SDK is strict about it.
   const startTimestamp = Math.floor(Date.now() / 1000);
   const durationDays = 7;
 
@@ -233,7 +233,7 @@ export async function openSession(
  *
  * `makePubliclyDecryptable` is an on-chain grant like any other, and the relayer checks it
  * against its own view of the chain. Ask the instant the transaction lands and you can be
- * told the handle "is not allowed for public decryption" when it demonstrably is — the
+ * told the handle "is not allowed for public decryption" when it demonstrably is - the
  * same race that made user decryption fail, wearing a different error message.
  *
  * Needs no session: a public decryption is public, and a solvency proof only its operator
@@ -261,7 +261,7 @@ export async function publicDecryptRetry(handles: string[]) {
 
 /**
  * Decrypt one of your own ciphertext handles using the open session.
- * Returns undefined for an uninitialised handle — an empty slot, not an error.
+ * Returns undefined for an uninitialised handle - an empty slot, not an error.
  */
 export async function decryptHandle(handle: string, contract: string = POOL_ADDRESS): Promise<bigint | undefined> {
   if (!session) throw new Error("No decryption session open.");
@@ -278,7 +278,7 @@ export async function decryptHandle(handle: string, contract: string = POOL_ADDR
   // not authorised for a handle it demonstrably owns.
   //
   // Verified against the ACL on Sepolia: `persistAllowed(handle, account)` returns true
-  // for exactly the handles that fail this way. So it is propagation, not permission —
+  // for exactly the handles that fail this way. So it is propagation, not permission -
   // waiting and asking again is the fix, and there is nothing to correct on-chain.
   let lastError: unknown;
 

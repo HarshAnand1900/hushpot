@@ -12,7 +12,7 @@ type Result = { ok: boolean; lines: { k: string; v: string }[] };
  * Resolve any ciphertext handle on this page against the chain.
  *
  * The point is the anticlimax. A handle is public, readable by anyone, and resolving it
- * tells you its type, its chain, and which slot holds it — and still not the number. That
+ * tells you its type, its chain, and which slot holds it - and still not the number. That
  * is easier to believe once you have pasted one in yourself and watched it fail to open.
  */
 export function VerifyHandle() {
@@ -35,7 +35,7 @@ export function VerifyHandle() {
       if (!/^0x[0-9a-fA-F]{64}$/.test(handle)) {
         setResult({
           ok: false,
-          lines: [{ k: "MALFORMED", v: "A handle is 32 bytes — 0x followed by 64 hex characters." }],
+          lines: [{ k: "MALFORMED", v: "A handle is 32 bytes - 0x followed by 64 hex characters." }],
         });
         return;
       }
@@ -45,7 +45,7 @@ export function VerifyHandle() {
       const typeHex = handle.slice(-4, -2);
       const types: Record<string, string> = { "00": "ebool", "05": "euint64", "04": "euint32", "03": "euint16" };
 
-      // Which slot, if any, currently holds it — a public mapping, not a decryption.
+      // Which slot, if any, currently holds it - a public mapping, not a decryption.
       const slots = Number(
         await publicClient.readContract({ address: POOL_ADDRESS, abi: poolAbi, functionName: "slotsUsed" }),
       );
@@ -76,7 +76,7 @@ export function VerifyHandle() {
           { k: "TYPE", v: types[typeHex] ?? `unknown (0x${typeHex})` },
           { k: "CHAIN", v: parseInt(chainHex, 16) === 11155111 ? "Sepolia · 11155111" : `0x${chainHex}` },
           { k: "HELD BY", v: owner },
-          { k: "VALUE", v: "UNREADABLE — no decryption right, and none is obtainable" },
+          { k: "VALUE", v: "UNREADABLE - no decryption right, and none is obtainable" },
         ],
       });
     } catch (e) {
@@ -99,7 +99,7 @@ export function VerifyHandle() {
       <div className={styles.body}>
         <p className={styles.copy}>
           Paste any ciphertext handle from this page. It is resolved against contract state and you get back exactly
-          what the chain holds — which is still nothing you can read. No wallet, no signature, no server.
+          what the chain holds - which is still nothing you can read. No wallet, no signature, no server.
         </p>
 
         <div className={styles.row}>

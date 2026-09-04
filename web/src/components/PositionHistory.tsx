@@ -20,7 +20,7 @@ const EV_WITHDRAWN = parseAbiItem("event Withdrawn(address indexed account, uint
 /**
  * The token's own transfer event, which is where the amounts actually are.
  *
- * The pool never stores what an individual deposit was — only a running balance — so for a
+ * The pool never stores what an individual deposit was - only a running balance - so for a
  * long time this table could show that you deposited and never what. The token, though,
  * emits the amount as an indexed ciphertext handle on every move, and the ACL keeps the
  * sender permitted on it permanently: `isAllowed(sender)` and `persistAllowed(sender)` are
@@ -52,7 +52,7 @@ type Row = {
  *
  * Deliberately the observer's view: built from public logs only, no signature, exactly
  * what somebody watching your address could assemble without asking. Showing it to you is
- * the point — you can see how much of your activity is legible, and see that the amounts
+ * the point - you can see how much of your activity is legible, and see that the amounts
  * are not part of it.
  *
  * Draws are interleaved with your own actions so it reads as a sequence rather than two
@@ -129,7 +129,7 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
         mine(EV_WITHDRAWN, "account"),
         // Keyed on YOUR SLOT, not on who sent the transaction. `checkedBy` is whoever ran
         // the check, so filtering on it meant a keeper sweep never appeared in your own
-        // history — the row read "you have not checked it" while a receipt for that draw
+        // history - the row read "you have not checked it" while a receipt for that draw
         // was sitting there waiting to be opened. Being checked is the fact; who pressed
         // the button is not.
         slot === undefined ? Promise.resolve([]) : mine(EV_CLAIM, "slot", slot),
@@ -179,7 +179,7 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
         })),
       ].sort((a, b) => Number(a.block - b.block));
 
-      // The earliest deposit is the moment the slot was claimed — the only thing here
+      // The earliest deposit is the moment the slot was claimed - the only thing here
       // that happened exactly once.
       if (deposits.length > 0) {
         deposits[0] = { ...deposits[0], kind: "JOINED", what: `joined the pool · slot ${slot ?? "—"}` };
@@ -295,8 +295,8 @@ export function PositionHistory({ drawCount, slot }: { drawCount: bigint; slot?:
               </span>
               <span className={styles.what}>{r.what}</span>
               {/* The row never carries the figure, even after you have opened it. This
-                  table is the observer's view — showing what the chain shows is the whole
-                  point — and printing a decrypted amount into it would undo that the
+                  table is the observer's view - showing what the chain shows is the whole
+                  point - and printing a decrypted amount into it would undo that the
                   moment somebody glanced over your shoulder. The value stays inside the
                   panel, where you chose to look. */}
               <span className={r.clear ? styles.amount : `${styles.amount} ${styles.masked}`}>

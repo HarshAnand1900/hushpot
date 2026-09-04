@@ -7,7 +7,7 @@ import styles from "./HardParts.module.css";
  *
  * Every row is a constraint that shaped the design rather than a feature bolted on. They
  * are the reason the code looks the way it does, and none of them is obvious until you
- * hit it — which is why they are worth stating plainly.
+ * hit it - which is why they are worth stating plainly.
  */
 const CONSTRAINTS = [
   {

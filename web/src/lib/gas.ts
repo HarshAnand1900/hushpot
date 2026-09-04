@@ -4,14 +4,14 @@ import type { PublicClient } from "viem";
  * A gas limit that is both sufficient and affordable.
  *
  * These calls state their gas rather than letting the wallet estimate, because estimation
- * runs against a node that may not yet have seen the transaction this one depends on — an
- * approval, an operator grant — and an estimate that reverts makes wallets fall back to an
+ * runs against a node that may not yet have seen the transaction this one depends on - an
+ * approval, an operator grant - and an estimate that reverts makes wallets fall back to an
  * enormous limit the RPC then rejects outright.
  *
  * The trap is that a stated limit has to be *paid for* up front. A wallet must hold
  * `limit × maxFeePerGas` before it will even submit, whatever the transaction actually
  * ends up burning. A flat 3,600,000 was covering a sweep that costs 1,691,077, and at
- * 2.2 gwei that ceiling reserved 0.008 ETH against a real cost of 0.0038 — so a wallet
+ * 2.2 gwei that ceiling reserved 0.008 ETH against a real cost of 0.0038 - so a wallet
  * holding 0.0064 test ETH was refused a transaction it could comfortably afford. On a
  * testnet where ETH arrives a faucet at a time, that is most wallets.
  *

@@ -11,7 +11,7 @@ import { formatUnits } from "@/lib/format";
 import styles from "./LandingSections.module.css";
 
 /**
- * Everything below the hero. Copy is taken verbatim from the v5 prototype — the handoff
+ * Everything below the hero. Copy is taken verbatim from the v5 prototype - the handoff
  * says to reuse it rather than rewrite, and it is better than anything I'd substitute.
  */
 
@@ -79,7 +79,7 @@ const TERMS: { label: string; body: string; value: string; accent?: boolean }[] 
 const FAQ: [string, string][] = [
   [
     "Can I lose my deposit?",
-    "No. Principal sits in the pool and is withdrawable in full. Only the yield is ever put up as a prize, so a losing week costs you the interest you would have earned, and nothing beyond that. The one thing that delays a withdrawal is the optional loyalty boost, which holds your stake until the period rolls — it never puts the principal at risk, and you only get it if you ask for it.",
+    "No. Principal sits in the pool and is withdrawable in full. Only the yield is ever put up as a prize, so a losing week costs you the interest you would have earned, and nothing beyond that. The one thing that delays a withdrawal is the optional loyalty boost, which holds your stake until the period rolls - it never puts the principal at risk, and you only get it if you ask for it.",
   ],
   [
     "If nobody can see the winner, how is it fair?",
@@ -102,7 +102,7 @@ const FAQ: [string, string][] = [
 /**
  * The four operations a deposit actually passes through, named as the contract names
  * them. The handle shown beside each is a real one read from the pool, not a decorative
- * hex string — a page arguing that ciphertext is unreadable should not print invented
+ * hex string - a page arguing that ciphertext is unreadable should not print invented
  * ciphertext to make the point.
  */
 const FHE_OPS = [
@@ -162,7 +162,7 @@ export function LandingSections() {
 
   return (
     <>
-      {/* 01 — the whole idea ------------------------------------------------ */}
+      {/* 01 - the whole idea ------------------------------------------------ */}
       <section className={styles.band}>
         <div className={styles.inner}>
           <SectionRule n="01" label="THE WHOLE IDEA" />
@@ -211,7 +211,7 @@ export function LandingSections() {
         </div>
       </section>
 
-      {/* 02 — three moves ---------------------------------------------------- */}
+      {/* 02 - three moves ---------------------------------------------------- */}
       <section className={styles.band}>
         <div className={styles.inner}>
           <SectionRule n="02" label="THREE MOVES · NONE OF THEM LEAK" />
@@ -246,7 +246,7 @@ export function LandingSections() {
         </div>
       </section>
 
-      {/* 03 — fully homomorphic encryption ----------------------------------- */}
+      {/* 03 - fully homomorphic encryption ----------------------------------- */}
       <section className={styles.band}>
         <div className={styles.inner}>
           <SectionRule n="03" label="FULLY HOMOMORPHIC ENCRYPTION" />
@@ -273,7 +273,7 @@ export function LandingSections() {
         </div>
       </section>
 
-      {/* 04 — what an explorer sees ------------------------------------------ */}
+      {/* 04 - what an explorer sees ------------------------------------------ */}
       <section className={styles.band}>
         <div className={styles.inner}>
           <SectionRule n="04" label="WHAT AN EXPLORER SEES" />
@@ -288,7 +288,7 @@ export function LandingSections() {
         </div>
       </section>
 
-      {/* 05 — who can see what ----------------------------------------------- */}
+      {/* 05 - who can see what ----------------------------------------------- */}
       <section className={styles.band}>
         <div className={styles.inner}>
           <SectionRule n="05" label="WHO CAN SEE WHAT" />
@@ -304,7 +304,7 @@ export function LandingSections() {
         </div>
       </section>
 
-      {/* 06 — questions ------------------------------------------------------ */}
+      {/* 06 - questions ------------------------------------------------------ */}
       <section className={styles.band}>
         <div className={styles.inner}>
           <SectionRule n="06" label="QUESTIONS PEOPLE ACTUALLY ASK" />
@@ -362,7 +362,7 @@ const EV_CLAIM = parseAbiItem(
 /**
  * The explorer view, built from the chain rather than mocked up.
  *
- * The argument this section makes — every row verifies, none of them tell — is only worth
+ * The argument this section makes - every row verifies, none of them tell - is only worth
  * anything if the rows are real. So these are the pool's actual logs, with the VALUE
  * column showing what an explorer would genuinely find in each: a number on the plain
  * demo route, and nothing at all on the confidential one.
@@ -410,7 +410,7 @@ function ExplorerTable() {
       ].sort((a, b) => Number(b.block - a.block));
 
       // Cap each event kind so the table shows the shape of the log rather than whichever
-      // call happened to be spammed most recently — four identical ClaimChecked rows make
+      // call happened to be spammed most recently - four identical ClaimChecked rows make
       // the section's point about variety worse, not better.
       const perKind = new Map<string, number>();
       const varied = all.filter((r) => {

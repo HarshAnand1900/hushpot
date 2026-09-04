@@ -109,7 +109,7 @@ describe("ConfidentialTimeWeightedTree", function () {
       await deposit(3, 100n);
       await time.increase(PERIOD_SECONDS / 2n);
 
-      // Asking for 999 against a balance of 100 must not revert — a ciphertext cannot be
+      // Asking for 999 against a balance of 100 must not revert - a ciphertext cannot be
       // compared and branched on, so the request is clamped to what is actually held.
       await withdraw(3, 999n);
 

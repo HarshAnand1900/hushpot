@@ -1,6 +1,6 @@
 /*
  * Hushpot design system.
- * Token values are taken verbatim from the v5 handoff — treat them as fixed.
+ * Token values are taken verbatim from the v5 handoff - treat them as fixed.
  *
  * Two rules that apply everywhere and are easy to break by habit:
  *   - border-radius is 0. There are no rounded corners anywhere in this design.
@@ -27,7 +27,7 @@
      hardest thing here to read even at full contrast. Measured on the landing page, text-3
      came out at 3.8:1, text-4 at 3.24:1 and text-5 at 2.23:1, against the 4.5:1 that small
      text needs. Raised to clear it while keeping a distinct step between each tier, so the
-     hierarchy the design is built on survives — it is a quieter ramp, not a flatter one. */
+     hierarchy the design is built on survives - it is a quieter ramp, not a flatter one. */
   --white: #ffffff;
   --text-1: #b8b8b8;
   --text-2: #a0a0a0;
@@ -117,7 +117,7 @@ button {
 
 /* ------------------------------------------------------------ primitives ---- */
 
-/* Hatched panel header — reused on every panel in the app. */
+/* Hatched panel header - reused on every panel in the app. */
 .panelHead {
   display: flex;
   align-items: center;
@@ -133,7 +133,7 @@ button {
   color: var(--text-2);
 }
 
-/* Hatched yellow band — the pot, the summary bands, the anonymity callout. */
+/* Hatched yellow band - the pot, the summary bands, the anonymity callout. */
 .yellowBand {
   background-color: var(--yellow);
   background-image: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 9px);
@@ -360,7 +360,7 @@ button {
  *
  * Pool drops the full-viewport renderer so the main thread is free during a transaction,
  * but the page still wants the pot's glow behind it. This is the same warmth for the cost
- * of one gradient — no canvas, no animation loop, nothing to compete with WebAssembly.
+ * of one gradient - no canvas, no animation loop, nothing to compete with WebAssembly.
  */
 .warmGlow {
   position: fixed;

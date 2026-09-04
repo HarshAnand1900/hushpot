@@ -8,7 +8,7 @@ import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
 /**
  * When each draw was settled, and the length of the claim grace.
  *
- * Everything that wanted a settle time used to reach for `lastDrawSettledAt` — a single
+ * Everything that wanted a settle time used to reach for `lastDrawSettledAt` - a single
  * value describing only the newest draw. Read per draw it is simply wrong: every draw
  * showed the same moment, and every draw inherited the newest draw's countdown, so an
  * older window looked as fresh as the current one however much of its thirty days had
