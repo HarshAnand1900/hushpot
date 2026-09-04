@@ -186,6 +186,16 @@ export function PositionPanel({
   // Comfortably above a single faucet press, since the faucet can be pressed again - but
   // not so far above it that most of the track is unreachable.
   const maxAdd = 50_000;
+  /**
+   * The axis labels, derived rather than written down.
+   *
+   * They were hardcoded to 0-20,000 while the track ran to 50,000, so the numbers under
+   * the thumb were wrong by more than double: 22,600 sat at 45% of the track, directly
+   * above a label reading 10,000. `.ticks` lays these out with `space-between`, so they
+   * only tell the truth when they are evenly spaced values spanning exactly 0..maxAdd.
+   * Deriving them from `maxAdd` is what stops the two drifting apart again.
+   */
+  const ticks = Array.from({ length: 6 }, (_, i) => (maxAdd / 5) * i);
 
   const projected = useMemo(() => {
     // Not gated on `odds` - a stale *current* position must not blank out the projection
@@ -504,7 +514,7 @@ export function PositionPanel({
               aria-label="Amount to add, for projecting odds"
             />
             <div className={styles.ticks}>
-              {[0, 5_000, 10_000, 15_000, 20_000].map((t) => (
+              {ticks.map((t) => (
                 <span key={t}>{t.toLocaleString()}</span>
               ))}
             </div>
