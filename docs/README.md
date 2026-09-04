@@ -61,7 +61,7 @@ Stated plainly rather than buried, and covered in full in [`THREAT-MODEL.md`](TH
   days of wall-clock time, so rolling early strands nothing. `startNextPeriod` will not roll past a draw still inside
   its grace, so what is left is only the clock.
 - **A griefer's slots cannot be reclaimed.** A depositor can give their own slot back with `exitPool`, but nobody can
-  take one from an attacker — that case is priced rather than prevented. See [§9](THREAT-MODEL.md#9-slot-exhaustion).
+  take one from an attacker — that case is priced rather than prevented. See [§7](THREAT-MODEL.md#7-slot-exhaustion).
 - **Acquiring cUSDT publishes that amount**, because wrapping plain tUSDT is an ordinary ERC-20 transfer. It happens at
   the faucet, decoupled from any deposit. The contract's public `depositUnderlying` route is not wired to anything in
   the app — see [§3.1](THREAT-MODEL.md#31-acquiring-cusdt-publishes-that-amount).

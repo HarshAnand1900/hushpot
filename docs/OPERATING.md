@@ -44,11 +44,11 @@ The last two rows are time-gated, not role-gated, and they are gated differently
 moment the seven days are up. `startNextPeriod` also has to wait out the full thirty-day claim window, and thirty days
 is longer than a week, so **a pool on a weekly cadence never reaches that point**. In normal operation the roll is the
 operator's, run by a keeper on schedule. That is the one place this design asks for trust, and
-[`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner) treats it as one.
+[`docs/THREAT-MODEL.md`](THREAT-MODEL.md#43-the-owner) treats it as one.
 
 The consequence worth stating: **the operator cannot run the pool on its own terms, and cannot stop anyone else running
 it.** The one exception is the claim window, where the owner may roll a period early; that is a real trust assumption
-and is documented in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
+and is documented in [`docs/THREAT-MODEL.md`](THREAT-MODEL.md#43-the-owner).
 
 ## Running the cycle as a judge, today
 
@@ -81,8 +81,8 @@ The obvious way to open a sandbox is to publish its owner's private key, and tha
 it is bad. It asks a reviewer to import a stranger's key into their wallet before they can look at anything, which
 nobody should be in the habit of doing and most reviewers will simply decline.
 
-So ownership went to [`contracts/SandboxOperator.sol`](contracts/SandboxOperator.sol) instead. It is about twenty lines
-of code under twice as much comment, and it forwards three calls to anybody who asks:
+So ownership went to [`contracts/SandboxOperator.sol`](../contracts/SandboxOperator.sol) instead. It is about twenty
+lines of code under twice as much comment, and it forwards three calls to anybody who asks:
 
 | Forwarded            | Why it is safe                                                                              |
 | -------------------- | ------------------------------------------------------------------------------------------- |
@@ -94,12 +94,12 @@ What it deliberately **cannot** do matters more. There is no forwarder for `setA
 sandbox's yield to zero and make every prize read `0.00`. None for `transferOwnership`, so nobody can take the pool. And
 no generic `call`, which would have been both of those plus every owner-gated function added in future. The owner's
 dangerous powers are not delegated. They are destroyed, and two harmless ones are handed out in their place. Five tests
-in [`test/SandboxOperator.ts`](test/SandboxOperator.ts) pin that down, including one asserting the ABI holds those three
-functions and the `pool` getter, and nothing else.
+in [`test/SandboxOperator.ts`](../test/SandboxOperator.ts) pin that down, including one asserting the ABI holds those
+three functions and the `pool` getter, and nothing else.
 
 The main pool's owner key is **not** shared, and that is not an oversight. It can set the yield rate to zero and close
-claim windows early, the sharpest trust assumption in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
-Publishing it would make that document a lie. The sandbox absorbs the experimentation instead.
+claim windows early, the sharpest trust assumption in [`docs/THREAT-MODEL.md`](THREAT-MODEL.md#43-the-owner). Publishing
+it would make that document a lie. The sandbox absorbs the experimentation instead.
 
 ### What you will find there
 
@@ -249,6 +249,6 @@ unusual sequence — a winner making an ordinary second deposit is enough. The f
 where nobody had ever left, and that argument was made here, once, honestly. It was not available for this one.
 
 **Both pools now run this source.** There is no divergence to disclose: the addresses in
-[`web/src/lib/contract.ts`](web/src/lib/contract.ts) are the deployments these contracts compile to, and Etherscan
+[`web/src/lib/contract.ts`](../web/src/lib/contract.ts) are the deployments these contracts compile to, and Etherscan
 carries the verified source for each. What immutability cost was several redeployments across this build and a pool's
 worth of history discarded each time — which is the real price of not being able to patch, paid rather than described.

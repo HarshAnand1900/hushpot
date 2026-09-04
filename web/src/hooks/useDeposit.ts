@@ -66,7 +66,7 @@ export function useDeposit() {
    * balance before it can pull anything, which is ERC-7984's equivalent of an approval.
    */
   const depositConfidential = useCallback(
-    async (amount: bigint) => {
+    async (amount: bigint, balanceChecked = true) => {
       if (!address || !publicClient || amount <= 0n) return false;
       setError(undefined);
 
@@ -134,12 +134,26 @@ export function useDeposit() {
         await waitForTransactionReceipt(config, { hash: tx });
 
         setStep("done");
-        toast({
-          kind: "success",
-          title: "Deposit confirmed",
-          detail: "Nothing but a ciphertext left this browser — the size was never written down.",
-          hash: tx,
-        });
+        // Only claim the deposit landed when the amount was actually checked against a
+        // revealed balance. ERC-7984 clamps instead of reverting, so an oversized transfer
+        // moves nothing, emits `Deposited` regardless, and a flat "confirmed" would be the
+        // app asserting something it has no way to know.
+        toast(
+          balanceChecked
+            ? {
+                kind: "success",
+                title: "Deposit confirmed",
+                detail: "Nothing but a ciphertext left this browser — the size was never written down.",
+                hash: tx,
+              }
+            : {
+                kind: "success",
+                title: "Deposit submitted",
+                detail:
+                  "Your cUSDT balance was sealed, so the amount could not be checked against it. Reveal your position to see what actually landed.",
+                hash: tx,
+              },
+        );
         return true;
       } catch (e) {
         const message = e instanceof Error ? e.message : "The deposit failed.";
@@ -179,6 +193,20 @@ export function useDeposit() {
           abi: poolAbi,
           functionName: "withdraw",
           args: [toHex(encrypted.handles[0]), toHex(encrypted.inputProof)],
+          // Withdraw walks the same tree path a deposit does — the debit, the early-exit
+          // credit and the ancestor repair, so it belongs on the same estimate-first
+          // path, not on whatever the wallet guesses for an FHE call.
+          gas: await gasLimitFor(
+            publicClient,
+            address,
+            {
+              address: POOL_ADDRESS,
+              abi: poolAbi,
+              functionName: "withdraw",
+              args: [toHex(encrypted.handles[0]), toHex(encrypted.inputProof)],
+            },
+            3_600_000n,
+          ),
         });
         await waitForTransactionReceipt(config, { hash: tx });
 
@@ -198,7 +226,7 @@ export function useDeposit() {
         return false;
       }
     },
-    [address, config, writeContractAsync],
+    [address, config, publicClient, writeContractAsync],
   );
 
   /**

@@ -141,7 +141,7 @@ export default function DrawsTab() {
                         ? "Five of five recomputed against the chain. The stored record, the committed die, the prize formula and the deployed code all agree, and the code holds no winner to ask for."
                         : "One or more checks disagreed with the chain. Details below."
                       : verifying
-                        ? `Reading the chain… ${step + 1} of 4`
+                        ? `Reading the chain… ${step + 1} of 5`
                         : "Nothing here is taken on trust. These are plain read-only calls to a public node, so run them yourself with cast if you prefer."}
                 </div>
                 <button

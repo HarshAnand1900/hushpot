@@ -39,7 +39,9 @@ async function main() {
       console.log(`  ${who.address} holds no slot — skipped`);
       continue;
     }
-    const tx = await p.connect(who).exitPool();
+    // `connect` is typed as returning BaseContract in ethers v6, which drops every
+    // generated method. Casting back is the documented way to keep them.
+    const tx = await (p.connect(who) as typeof p).exitPool();
     const r = await tx.wait();
     console.log(`  exited ${who.address} · gas ${r?.gasUsed}`);
   }

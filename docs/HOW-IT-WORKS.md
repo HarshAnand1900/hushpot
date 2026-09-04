@@ -348,7 +348,7 @@ draw's own `settledAt`, so a draw settled in period 4 is still evaluated against
 > current, then for one roll after; `CLAIM_GRACE` said thirty days while the code allowed about fourteen, and an owner
 > rolling early could cut it shorter still. The only thing in the way was the Judge panel declining to offer the button
 > — a frontend courtesy, not a contract rule. The window is now thirty real days, `startNextPeriod` will not roll past a
-> draw still inside it, and both are tested. See [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md#43-the-owner).
+> draw still inside it, and both are tested. See [`docs/THREAT-MODEL.md`](THREAT-MODEL.md#43-the-owner).
 
 ### Weights freeze on their own
 
@@ -379,7 +379,7 @@ Two things worth stating plainly:
   modulo needs a plain divisor. The week-over-week difference is the sum of everyone's activity, never one person's,
   though it does narrow as the pool shrinks.
 
-Full detail, including what we cannot prove, is in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md).
+Full detail, including what we cannot prove, is in [`docs/THREAT-MODEL.md`](THREAT-MODEL.md).
 
 ### Nothing leaks to a live observer
 

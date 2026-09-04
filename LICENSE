@@ -1,7 +1,12 @@
 BSD 3-Clause Clear License
 
 Copyright © 2025 ZAMA.
+Copyright © 2026 Harsh Anand (Hushpot).
 All rights reserved.
+
+The project was scaffolded from Zama's fhevm-hardhat-template, whose licence and
+copyright are retained above. The Hushpot contracts, frontend and documentation are
+original work added on top of it.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:

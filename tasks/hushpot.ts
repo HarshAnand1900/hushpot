@@ -266,7 +266,13 @@ task("hushpot:sweep", "Check a draw for every depositor, paying whoever won")
     const slots = Number(await pool.slotsUsed());
     const accounts: string[] = [];
     for (let slot = 0; slot < slots; slot++) {
-      accounts.push(await pool.slotOwner(slot));
+      const owner = await pool.slotOwner(slot);
+      // A slot given up with `exitPool` reads as the zero address until the roll releases
+      // it, and `checkClaim(drawId, address(0))` reverts `NoSlotAssigned` — which used to
+      // abort the whole sweep partway through. The contract already handles this case in
+      // both `checkClaimBatch` and `_sweepSlot`; only this loop did not.
+      if (owner === hre.ethers.ZeroAddress) continue;
+      accounts.push(owner);
     }
 
     console.log(`sweeping draw #${drawId} across ${accounts.length} depositors...\n`);
@@ -656,6 +662,12 @@ task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.
     for (let slot = 0; slot < slots; slot++) {
       if (await pool.claimChecked(drawId, slot)) continue;
       const owner = await pool.slotOwner(slot);
+      // A retired slot reads as the zero address until the roll frees it, and
+      // `checkClaim` on that reverts `NoSlotAssigned`. Returning here on every tick meant
+      // the keeper never reached step 4 — and step 4 is the roll that would have released
+      // the slot, so the keeper wedged itself permanently on the first depositor to leave.
+      // Skipping is what the contract itself does; the claim is a no-op for an empty slot.
+      if (owner === hre.ethers.ZeroAddress) continue;
       return act(`checking draw #${drawId} for slot ${slot}`, async () => {
         await (await pool.checkClaim(drawId, owner)).wait();
       });
@@ -673,7 +685,7 @@ task("hushpot:keeper", "Run whatever the cycle is due for, once. Safe to repeat.
   });
 
 /**
- * A second pool, owned by a key that is published on purpose.
+ * A second pool, owned by a contract so that no key has to be published at all.
  *
  * Two of the six cycle steps — opening a draw and rolling the period — are owner-gated
  * *only for running them early*. Once a period genuinely elapses anyone may call them, but

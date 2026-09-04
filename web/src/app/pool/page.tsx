@@ -476,8 +476,8 @@ function EngineCell({ label, note, done, active }: { label: string; note: string
  * place.
  *
  * Both buttons below are safe from that trap for the same reason: `due` only exists once
- * `periodEnded()` is already true, and `sealed` only exists once a draw is already pending
- * — and `openDraw` past that point, and `settleDraw` always, take no owner check at all.
+ * `periodEnded()` is already true, and `sealed` only exists once a draw is already pending.
+ * `openDraw` past that point, and `settleDraw` always, take no owner check at all.
  * There is no early-open case to get wrong, because a button offered from either state was
  * never gated on ownership to begin with. Nothing here needs the sandbox's forwarding
  * contract, so the same two buttons work unmodified on both pools.

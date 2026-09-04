@@ -275,7 +275,10 @@ export function DepositSheet({
     // Confidential is the only route now, so there is nothing to branch on. The plain
     // path stays in the hook and the contract for the Judge page; it is simply not
     // something this sheet can reach.
-    void depositConfidential(amount);
+    //
+    // `balanceKnown` rides along so the confirmation can tell the truth: with a sealed
+    // wallet balance there is no way to know whether the transfer moved anything.
+    void depositConfidential(amount, balanceKnown);
   };
 
   const steps =
@@ -376,18 +379,15 @@ export function DepositSheet({
                     </>
                   )
                 ) : !balanceKnown ? (
-                  shielded !== undefined ? (
-                    <>
-                      Wallet: <strong>{formatUnits(shielded)}</strong>
-                    </>
-                  ) : (
-                    <>
-                      Wallet: <strong>encrypted</strong>{" "}
-                      <button className={styles.reveal} onClick={revealShielded} disabled={revealing || busy}>
-                        {revealing ? "opening…" : "reveal"}
-                      </button>
-                    </>
-                  )
+                  // In deposit mode `balanceKnown` *is* `shielded !== undefined`, so there
+                  // was a nested branch here testing the same thing again — its revealed
+                  // arm could never run. The revealed figure is rendered once, below.
+                  <>
+                    Wallet: <strong>encrypted</strong>{" "}
+                    <button className={styles.reveal} onClick={revealShielded} disabled={revealing || busy}>
+                      {revealing ? "opening…" : "reveal"}
+                    </button>
+                  </>
                 ) : (
                   <>
                     Wallet: <strong>{formatUnits(available)}</strong>

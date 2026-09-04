@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { keccak256, toFunctionSelector } from "viem";
 import { usePublicClient } from "wagmi";
 
-import { POOL_ADDRESS, poolAbi } from "@/lib/contract";
+import { DEPLOY_BLOCK, POOL_ADDRESS, poolAbi } from "@/lib/contract";
 
 export interface CheckResult {
   label: string;
@@ -107,17 +107,60 @@ export function useVerifyDraw() {
           functionName: "annualRateBps",
         })) as bigint;
 
-        const expected = (total * rateBps) / RATE_DIVISOR;
-        // The paid prize is the formula's output, capped by whatever the reserve held.
-        const matches = prize === expected || prize < expected;
+        // The contract pays `prizeFor(total) + sponsoredThisDraw`, capped by the reserve.
+        // This check used to compare against the formula half alone, so every sponsored
+        // draw failed it — including the one the page opens on, and the panel told a
+        // reader the contract disagreed with itself. It did not; the check was short a
+        // term that both the README and the threat model already said it included.
+        //
+        // `sponsoredThisDraw` is zeroed at settlement, so a past draw's share cannot be
+        // read back from storage. It is recovered the only way it can be: by summing the
+        // public PrizeSponsored logs banked between the previous settlement and this one.
+        const settledLogs = await publicClient.getContractEvents({
+          address: POOL_ADDRESS,
+          abi: poolAbi,
+          eventName: "DrawSettled",
+          fromBlock: DEPLOY_BLOCK,
+          toBlock: "latest",
+        });
+        const blockOf = (id: bigint) => settledLogs.find((l) => l.args.drawId === id)?.blockNumber;
+
+        const settledAtBlock = blockOf(drawId);
+        // Sponsorships for draw 0 run from deployment; for any later draw, from the block
+        // after its predecessor settled — that is the window the contract accumulated over.
+        const prevBlock = drawId > 0n ? blockOf(drawId - 1n) : undefined;
+        const fromBlock = prevBlock !== undefined ? prevBlock + 1n : DEPLOY_BLOCK;
+
+        let sponsored = 0n;
+        if (settledAtBlock !== undefined) {
+          const sponsorLogs = await publicClient.getContractEvents({
+            address: POOL_ADDRESS,
+            abi: poolAbi,
+            eventName: "PrizeSponsored",
+            fromBlock,
+            toBlock: settledAtBlock,
+          });
+          for (const l of sponsorLogs) sponsored += (l.args.amount as bigint) ?? 0n;
+        }
+
+        const derived = (total * rateBps) / RATE_DIVISOR;
+        const expected = derived + sponsored;
+        // Still allowed to come in under: the contract caps the payout at whatever the
+        // reserve actually held at settlement.
+        const matches = prize <= expected;
         push({
           label: "THE PRIZE",
           question: "Was the prize derived from the pool, or chosen by someone?",
-          value: `${total.toLocaleString()} × ${rateBps} bps ÷ ${RATE_DIVISOR.toLocaleString()} = ${expected.toLocaleString()}`,
+          value:
+            sponsored > 0n
+              ? `${derived.toLocaleString()} derived + ${sponsored.toLocaleString()} sponsored = ${expected.toLocaleString()}`
+              : `${total.toLocaleString()} × ${rateBps} bps ÷ ${RATE_DIVISOR.toLocaleString()} = ${expected.toLocaleString()}`,
           ok: matches,
           detail:
             prize === expected
-              ? "exactly the published formula, applied to the published total"
+              ? sponsored > 0n
+                ? "the published formula, plus sponsorships summed from the public logs"
+                : "exactly the published formula, applied to the published total"
               : "the formula's output, capped by the reserve balance at settlement",
         });
         setStep(3);

@@ -20,7 +20,7 @@ const PUBLIC_RPC = "https://ethereum-sepolia-rpc.publicnode.com";
  * relayer round trip — seconds, and a wallet popup. Doing that per value, per glance,
  * would make the app feel broken.
  *
- * So a session is opened once: one keypair, one signature, valid for a day, cached in
+ * So a session is opened once: one keypair, one signature, valid for seven days, cached in
  * memory. Every subsequent decrypt reuses it and just costs a fetch. Sign once per visit.
  *
  * The keypair is generated in the browser and never leaves it. The relayer returns values
@@ -190,7 +190,7 @@ export function clearSession() {
 }
 
 /**
- * Open a decryption session. One wallet signature, good for a day.
+ * Open a decryption session. One wallet signature, good for seven days.
  *
  * `signTypedDataAsync` comes from wagmi so the wallet stays the single source of truth
  * for signing.

@@ -1,5 +1,21 @@
 /* Landing — the poster. Full viewport, type over the (eventual) 3D pot. */
 
+/* Type that floats over the 3D exhibit needs help that a colour cannot give it: the scene
+   behind runs from near-black to the pot's full gold as the rig turns, so light grey
+   disappears into the gold and black would disappear into everything else. A scrim fixes
+   that but reads as a panel the design does not have.
+
+   So the glyphs carry their own contrast instead — a tight dark halo, invisible as a
+   shape, plus the heavier of the two mono weights. Applied everywhere the landing floats
+   type over the scene. */
+.overlayInk {
+  font-weight: 600;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.92),
+    0 0 8px rgba(0, 0, 0, 0.8),
+    0 0 18px rgba(0, 0, 0, 0.6);
+}
+
 /* The page scrolls; the hero below is what fills a viewport. */
 .page {
   position: relative;
@@ -25,6 +41,7 @@
 }
 
 .serial {
+  composes: overlayInk;
   position: absolute;
   bottom: -7px;
   left: 34px;
@@ -33,7 +50,7 @@
   font-family: var(--font-mono), monospace;
   font-size: 9.5px;
   letter-spacing: 0.28em;
-  color: var(--text-4);
+  color: #b4b4b4;
   white-space: nowrap;
 }
 
@@ -69,6 +86,7 @@
 }
 
 .wordmark {
+  composes: overlayInk;
   font-family: var(--font-mono), monospace;
   font-size: 13px;
   letter-spacing: 0.26em;
@@ -77,12 +95,13 @@
 }
 
 .subLockup {
+  composes: overlayInk;
   margin-top: 12px;
   font-family: var(--font-mono), monospace;
   font-size: 10.5px;
   letter-spacing: 0.2em;
   line-height: 1.9;
-  color: #a0a0a0;
+  color: #cfcfcf;
 }
 
 /* ------------------------------------------------------------- top-right -- */
@@ -99,13 +118,15 @@
 }
 
 .closesLabel {
+  composes: overlayInk;
   font-family: var(--font-mono), monospace;
   font-size: 10px;
   letter-spacing: 0.22em;
-  color: var(--text-2);
+  color: #cfcfcf;
 }
 
 .countdown {
+  composes: overlayInk;
   font-family: var(--font-mono), monospace;
   font-size: 24px;
   letter-spacing: 0.04em;
@@ -136,13 +157,8 @@
 
 /* ------------------------------------------------------------- side rails -- */
 
-/* Both this and .stats float over the 3D exhibit, whose brightness runs from near-black
-   to the pot's full gold depending on where the rig has turned. No single text colour
-   survives that: light grey vanishes into the gold, and black vanishes into everything
-   else. So each carries its own scrim, bled well past the text and faded to nothing at the
-   far edge, which fixes the background the type is read against without drawing a panel
-   the design does not have. */
 .edgeLeft {
+  composes: overlayInk;
   position: absolute;
   left: 46px;
   top: 50%;
@@ -151,17 +167,8 @@
   font-family: var(--font-mono), monospace;
   font-size: 10px;
   letter-spacing: 0.2em;
-  color: #c4c4c4;
+  color: #d0d0d0;
   z-index: 3;
-}
-
-.edgeLeft::before {
-  content: "";
-  position: absolute;
-  inset: -26px -18px;
-  z-index: -1;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.66) 55%, transparent 100%);
-  pointer-events: none;
 }
 
 .stats {
@@ -176,16 +183,6 @@
   z-index: 3;
 }
 
-/* See the note on .edgeLeft. Fades leftward so the pot is never boxed in. */
-.stats::before {
-  content: "";
-  position: absolute;
-  inset: -26px -34px -26px -70px;
-  z-index: -1;
-  background: linear-gradient(to left, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.68) 50%, transparent 100%);
-  pointer-events: none;
-}
-
 .stat {
   display: flex;
   flex-direction: column;
@@ -193,17 +190,19 @@
 }
 
 .statLabel {
+  composes: overlayInk;
   font-family: var(--font-mono), monospace;
   font-size: 10.5px;
   letter-spacing: 0.2em;
-  color: #c4c4c4;
+  color: #d0d0d0;
 }
 
 .statValue {
+  composes: overlayInk;
   font-family: var(--font-mono), monospace;
   font-size: 15px;
   letter-spacing: 0.04em;
-  color: #eaeaea;
+  color: #f4f4f4;
   font-variant-numeric: tabular-nums;
 }
 
@@ -263,12 +262,13 @@
 }
 
 .potTick {
+  composes: overlayInk;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   font-family: var(--font-mono), monospace;
   font-size: 9px;
   letter-spacing: 0.24em;
-  color: var(--text-3);
+  color: #c2c2c2;
   margin-top: 18px;
 }
 
@@ -285,6 +285,7 @@
 }
 
 .potStrap {
+  composes: overlayInk;
   position: relative;
   margin-top: 18px;
   display: flex;
@@ -293,7 +294,7 @@
   font-family: var(--font-mono), monospace;
   font-size: 10px;
   letter-spacing: 0.2em;
-  color: var(--text-2);
+  color: #cfcfcf;
 }
 
 /* The pot sits here. It brings its own glow, shadow and quip line. */
@@ -348,7 +349,7 @@
   font-family: var(--font-mono), monospace;
   font-size: 9px;
   letter-spacing: 0.22em;
-  color: var(--text-4);
+  color: #b4b4b4;
 }
 
 /* ---------------------------------------------------------------- ticker -- */
@@ -397,7 +398,7 @@
   font-family: var(--font-mono), monospace;
   font-size: 10.5px;
   letter-spacing: 0.14em;
-  color: var(--text-2);
+  color: #cfcfcf;
 }
 
 .tickerAccent {

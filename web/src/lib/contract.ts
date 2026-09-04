@@ -372,6 +372,52 @@ export const poolAbi = [
       { name: "prize", type: "uint64", indexed: false },
     ],
   },
+  /**
+   * Needed to recompute a prize. `sponsoredThisDraw` is zeroed at settlement, so the only
+   * way to reconstruct what a past draw's prize included is to sum these between the two
+   * settlements. See {@link useVerifyDraw}.
+   */
+  {
+    type: "event",
+    name: "PrizeSponsored",
+    inputs: [
+      { name: "sponsor", type: "address", indexed: true },
+      { name: "amount", type: "uint64", indexed: false },
+    ],
+  },
+
+  /**
+   * Every custom error the pool can revert with.
+   *
+   * Not decoration: viem decodes a revert by looking the 4-byte selector up in the ABI it
+   * was given, and with no error entries here it cannot, so `describeError` fell all the
+   * way through to "reverted with the following signature: 0x…". Every refusal the
+   * contract makes on purpose — the boost lock, the claim window, a second draw in one
+   * period — reached the user as a hex string. All are zero-argument, so this is the
+   * whole list.
+   */
+  { type: "error", name: "AlreadyBoosted", inputs: [] },
+  { type: "error", name: "AlreadyChecked", inputs: [] },
+  { type: "error", name: "BoostLocked", inputs: [] },
+  { type: "error", name: "ClaimWindowClosed", inputs: [] },
+  { type: "error", name: "ClaimWindowOpen", inputs: [] },
+  { type: "error", name: "DrawAlreadyPending", inputs: [] },
+  { type: "error", name: "DrawAlreadySettledThisPeriod", inputs: [] },
+  { type: "error", name: "DrawNotSettled", inputs: [] },
+  { type: "error", name: "EmptyPool", inputs: [] },
+  { type: "error", name: "NoDrawPending", inputs: [] },
+  { type: "error", name: "NoSlotAssigned", inputs: [] },
+  { type: "error", name: "NoStreakYet", inputs: [] },
+  { type: "error", name: "NoUnderlyingToken", inputs: [] },
+  { type: "error", name: "NotAnOperator", inputs: [] },
+  { type: "error", name: "NotSlotOwner", inputs: [] },
+  { type: "error", name: "PeriodEnded", inputs: [] },
+  { type: "error", name: "PeriodNotElapsed", inputs: [] },
+  { type: "error", name: "PeriodStillOpen", inputs: [] },
+  { type: "error", name: "PoolFull", inputs: [] },
+  { type: "error", name: "SlotOutOfRange", inputs: [] },
+  { type: "error", name: "SweepOutOfOrder", inputs: [] },
+  { type: "error", name: "ZeroAmount", inputs: [] },
 ] as const;
 
 /**

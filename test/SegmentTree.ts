@@ -197,6 +197,12 @@ describe("SegmentTree", function () {
     });
 
     it("agrees with the tree walk on every possible draw point", async function () {
+      // Exhaustive, not sampled: every draw point in the range, cross-checked against every
+      // slot. That is ~700 calls, and mocha's 40s default is sized for unit tests rather
+      // than for a proof. It has run in 5s on a quiet machine and breached 40s on a busy
+      // one, so the bound is stated here instead of inherited.
+      this.timeout(180_000);
+
       const total = Number(await tree.totalWeight());
 
       for (let drawPoint = 0; drawPoint < total; drawPoint++) {
@@ -214,6 +220,9 @@ describe("SegmentTree", function () {
     });
 
     it("never lets two participants both claim the same draw point", async function () {
+      // Same exhaustive shape, same reason for the explicit bound.
+      this.timeout(180_000);
+
       const total = Number(await tree.totalWeight());
 
       for (let drawPoint = 0; drawPoint < total; drawPoint++) {

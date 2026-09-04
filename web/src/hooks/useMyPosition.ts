@@ -37,8 +37,9 @@ export function useMyPosition() {
   const [stage, setStage] = useState<RevealStage>("locked");
 
   // Whether revealing will need a signature, so the button can stop promising one it is
-  // not going to ask for. Read in an effect: `sessionStorage` is invisible to the server,
-  // and reading it during the first render would break hydration.
+  // not going to ask for. Read in an effect: the stored session lives in `localStorage`,
+  // which is invisible to the server, and reading it during the first render would break
+  // hydration.
   const [needsSignature, setNeedsSignature] = useState(true);
   useEffect(() => setNeedsSignature(!currentSession(address)), [address]);
   const [position, setPosition] = useState<MyPosition>({});

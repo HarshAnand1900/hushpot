@@ -2,8 +2,7 @@
 
 What is encrypted, what is public, what leaks, and what you have to trust.
 
-This document is deliberately unflattering. A confidential system that only advertises its strengths is harder to
-evaluate than one that names its edges, and every claim below can be checked against the deployed contract.
+Every claim below can be checked against the deployed contract.
 
 **Contract:** `HushpotPool` · Sepolia · `0x4ac487b46d687EB92078c8565FF0FEEa7690b830`
 
@@ -368,8 +367,10 @@ the seven-day cadence the time test always binds first and the period test is un
 sweep gate above: it costs nobody an O(n) pass, it asks the owner to wait rather than asking somebody to pay, and it
 clears itself as the grace expires.
 
-**Still true, and worth keeping in view:** the owner may still roll early once everyone has been checked, and may still
-open a draw before the week is up. Neither strands anything.
+**Still true, and worth keeping in view:** the owner may still roll the period early, and may still open a draw before
+the week is up. Neither strands anything, and note the roll is _not_ gated on everyone having been checked, which an
+earlier version of this document said it was. `startNextPeriod` refuses only while a draw is still inside its thirty-day
+grace, so an unswept depositor delays nobody and forfeits nothing.
 
 **Also worth naming:** the owner can set the yield rate to zero, which would make prizes zero. It would be visible
 immediately — the rate is public — but it is an admin power that a production deployment should put behind a timelock or
@@ -417,12 +418,8 @@ Honest omissions, with what each would take:
 | No timelock on owner functions                        | Governance or a delay on rate changes and draw triggers              |
 | Slots are never released by a griefer                 | Priced, not prevented — see below                                    |
 | Unclaimed prizes are not swept back automatically     | A rollover pass once the claim window closes                         |
-| Pool capacity is finite — 16,384 slots                | Priced rather than removed; see §9                                   |
+| Pool capacity is finite — 16,384 slots                | Priced rather than removed; see §7                                   |
 | No formal audit                                       | The reason this document exists                                      |
-
----
-
-_Last updated 27 August 2026. If something here is wrong, that is a bug — please report it._
 
 ## 7. Slot exhaustion
 
@@ -450,3 +447,7 @@ thirteen-person pool walks four levels at 16,384 exactly as it did at 1,024.
 it, but every version we could design requires proving a slot is empty, and proving that means publicly decrypting a
 balance that might not be — which trades a capacity bug for a privacy one. We would rather have the capacity bug and say
 so.
+
+---
+
+_Last updated 4 September 2026. If something here is wrong, that is a bug — please report it._

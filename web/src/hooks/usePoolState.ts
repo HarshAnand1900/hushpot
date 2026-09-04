@@ -81,10 +81,12 @@ export function useLastDraw(drawCount: bigint) {
     query: { enabled: hasDraw },
   });
 
-  const raw = data?.[0]?.result as readonly [bigint, bigint, string, number, boolean] | undefined;
+  // Six fields: (total, prize, drawPoint, period, settledAt, settled). Reading the
+  // settled flag out of slot 4 picked up the timestamp instead.
+  const raw = data?.[0]?.result as readonly [bigint, bigint, string, number, bigint, boolean] | undefined;
   if (!raw) return undefined;
 
-  return { total: raw[0], prize: raw[1], drawPoint: raw[2], period: raw[3], settled: raw[4] };
+  return { total: raw[0], prize: raw[1], drawPoint: raw[2], period: raw[3], settledAt: raw[4], settled: raw[5] };
 }
 
 /**
