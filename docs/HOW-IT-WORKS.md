@@ -255,7 +255,11 @@ by inference from what the app showed you beforehand, and never by watching the 
 Participants occupy contiguous bands of a number line from zero to the pool total. A draw picks a point; whoever's band
 contains it wins.
 
-1. `openDraw()` seals the pool total and publishes it for decryption.
+1. `openDraw()` computes the pool total **live**, as `_weightOf(_treeRoot())` over the confidential tree as it stands at
+   that moment, then seals it and publishes it for decryption. It is never the total a previous draw published, and
+   never the estimate the app displays between draws. From here the total is fixed: `minuteOfPeriod` saturates the
+   instant a draw is pending, so any deposit or withdrawal that follows adds exactly as much to the balance term as to
+   the correction and moves no weight at all.
 2. Off-chain, the total is decrypted and relayed back with a KMS proof. `FHE.checkSignatures` reverts unless the
    cleartext matches the ciphertext, so the relayer **cannot lie**. It can only decline.
 3. `settleDraw()` rolls `FHE.randEuint64` on-chain and reduces it into the pool's range. **The draw point is never

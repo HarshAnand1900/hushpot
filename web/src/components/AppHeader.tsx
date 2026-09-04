@@ -62,7 +62,16 @@ export function AppHeader({ pot, drawNumber }: { pot: bigint; drawNumber?: numbe
               which draw was live, and the draw number is the thing every other tab keys
               off - the Draws list, the receipts, the verifier. Falls back to the old label
               when a caller has no pool state to hand. */}
-          <span className={styles.potLive}>{drawNumber === undefined ? "THIS WEEK" : `DRAW #${drawNumber}`}</span>
+          {/* Which draw this pot is for, and that it is an estimate.
+              "THIS WEEK" said when it would be paid but neither which draw was live nor
+              that the figure is projected from the last published total. This is the most
+              persistent number in the app - it sits on all four tabs - so it was the one
+              place the qualifier was missing while every other surface carried it. Spelled
+              out rather than abbreviated: a reader should not have to expand "EST" or find
+              the explanation elsewhere to know the number is projected. */}
+          <span className={styles.potLive}>
+            {drawNumber === undefined ? "THIS WEEK" : `DRAW #${drawNumber}${pot > 0n ? " · ESTIMATE" : ""}`}
+          </span>
 
           <span className={styles.hair} />
         </div>

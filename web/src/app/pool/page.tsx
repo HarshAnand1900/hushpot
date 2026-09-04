@@ -270,7 +270,7 @@ export default function PoolTab() {
               })}
             </div>
             <div className={styles.yieldFoot}>
-              <span>THE POT, ACROSS THE WEEK · SOLID IS EARNED</span>
+              <span>THE POT, ACROSS THE WEEK · SOLID IS EARNED · ESTIMATE</span>
               <span className={styles.yieldFootHi}>MINUTE {String(state.minuteOfPeriod)}</span>
             </div>
 

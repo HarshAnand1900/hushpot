@@ -149,6 +149,12 @@ export function Schedule({ drawNumber }: { drawNumber: number }) {
           estimated at all - sponsorships are plain transfers and the figure is exact.
         </p>
         <p className={styles.copy}>
+          <strong>The draw does not use this number.</strong> When it opens, the contract computes the pool total fresh
+          from the live tree and pays the yield on that. So the prize actually paid can land above or below the figure
+          shown here, and by more than a little if the pool has grown since the last draw. Treat it as a preview, not a
+          promise.
+        </p>
+        <p className={styles.copy}>
           Nothing about the current week is disclosed to produce it, and nothing here is invented: every number on this
           site is read from the chain or derived from figures the chain has already made public.
         </p>
