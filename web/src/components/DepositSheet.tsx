@@ -246,7 +246,27 @@ export function DepositSheet({
   }, [raw]);
 
   const tooMuch = balanceKnown && amount > available;
-  const canSubmit = amount > 0n && !tooMuch && !busy;
+
+  /**
+   * Neither side can be submitted against a sealed balance.
+   *
+   * ERC-7984 clamps rather than reverting, so an oversized deposit moves nothing, still
+   * emits `Deposited`, and lands in the log and your history looking exactly like a
+   * deposit that worked. The contract cannot catch it, because the comparison is on
+   * ciphertext, so this sheet is the only place it can be caught. Warning was not enough
+   * on its own: the warning sat above a live button and the deposit went through anyway.
+   *
+   * Withdrawing has the same shape — `_debitSlot` clamps with `FHE.min`, so asking for
+   * more than you hold quietly moves less. Its amount input was already disabled while the
+   * balance was sealed, but the quick-amount chips were not, so a chip click could still
+   * arm a submit.
+   *
+   * The cost of the reveal differs by side. On deposit it is one signature and a local
+   * decrypt, with no transaction. On withdraw it recomputes the position on-chain first,
+   * so it costs gas. Neither publishes anything: the figure is decrypted in this browser.
+   */
+  const needsReveal = !balanceKnown;
+  const canSubmit = amount > 0n && !tooMuch && !needsReveal && !busy;
 
   // Warm the FHE WebAssembly the moment the sheet opens, not when the button is pressed.
   // Loading it, initialising the SDK and building the instance all happen on the main
@@ -433,7 +453,7 @@ export function DepositSheet({
                 <button
                   key={q}
                   className={styles.chip}
-                  disabled={busy || (balanceKnown && BigInt(q) * SCALE > available)}
+                  disabled={busy || !balanceKnown || BigInt(q) * SCALE > available}
                   onClick={() => setRaw(String(q))}
                 >
                   {q.toLocaleString()}
@@ -458,9 +478,10 @@ export function DepositSheet({
               caught is here, before the amount is signed. */}
           {mode === "deposit" && route === "confidential" && !balanceKnown && amount > 0n && (
             <div className={styles.warn}>
-              Your cUSDT balance is still sealed, so this amount cannot be checked against it. If it turns out to exceed
-              what you hold, the transfer moves <strong>nothing</strong> and still records a deposit. No revert, no
-              error. Reveal your wallet balance above first.
+              Reveal your wallet balance above before depositing. While it is sealed this amount cannot be checked
+              against it, and if it turned out to exceed what you hold the transfer would move <strong>nothing</strong>{" "}
+              while still recording a deposit — no revert, no error. Revealing is one signature, no gas, and the figure
+              is decrypted here in your browser rather than published.
             </div>
           )}
 
@@ -601,7 +622,9 @@ export function DepositSheet({
                   ? "Enter an amount"
                   : tooMuch
                     ? "More than you have"
-                    : `${mode === "deposit" ? "Deposit" : "Withdraw"} ${pretty} cUSDT`}
+                    : needsReveal
+                      ? "Reveal your balance first"
+                      : `${mode === "deposit" ? "Deposit" : "Withdraw"} ${pretty} cUSDT`}
           </button>
 
           {step === "error" && (
