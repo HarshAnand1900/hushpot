@@ -34,9 +34,11 @@ export const SANDBOX_POOL = "0x08E5c466a8c5a5FCccEd833e1E9dC8D5B145D279";
  * The sandbox's owner, which is a contract rather than a person.
  *
  * `openDraw` and `startNextPeriod` are gated to the pool's owner until a period elapses.
- * On the sandbox that owner is {@link SANDBOX_OPERATOR}, which forwards exactly those two
- * calls to anybody who asks and nothing else - so a judge runs all six steps from their
- * own wallet, with no key to import and no week to wait.
+ * On the sandbox that owner is {@link SANDBOX_OPERATOR}, which forwards those two calls to
+ * anybody who asks - so a judge runs all six steps from their own wallet, with no key to
+ * import and no week to wait. It also forwards `fundPrizeReserve`, which only ever adds the
+ * caller's own tokens. It forwards nothing that could take the pool: no `transferOwnership`,
+ * no `setAnnualRateBps`, no generic `call`.
  */
 export const SANDBOX_OPERATOR = "0x4Cdc99F52Be94aD1A851119FEFc07557637E7Cdc" as const;
 

@@ -163,9 +163,11 @@ a weekly cadence that makes the roll the operator's in practice, and
 
 A **judge sandbox** at [`/judge?pool=sandbox`](https://hushpot-fhevm.vercel.app/judge?pool=sandbox) lets anyone run the
 whole six-step cycle from their own wallet with no key to import. Its owner is
-[`SandboxOperator`](contracts/SandboxOperator.sol), a twenty-line contract that forwards exactly two calls to anybody
-who asks, and nothing else. The pool contract is immutable, with no proxy and no admin upgrade path. That matters for
-the claim that there is no winner field, since an upgradeable contract could always add one later.
+[`SandboxOperator`](contracts/SandboxOperator.sol), a small contract that forwards the two owner-gated cycle steps to
+anybody who asks, plus a reserve top-up that only ever adds the caller's own money. Nothing that could take the pool:
+there is no forwarder for `transferOwnership` or `setAnnualRateBps`, and no generic `call`. The pool contract is
+immutable, with no proxy and no admin upgrade path. That matters for the claim that there is no winner field, since an
+upgradeable contract could always add one later.
 
 **The full detail - gating table, the sandbox mechanism, the weekly schedule, running a keeper, and what immutability
 has cost here in practice:** [`docs/OPERATING.md`](docs/OPERATING.md).
